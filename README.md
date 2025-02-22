@@ -15,7 +15,7 @@ Right: The agent's noisy prior expectations about the state of the environment p
 
 ## News
 #### Version 0.1.1 - December 2024
-- Initial release of the package [documentation](https://ilabcode.github.io/ActiveInference.jl/dev/Introduction/).
+- Initial release of the package [documentation](https://computationalpsychiatry.github.io/ActiveInference.jl/stable/Introduction/).
 
 
 ## Installation
