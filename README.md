@@ -1,6 +1,6 @@
 # ActiveInference.jl
 
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://ilabcode.github.io/ActiveInference.jl/dev/Introduction/)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://computationalpsychiatry.github.io/ActiveInference.jl/stable/Introduction/)
 [![Build Status](https://github.com/samuelnehrer02/ActiveInference.jl/actions/workflows/CI_full.yml/badge.svg?branch=master)](https://github.com/samuelnehrer02/ActiveInference.jl/actions/workflows/CI_full.yml?query=branch%3Amaster)
 [![Coverage](https://codecov.io/gh/samuelnehrer02/ActiveInference.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/samuelnehrer02/ActiveInference.jl)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
