@@ -140,7 +140,7 @@ results=fit_model(multi_subject_model, show_progress=false);#hide
 # results = fit_model(
 #     multi_subject_model, # The model object
 #     parallelization = MCMCDistributed(), # Run chains in parallel
-#     sampler = NUTS(;adtype=AutoReverseDiff(compile=true), # Specify the type of sampler
+#     sampler = NUTS(;adtype=AutoReverseDiff(compile=true)), # Specify the type of sampler
 #     n_itererations = 1000, # Number of iterations, 
 #     n_chains = 4, # Number of chains
 # )

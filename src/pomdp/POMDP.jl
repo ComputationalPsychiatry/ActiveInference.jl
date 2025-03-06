@@ -46,23 +46,19 @@ function action_pomdp!(agent::Agent, obs::Vector{Int64})
 
     # If action is empty, update D vectors
     if ismissing(agent.states["action"]) && agent.substruct.pD !== nothing
-        qs_t1 = get_history(agent.substruct)["posterior_states"][1]
-        update_D!(agent.substruct, qs_t1)
+        update_D!(agent.substruct)
     end
 
     # If learning of the B matrix is enabled and agent has a previous action
     if !ismissing(agent.states["action"]) && agent.substruct.pB !== nothing
 
-        # Get the posterior over states from the previous time step
-        states_posterior = get_history(agent.substruct)["posterior_states"][end-1]
-
         # Update Transition Matrix
-        update_B!(agent.substruct, states_posterior)
+        update_B!(agent.substruct)
     end
 
     # If learning of the A matrix is enabled
     if agent.substruct.pA !== nothing
-        update_A!(agent.substruct, obs)
+        update_A!(agent.substruct)
     end
 
     # Run policy inference 
