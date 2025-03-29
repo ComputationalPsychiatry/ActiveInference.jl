@@ -4,7 +4,7 @@ using Glob
 
 ActiveInference_path = dirname(dirname(pathof(ActiveInference)))
 
-@testset "all tests" begin
+@testset verbose = true "all tests" begin
     test_path = ActiveInference_path * "/test/"
 
     @testset "quick tests" begin

@@ -7,20 +7,15 @@ Resets an AIF type agent to its initial state
 
 using ActionModels
 
-function ActionModels.reset!(aif::AIF)
+function ActionModels.reset!(aif::POMDPActiveInference)
     # Reset the agent's state fields to initial conditions
-    aif.qs_current = create_matrix_templates([size(aif.B[f], 1) for f in eachindex(aif.B)])
-    aif.prior = aif.D
-    aif.Q_pi = ones(length(aif.policies)) / length(aif.policies)
-    aif.G = zeros(length(aif.policies))
-    aif.action = Int[]
+    aif.states.qs_current = create_matrix_templates([size(aif.parameters.B[f], 1) for f in eachindex(aif.parameters.B)])
+    aif.states.prior = aif.parameters.D
+    aif.states.q_pi = ones(length(aif.settings.policies)) / length(aif.settings.policies)
+    aif.states.G = zeros(length(aif.settings.policies))
+    aif.states.action = Int[]
 
     # Clear the history in the states dictionary
-    for key in keys(aif.states)
-
-        if key != "policies"
-            aif.states[key] = []
-        end
-    end
+    aif.history = construct_history_struct(aif.states)
     return nothing
 end

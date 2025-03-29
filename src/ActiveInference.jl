@@ -7,14 +7,17 @@ using Random
 using Distributions
 using LogExpFunctions
 using ReverseDiff
+using Parameters
 
 include("utils/maths.jl")
 include("pomdp/struct.jl")
+include("pomdp/struct_utils.jl")
 include("pomdp/learning.jl")
 include("utils/utils.jl")
 include("pomdp/inference.jl")
 include("ActionModelsExtensions/get_states.jl")
 include("ActionModelsExtensions/get_parameters.jl")
+include("ActionModelsExtensions/get_settings.jl")
 include("ActionModelsExtensions/get_history.jl")
 include("ActionModelsExtensions/set_parameters.jl")
 include("ActionModelsExtensions/reset.jl")
@@ -26,25 +29,14 @@ include("utils/create_matrix_templates.jl")
 
 export # utils/create_matrix_templates.jl
         create_matrix_templates,
-       
-       # utils/maths.jl
-       normalize_distribution,
-       softmax_array,
-       normalize_arrays,
-
-       # utils/utils.jl
-       array_of_any_zeros, 
-       onehot,
-       get_model_dimensions,
 
        # struct.jl
-       init_aif,
+       init_pomdp_aif_settings,
+       init_pomdp_aif_parameters,
+       init_pomdp_aif,
        infer_states!,
        infer_policies!,
        sample_action!,
-       update_A!,
-       update_B!,
-       update_D!,
        update_parameters!,
 
        # POMDP.jl
@@ -53,6 +45,7 @@ export # utils/create_matrix_templates.jl
        # ActionModelsExtensions
        get_states,
        get_parameters,
+       get_settings,
        get_history,
        set_parameters!,
        reset!,

@@ -17,8 +17,17 @@ using Test
     # Generate random Generative Model 
     A, B = create_matrix_templates(states, observations, controls, policy_length, "random");
 
+    # Initialize the parameters struct
+    parameters = init_pomdp_aif_parameters(A = A, B = B)
+
+    # Initialize the settings struct
+    settings = init_pomdp_aif_settings()
+
     # Initialize agent with default settings/parameters
-    aif = init_aif(A, B);
+    aif = init_pomdp_aif(
+        parameters = parameters, 
+        settings = settings
+    );
 
     # Set Parameters as dictionary
     params=Dict("lr_pA" => 1.0,
@@ -71,16 +80,23 @@ end
     # Generate random Generative Model 
     A, B = create_matrix_templates(states, observations, controls, policy_length, "random");
 
-    # Initialize agent with default settings/parameters
-    aif = init_aif(A, B);
+    # Initialize the parameters struct
+    parameters = init_pomdp_aif_parameters(A = A, B = B)
 
+    # Initialize the settings struct
+    settings = init_pomdp_aif_settings()
+
+    # Initialize agent with default settings/parameters
+    aif = init_pomdp_aif(
+        parameters = parameters, 
+        settings = settings
+    );
 
     observation = [rand(1:observations[i]) for i in axes(observations, 1)]
 
     single_input!(aif, observation)
 
     reset!(aif)
-
 
 end
 
@@ -96,8 +112,17 @@ end
     # Generate random Generative Model 
     A, B = create_matrix_templates(states, observations, controls, policy_length, "random");
 
+    # Initialize the parameters struct
+    parameters = init_pomdp_aif_parameters(A = A, B = B)
+
+    # Initialize the settings struct
+    settings = init_pomdp_aif_settings()
+
     # Initialize agent with default settings/parameters
-    aif = init_aif(A, B);
+    aif = init_pomdp_aif(
+        parameters = parameters, 
+        settings = settings
+    );
 
     observation = [rand(1:observations[i]) for i in axes(observations, 1)]
 
@@ -108,10 +133,11 @@ end
     agent = init_agent(
     action_pomdp!,
     substruct = aif,
-    settings = aif.settings,
-    parameters= aif.parameters
-)
-    inputs =   [[25,1],[24,1]]
+    settings = get_settings(aif),
+    parameters = get_parameters(aif)
+    )
+
+    inputs = [[25,1],[24,1]]
     give_inputs!(agent, inputs)
     reset!(agent)
 

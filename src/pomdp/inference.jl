@@ -266,7 +266,7 @@ function update_posterior_policies(
     qs::Vector{Vector{T}} where T <: Real,
     A::Vector{Array{T, N}} where {T <: Real, N},
     B::Vector{Array{T, N}} where {T <: Real, N},
-    C::Vector{Array{T}} where T <: Real,
+    C::Vector{Vector{T}} where T <: Real,
     policies::Vector{Matrix{Int64}},
     use_utility::Bool=true,
     use_states_info_gain::Bool=true,
@@ -364,10 +364,15 @@ function calc_expected_utility(qo_pi, C)
 
     modalities_to_tile = [modality_i for modality_i in 1:num_modalities if ndims(C[modality_i]) == 1]
 
-    C_tiled = deepcopy(C)
-    for modality in modalities_to_tile
-        modality_data = reshape(C_tiled[modality], :, 1)
-        C_tiled[modality] = repeat(modality_data, 1, n_steps)
+    C_tiled = Vector{Matrix{Float64}}(undef, num_modalities)
+
+    for modality in 1:num_modalities
+        modality_data = reshape(C[modality], :, 1)
+        if modality in modalities_to_tile
+            C_tiled[modality] = repeat(modality_data, 1, n_steps)
+        else
+            C_tiled[modality] = modality_data
+        end
     end
     
     C_prob = softmax_array(C_tiled)
@@ -495,7 +500,7 @@ function compute_accuracy_new(log_likelihood, qs::Vector{Vector{Real}})
 end
 
 """ Calculate State-Action Prediction Error """
-function calculate_SAPE(aif::AIF)
+function calculate_SAPE(aif::POMDPActiveInference)
 
     qs_pi_all = get_expected_states(aif.qs_current, aif.B, aif.policies)
     qs_bma = bayesian_model_average(qs_pi_all, aif.Q_pi)

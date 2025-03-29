@@ -1,13 +1,13 @@
 """
-This extends the "get_parameters" function of the ActionModels package to work specifically with instances of the AIF type.
+This extends the "get_parameters" function of the ActionModels package to work specifically with instances of the POMDPActiveInference type.
 
-    get_parameters(aif::AIF, target_parameters::Vector{String})
+    get_parameters(aif::POMDPActiveInference, target_parameters::Vector{String})
 Retrieves multiple target parameters from an AIF agent. 
 
-    get_parameters(aif::AIF, target_parameter::String)
+    get_parameters(aif::POMDPActiveInference, target_parameter::String)
 Retrieves a single target parameter from an AIF agent.
 
-    get_parameters(aif::AIF)
+    get_parameters(aif::POMDPActiveInference)
 Retrieves all parameters from an AIF agent.
 
 """
@@ -15,18 +15,15 @@ Retrieves all parameters from an AIF agent.
 using ActionModels
 
 # Retrieves multiple target parameters
-function ActionModels.get_parameters(aif::AIF, target_parameters::Vector{String})
-    parameters = Dict()
+function ActionModels.get_parameters(aif::POMDPActiveInference, target_parameters::Vector{String})
+    parameters = Dict{String, Any}()
 
     for target_parameter in target_parameters
-        try
-            parameters[target_parameter] = get_parameters(aif, target_parameter)
-        catch e
-            if isa(e, ArgumentError)
-                throw(ArgumentError("The specified parameter $target_parameter does not exist"))
-            else
-                rethrow(e)
-            end
+        if hasproperty(aif.parameters, Symbol(target_parameter))
+            value = getproperty(aif.parameters, Symbol(target_parameter))
+            parameters[target_parameter] = value
+        else
+            throw(ArgumentError("The specified parameter '$target_parameter' does not exist in parameters."))
         end
     end
 
@@ -34,16 +31,28 @@ function ActionModels.get_parameters(aif::AIF, target_parameters::Vector{String}
 end
 
 # Retrieves a single parameter
-function ActionModels.get_parameters(aif::AIF, target_parameter::String)
-    if haskey(aif.parameters, target_parameter)
-        return aif.parameters[target_parameter]
+function ActionModels.get_parameters(aif::POMDPActiveInference, target_parameter::String)
+    # Check if the state exists in the aif state struct
+    if hasproperty(aif.parameters, Symbol(target_parameter))
+        parameter_value = getproperty(aif.parameters, Symbol(target_parameter))
+
+        return parameter_value
     else
-        throw(ArgumentError("The specified parameter $target_parameter does not exist"))
+        # If the target parameter is not found, throw an ArgumentError
+        throw(ArgumentError("The specified parameter '$target_parameter' does not exist in parameters."))
     end
 end
 
 
 # Retrieves all parameters 
-function ActionModels.get_parameters(aif::AIF)
-    return aif.parameters
+function ActionModels.get_parameters(aif::POMDPActiveInference)
+    parameter_struct = aif.parameters
+    parameters_dict = Dict{String, Any}()
+
+    for field in fieldnames(typeof(parameter_struct))
+        value = getfield(parameter_struct, field)
+        parameters_dict[string(field)] = value
+    end
+
+    return parameters_dict
 end

@@ -62,15 +62,15 @@ end
 
 """ Function to get log marginal probabilities of actions """
 function get_log_action_marginals(aif)
-    num_factors = length(aif.num_controls)
-    q_pi = get_states(aif, "posterior_policies")
-    policies = get_states(aif, "policies")
+    num_factors = length(aif.settings._n_controls)
+    q_pi = get_states(aif, "q_pi")
+    policies = aif.settings.policies
     
     # Determine the element type from q_pi
     eltype_q_pi = eltype(q_pi)
 
     # Initialize action_marginals with the correct element type
-    action_marginals = create_matrix_templates(aif.num_controls, "zeros", eltype_q_pi)
+    action_marginals = create_matrix_templates(aif.settings._n_controls, "zeros", eltype_q_pi)
     log_action_marginals = Vector{Any}(undef, num_factors)
     
     for (pol_idx, policy) in enumerate(policies)
@@ -88,6 +88,13 @@ function get_log_action_marginals(aif)
 
     return log_action_marginals
 end
+
+""" Function that checks if a parameter is non-negative for single value parameter"""
+is_non_negative(parameter::Number) = parameter >= 0
+
+""" Function that checks if a parameter is non-negative for array parameter"""
+is_non_negative(parameter::AbstractArray) = all(is_non_negative, parameter)
+
 
 """
 Check if the vector of arrays is a proper probability distribution.

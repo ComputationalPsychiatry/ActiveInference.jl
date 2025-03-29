@@ -79,3 +79,49 @@ function update_state_prior_dirichlet(pD, qs::Vector{Vector{T}} where T <: Real;
     
     return qD
 end
+
+""" Update A-matrix """
+function update_A(aif::POMDPActiveInference)
+
+    qA = update_obs_likelihood_dirichlet(aif.parameters.pA, aif.parameters.A, aif.states.obs_current, aif.states.qs_current, lr = aif.parameters.lr_pA, fr = aif.parameters.fr_pA, modalities = aif.settings.modalities_to_learn)
+    
+    aif.parameters.pA = deepcopy(qA)
+    aif.parameters.A = deepcopy(normalize_arrays(qA))
+
+    return qA
+end
+
+""" Update B-matrix """
+function update_B(aif::POMDPActiveInference)
+
+    # if length(get_history(aif, "posterior_states")) > 1
+    if length(aif.history.qs_current) > 2
+        qs_prev = aif.history.qs_current[end-1]
+
+        qB = update_state_likelihood_dirichlet(aif.parameters.pB, aif.parameters.B, aif.states.action, aif.states.qs_current, qs_prev, lr = aif.parameters.lr_pB, fr = aif.parameters.fr_pB, factors = aif.settings.factors_to_learn)
+
+        aif.parameters.pB = deepcopy(qB)
+        aif.parameters.B = deepcopy(normalize_arrays(qB))
+    else
+        qB = nothing
+    end
+
+    return qB
+end
+
+""" Update D-matrix """
+function update_D(aif::POMDPActiveInference)
+
+    if length(aif.history.qs_current) == 2 # need a smarter way to define this
+
+        qs_t1 = aif.history.qs_current[end]
+        qD = update_state_prior_dirichlet(aif.parameters.pD, qs_t1; lr = aif.parameters.lr_pD, fr = aif.parameters.fr_pD, factors = aif.settings.factors_to_learn)
+
+        aif.parameters.pD = deepcopy(qD)
+        aif.parameters.D = deepcopy(normalize_arrays(qD))
+    else
+        qD = nothing
+    end
+
+    return qD
+end

@@ -11,7 +11,7 @@ Give a single observation to an AIF agent.
 using ActionModels
 
 ### Give single observation to the agent
-function ActionModels.single_input!(aif::AIF, obs::Vector)
+function ActionModels.single_input!(aif::POMDPActiveInference, obs::Vector)
 
     # Running the action model to retrieve the action distributions
     action_distributions = action_pomdp!(aif, obs)
@@ -25,14 +25,14 @@ function ActionModels.single_input!(aif::AIF, obs::Vector)
         action = rand(action_distributions)
 
         # If the agent has not taken any actions yet
-        if isempty(aif.action)
-            push!(aif.action, action)
+        if isempty(aif.states.action)
+            push!(aif.states.action, action)
         else
         # Put the action in the last element of the action vector
-            aif.action[end] = action
+            aif.states.action[end] = action
         end
 
-        push!(aif.states["action"], aif.action)
+        push!(aif.history.action, aif.states.action)
 
     # if there are multiple factors
     else
@@ -44,20 +44,20 @@ function ActionModels.single_input!(aif::AIF, obs::Vector)
             sampled_actions[factor] = rand(action_distributions[factor])
         end
         # If the agent has not taken any actions yet
-        if isempty(aif.action)
-            aif.action = sampled_actions
+        if isempty(aif.states.action)
+            aif.states.action = sampled_actions
         else
         # Put the action in the last element of the action vector
-            aif.action[end] = sampled_actions
+            aif.states.action = sampled_actions
         end
         # Push the action to agent's states
-        push!(aif.states["action"], aif.action)
+        push!(aif.history.action, aif.states.action)
     end
 
-    return aif.action
+    return aif.states.action
 end
 
-function ActionModels.give_inputs!(aif::AIF, observations::Vector)
+function ActionModels.give_inputs!(aif::POMDPActiveInference, observations::Vector)
     # For each individual observation run single_input! function
     for observation in observations
 
@@ -65,5 +65,5 @@ function ActionModels.give_inputs!(aif::AIF, observations::Vector)
 
     end
 
-    return aif.states["action"]
+    return aif.history.action
 end

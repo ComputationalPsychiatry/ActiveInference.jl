@@ -15,19 +15,15 @@ using ActionModels
 
 
 # Retrieve multiple states
-function ActionModels.get_states(aif::AIF, target_states::Vector{String})
-    states = Dict()
+function ActionModels.get_states(aif::POMDPActiveInference, target_states::Vector{String})
+    states = Dict{String, Any}()
 
     for target_state in target_states
-        try
-            states[target_state] = get_states(aif, target_state)
-        catch e
-            # Catch the error if a specific state does not exist
-            if isa(e, ArgumentError)
-                throw(ArgumentError("The specified state $target_state does not exist"))
-            else
-                rethrow(e) 
-            end
+        if hasproperty(aif.states, Symbol(target_state))
+            value = getproperty(aif.states, Symbol(target_state))
+            states[target_state] = value
+        else
+            throw(ArgumentError("The specified state '$target_states' does not exist in states."))
         end
     end
 
@@ -35,34 +31,30 @@ function ActionModels.get_states(aif::AIF, target_states::Vector{String})
 end
 
 # Retrieve a single state
-function ActionModels.get_states(aif::AIF, target_state::String)
-    if haskey(aif.states, target_state)
-        state_history = aif.states[target_state]
-        if target_state == "policies"
-            return state_history
-        else
-            # return the latest state or missing
-            return isempty(state_history) ? missing : last(state_history)
-        end
+function ActionModels.get_states(aif::POMDPActiveInference, target_state::String)
+    # Check if the state exists in the AIF history struct
+    if hasproperty(aif.states, Symbol(target_state))
+        state_value = getproperty(aif.states, Symbol(target_state))
+
+        return state_value
     else
-        throw(ArgumentError("The specified state $target_state does not exist"))
+        # If the target state is not found, throw an ArgumentError
+        throw(ArgumentError("The specified parameter '$target_parameter' does not exist in states."))
     end
 end
 
 
 # Retrieve all states
-function ActionModels.get_states(aif::AIF)
-    all_states = Dict()
-    for (key, state_history) in aif.states
-        if key == "policies"
-            all_states[key] = state_history
-        else
-            # get the latest state or missing
-            all_states[key] = isempty(state_history) ? missing : last(state_history)
-        end
-    end
-    return all_states
-end
+function ActionModels.get_states(aif::POMDPActiveInference)
+    states_struct = aif.states
+    states_dict = Dict{String, Any}()
 
+    for field in fieldnames(typeof(states_struct))
+        value = getfield(states_struct, field)
+        states_dict[string(field)] = value
+    end
+
+    return states_dict
+end
 
 

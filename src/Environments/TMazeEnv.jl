@@ -1,3 +1,5 @@
+
+
 mutable struct TMazeEnv
     reward_prob::Float64
     reward_idx::Int64
@@ -78,11 +80,11 @@ end
 function reset_TMaze!(env::TMazeEnv; state=nothing)
     if state === nothing
         # Initialize location state
-        loc_state = onehot(1, env.num_locations)
+        loc_state = ActiveInference.onehot(1, env.num_locations)
 
         # Randomly select a reward condition
         env._reward_condition_idx = rand(1:env.num_reward_conditions)
-        env.reward_condition = onehot(env._reward_condition_idx, env.num_reward_conditions)
+        env.reward_condition = ActiveInference.onehot(env._reward_condition_idx, env.num_reward_conditions)
 
         # Initialize the full state array
         full_state = Vector{Any}(undef, env.num_factors)
@@ -116,7 +118,7 @@ end
 function construct_likelihood_dist(env::TMazeEnv)
 
     A_dims = [[obs_dim; env.num_states...] for obs_dim in env.num_obs]
-    A = array_of_any_zeros(A_dims)
+    A = ActiveInference.array_of_any_zeros(A_dims)
 
     for loc in 1:env.num_states[env.location_factor_id]
         for reward_condition in 1:env.num_states[env.trial_factor_id]
@@ -172,7 +174,7 @@ end
 function get_observation(env::TMazeEnv)
 
     # Calculate the probability of observations based on the current state and the likelihood distribution
-    prob_obs = [dot_product(A_m, env._state) for A_m in env.likelihood_dist]
+    prob_obs = [ActiveInference.dot_product(A_m, env._state) for A_m in env.likelihood_dist]
 
     # Sample from the probability distributions to get actual observations
     obs = [sample_dist(po_i) for po_i in prob_obs]
@@ -186,7 +188,7 @@ function construct_state(env::TMazeEnv, state_tuple)
 
     # Populate the state array with one-hot encoded vectors
     for (f, ns) in enumerate(env.num_states)
-        state[f] = onehot(state_tuple[f], ns)
+        state[f] = ActiveInference.onehot(state_tuple[f], ns)
     end
 
     return state
