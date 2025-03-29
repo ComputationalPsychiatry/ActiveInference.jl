@@ -1,12 +1,12 @@
 # ActiveInference.jl
 
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://ilabcode.github.io/ActiveInference.jl/dev/Introduction/)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://computationalpsychiatry.github.io/ActiveInference.jl/stable/Introduction/)
 [![Build Status](https://github.com/samuelnehrer02/ActiveInference.jl/actions/workflows/CI_full.yml/badge.svg?branch=master)](https://github.com/samuelnehrer02/ActiveInference.jl/actions/workflows/CI_full.yml?query=branch%3Amaster)
-[![Coverage](https://codecov.io/gh/samuelnehrer02/ActiveInference.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/samuelnehrer02/ActiveInference.jl)
+[![Coverage](https://codecov.io/gh/samuelnehrer02/ActiveInference.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/ComputationalPsychiatry/ActiveInference.jl)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 
-ActiveInference.jl is a new Julia package for the computational modeling of active inference. We provide the necessary infrastructure for defining active inference models, currently implemented as partially observable Markov decision processes. After defining the generative model, you can simulate actions using agent-based simulations. We also provide the functionality to fit experimental data to active inference models for parameter recovery. 
+ActiveInference.jl is a Julia package for the computational modeling of active inference. We provide the necessary infrastructure for defining active inference models, currently implemented as partially observable Markov decision processes. After defining the generative model, you can simulate actions using agent-based simulations. The package also supports fitting experimental data to active inference models for parameter estimation. 
 
 ![Maze Animation](.github/animation_maze.gif)
 * Example visualization of an agent navigating a maze, inspired by the one described in [Bruineberg et al., 2018](https://www.sciencedirect.com/science/article/pii/S0022519318303151?via%3Dihub).
@@ -15,7 +15,7 @@ Right: The agent's noisy prior expectations about the state of the environment p
 
 ## News
 #### Version 0.1.1 - December 2024
-- Initial release of the package [documentation](https://ilabcode.github.io/ActiveInference.jl/dev/Introduction/).
+- Initial release of the package [documentation](https://computationalpsychiatry.github.io/ActiveInference.jl/stable/Introduction/).
 
 
 ## Installation

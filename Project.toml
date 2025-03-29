@@ -1,7 +1,7 @@
 name = "ActiveInference"
 uuid = "688b0e7a-0122-4325-8669-5ff08899a59e"
 authors = ["Jonathan Ehrenreich Laursen", "Samuel William Nehrer"]
-version = "0.1.1"
+version = "0.1.2"
 
 [deps]
 ActionModels = "320cf53b-cc3b-4b34-9a10-0ecb113566a3"
