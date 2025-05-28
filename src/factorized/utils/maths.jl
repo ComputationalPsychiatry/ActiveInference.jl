@@ -1,3 +1,5 @@
+import LogExpFunctions as LEF
+
 using Format
 using Infiltrator
 using Revise
@@ -70,12 +72,14 @@ end
 """ Get Joint Likelihood """
 function get_joint_likelihood(
     A,
+    metamodel,
     obs_processed, 
     num_states
     )
-
+    @infiltrate; @assert false
     ll = ones(Real, num_states...)
     for modality in eachindex(A)
+        @infiltrate; @assert false
         ll .*= dot_likelihood(A[modality], obs_processed[modality])
     end
 
@@ -99,7 +103,7 @@ end
 """ Softmax Function for array of arrays """
 function softmax_array(array)
     # Use map to apply softmax to each element of arr
-    array .= map(x -> softmax(x, dims=1), array)
+    array .= map(x -> LEF.softmax(x, dims=1), array)
     
     return array
 end
@@ -191,6 +195,7 @@ function calculate_bayesian_surprise(A, x)
             for additional_index in i  
                 index_vector = (index_vector..., additional_index)  
             end
+            @infiltrate; @assert false
             po = outer_product(po, A_m[index_vector...])
         end
         po = vec(po) 

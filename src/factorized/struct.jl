@@ -1,4 +1,9 @@
+# in dev package home, Pkg.activate("./") to add packages, then Pkg.resolve() in EcoNet
+
+
 """ -------- AIF Mutable Struct -------- """
+
+
 
 using Format
 using Infiltrator
@@ -6,6 +11,8 @@ using Revise
 
 #show(stdout, "text/plain", x)
 # @infiltrate; @assert false
+
+
 
 mutable struct AIF
     #A::Vector{Array{T, N}} where {T <: Real, N} # A-matrix
@@ -34,7 +41,7 @@ mutable struct AIF
     factors_to_learn::Union{String, Vector{Int64}} # Modalities can be either "all" or "# factor"
     gamma::Real # Gamma parameter
     alpha::Real # Alpha parameter
-    policies::Vector{Matrix{Int64}} # Inferred from the B matrix
+    policies
     num_controls::Array{Int,1} # Number of actions per factor
     control_fac_idx::Array{Int,1} # Indices of controllable factors
     policy_len::Int  # Policy length
@@ -42,9 +49,11 @@ mutable struct AIF
     obs_current::Vector{T} where T <: Real # Current observation
     prior::Vector{Vector{T}} where T <: Real # Prior beliefs about states
     Q_pi::Vector{T} where T <:Real # Posterior beliefs over policies
-    G::Vector{T} where T <:Real # Expected free energy of policies
-    utility::Matrix{Float64}
-    info_gain::Matrix{Float64}
+    G::Vector{T} where T <:Real  # Expected free energy of policies
+    utility::Matrix{Union{Missing, Float64}} 
+    info_gain::Matrix{Union{Missing, Float64}} 
+    risk::Matrix{Union{Missing, Float64}} 
+    ambiguity::Matrix{Union{Missing, Float64}} 
     action::Vector{Int} # Last action
     use_utility::Bool # Utility Boolean Flag
     use_states_info_gain::Bool # States Information Gain Boolean Flag
@@ -56,6 +65,9 @@ mutable struct AIF
     parameters::Dict{String,Real} # Parameters Dictionary
     settings::Dict{String,Any} # Settings Dictionary
     save_history::Bool # Save history boolean flag
+    sophisticated_inference::Bool
+    horizon::Int64
+    metamodel
 end
 
 # Create ActiveInference Agent 
@@ -86,6 +98,9 @@ function create_aif(A, B;
                     FPI_num_iter=10,
                     FPI_dF_tol=0.001,
                     save_history=true,
+                    sophisticated_inference=false,
+                    horizon = 1,
+                    metamodel = metamodel,
     )
 
     num_states = [size(B[f], 1) for f in eachindex(B)]
@@ -111,25 +126,47 @@ function create_aif(A, B;
         control_fac_idx = [f for f in eachindex(num_controls) if num_controls[f] > 1]
     end
 
-    policies = construct_policies(num_states, n_controls=num_controls, policy_length=policy_len, controllable_factors_indices=control_fac_idx)
+    if false
+        # original
+        policies = construct_policies(
+            num_states, 
+            n_controls=num_controls, 
+            policy_length=policy_len, 
+            controllable_factors_indices=control_fac_idx
+        )
+    end
+
+    policies = metamodel.policies
 
     # if E-vector is not provided
     if isnothing(E)
-        E = ones(Real, length(policies)) / length(policies)
+        #E = ones(Real, length(policies)) / length(policies)
+        E = ones(Real, policies.number_policies) / policies.number_policies
     end
 
     # Throw error if the E-vector does not match the length of policies
-    if length(E) != length(policies)
+    #if length(E) != length(policies)
+    if length(E) != policies.number_policies
         error("Length of E-vector must match the number of policies.")
     end
 
     qs_current = create_matrix_templates(num_states)
     obs_current = zeros(Int, length(num_obs))
     prior = D
-    Q_pi = ones(length(policies)) / length(policies)  
-    G = zeros(length(policies))
-    utility = zeros(length(policies), policies[1].size[1])
-    info_gain = zeros(length(policies), policies[1].size[1])
+
+    #Q_pi = ones(length(policies)) / length(policies)  
+    #G = zeros(length(policies))
+    #utility = zeros(length(policies), policies[1].size[1])
+    #info_gain = zeros(length(policies), policies[1].size[1])
+    
+    Q_pi = ones(policies.number_policies) / policies.number_policies  
+    G = zeros(policies.number_policies)
+    
+    utility = Matrix{Float64}(undef, 0, 0)  #zeros(policies.number_policies, policies[1].size[1])
+    info_gain = Matrix{Float64}(undef, 0, 0)  #zeros(length(policies), policies[1].size[1])
+    risk = Matrix{Float64}(undef, 0, 0)  #zeros(policies.number_policies, policies[1].size[1])
+    ambiguity = Matrix{Float64}(undef, 0, 0)  #zeros(length(policies), policies[1].size[1])
+    
     action = Int[]
     
     # initialize states dictionary
@@ -139,7 +176,7 @@ function create_aif(A, B;
         "prior" => Vector{Any}[],
         "posterior_policies" => Vector{Any}[],
         "expected_free_energies" => Vector{Any}[],
-        "policies" => policies,
+        #"policies" => Any,
         "bayesian_model_averages" => Vector{Vector{<:Real}}[],
         "SAPE" => Vector{<:Real}[]
     )
@@ -200,6 +237,8 @@ function create_aif(A, B;
                 G, 
                 utility,
                 info_gain,
+                risk,
+                ambiguity,
                 action, 
                 use_utility,
                 use_states_info_gain, 
@@ -211,6 +250,9 @@ function create_aif(A, B;
                 parameters, 
                 settings, 
                 save_history,
+                sophisticated_inference,
+                horizon,
+                metamodel,
                 )
 end
 
@@ -246,7 +288,11 @@ function init_aif(
 function init_aif(A, B; C=nothing, D=nothing, E=nothing, pA=nothing, pB=nothing, pD=nothing,
                   parameters::Union{Nothing, Dict{String, T}} where T<:Real = nothing,
                   settings::Union{Nothing, Dict} = nothing,
-                  save_history::Bool = true, verbose::Bool = true,
+                  save_history::Bool = true, 
+                  sophisticated_inference = false,
+                  horizon = 1,
+                  verbose::Bool = true,
+                  metamodel = nothing,
     )
 
     # Catch error if A, B or D is not a proper probability distribution  
@@ -386,6 +432,9 @@ function init_aif(A, B; C=nothing, D=nothing, E=nothing, pA=nothing, pB=nothing,
                     FPI_num_iter=FPI_num_iter,
                     FPI_dF_tol=FPI_dF_tol,
                     save_history=save_history,
+                    sophisticated_inference = sophisticated_inference,
+                    horizon = horizon,
+                    metamodel=metamodel,
                     )
 
     #Print out agent settings
@@ -433,6 +482,7 @@ function construct_policies(
     controllable_factors_indices::Union{Vector{Int}, Nothing}=nothing
     )
 
+    @infiltrate; @assert false,  "\nNot used.\n"
     # Determine the number of state factors
     n_factors = length(n_states)
 
@@ -472,8 +522,11 @@ function construct_policies(
         push!(transformed_policies, policy_matrix)
     end
 
+    @infiltrate; @assert false
     return transformed_policies
 end
+
+
 
 """ Update the agents's beliefs over states """
 function infer_states!(
@@ -482,11 +535,13 @@ function infer_states!(
     )
     
     if !isempty(aif.action)
+        #@infiltrate; @assert false
         int_action = round.(Int, aif.action)
         aif.prior = get_expected_states(
             aif.qs_current, 
             aif.B, 
-            reshape(int_action, 1, length(int_action)),  # policy
+            reshape(int_action, 1, length(int_action)),  # single policy, e.g., [[3,1,1]]
+            aif.metamodel,
         )[1]
     else
         aif.prior = aif.D
@@ -495,6 +550,7 @@ function infer_states!(
     # Update posterior over states
     aif.qs_current = update_posterior_states(
         aif.A, 
+        aif.metamodel,
         obs, 
         prior=aif.prior, 
         num_iter=aif.FPI_num_iter, 
@@ -514,15 +570,22 @@ end
 """ Update the agents's beliefs over policies """
 function infer_policies!(aif::AIF)
     # Update posterior over policies and expected free energies of policies
-    q_pi, G, utility, info_gain = update_posterior_policies(aif.qs_current, aif.A, aif.B, aif.C, 
-        aif.policies, aif.use_utility, aif.use_states_info_gain, aif.use_param_info_gain, aif.pA, 
-        aif.pB, aif.E, aif.gamma)
+    
+    if aif.sophisticated_inference
+        q_pi, G, utility, info_gain, risk, ambiguity = Sophisticated.update_posterior_policies(aif)
+    else    
+        q_pi, G, utility, info_gain, risk, ambiguity = update_posterior_policies(aif)
+    end
+
     #@infiltrate; @assert false
     aif.Q_pi = q_pi
     aif.G = G  
     aif.utility = utility
     aif.info_gain = info_gain
+    aif.risk = risk
+    aif.ambiguity = ambiguity
     
+
     # Push changes to agent's history
     push!(aif.states["posterior_policies"], copy(aif.Q_pi))
     push!(aif.states["expected_free_energies"], copy(aif.G))
@@ -530,9 +593,17 @@ function infer_policies!(aif::AIF)
     return q_pi
 end
 
+
 """ Sample action from the beliefs over policies """
 function sample_action!(aif::AIF)
-    action = sample_action(aif.Q_pi, aif.policies, aif.num_controls; action_selection=aif.action_selection, alpha=aif.alpha)
+    action = sample_action(
+        aif.Q_pi, 
+        aif.policies, 
+        aif.num_controls; 
+        action_selection=aif.action_selection, 
+        alpha=aif.alpha,
+        metamodel = aif.metamodel
+    )
 
     aif.action = action 
 
@@ -609,3 +680,66 @@ end
 """ Get the history of the agent """
 
 
+
+mutable struct ObsNode
+    qs_next::Union{Nothing, Vector{Vector{Float64}}}
+    utility_updated::Union{Missing, Nothing, Float64}
+    info_gain_updated::Union{Missing, Nothing, Float64}
+    ambiguity_updated::Union{Missing, Nothing, Float64}
+    risk_updated::Union{Missing, Nothing, Float64}
+    G_updated::Union{Missing, Nothing, Float64}
+    q_pi_updated::Union{Missing, Nothing, Float64}
+    
+    prob::Union{Missing, Nothing, Float64}
+    prob_updated::Union{Missing, Nothing, Float64}
+    
+    subpolicy::Union{Missing, Nothing, Tuple}
+    outcome::Union{Missing, Nothing, Tuple}
+    level::Int64
+    ith_outcome::Int64
+end
+
+mutable struct ActionNode
+    qs::Union{Nothing, Vector{Vector{Float64}}}
+    qs_pi::Union{Nothing, Vector{Vector{Vector{Float64}}}}
+    qo_pi::Union{Nothing, Vector{Vector{Vector{Float64}}}}  
+    utility::Union{Missing, Nothing, Float64}
+    info_gain::Union{Missing, Nothing, Float64}
+    ambiguity::Union{Missing, Nothing, Float64}
+    risk::Union{Missing, Nothing, Float64}
+    G::Union{Missing, Nothing, Float64}
+    
+    utility_updated::Union{Missing, Nothing, Float64}
+    info_gain_updated::Union{Missing, Nothing, Float64}
+    ambiguity_updated::Union{Missing, Nothing, Float64}
+    risk_updated::Union{Missing, Nothing, Float64}
+    G_updated::Union{Missing, Nothing, Float64}
+    q_pi_updated::Union{Missing, Nothing, Float64}
+    
+    action::Union{Missing, Nothing, Int64}
+    subpolicy::Union{Missing, Nothing, Tuple}
+    outcome::Union{Missing, Nothing, Tuple}
+    level::Int64
+end
+
+
+struct EarlyStop
+    msg::String 
+    
+end
+
+struct BadPath
+    msg::String 
+end
+
+
+mutable struct GraphEdge  
+end
+
+
+struct Label
+    level::Int64
+    outcome::Union{Nothing, NTuple{N, Int64} where N}
+    action::Union{Nothing, Int64}
+    type::String
+end
