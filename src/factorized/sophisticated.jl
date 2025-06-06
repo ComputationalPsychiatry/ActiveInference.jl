@@ -617,9 +617,10 @@ function update_posterior_policies(agent)
     end 
 
     # the returns here are for policies identified in this function, not in policy iterator
-    #G, q_pi, utility, info_gain, risk, ambiguity = do_G_prob_method(Graph, agent, policies)
-
-    G, q_pi, utility, info_gain, risk, ambiguity = do_G_qpi_prob_method(Graph, agent, policies)
+    
+    # choose one of the following methods
+    G, q_pi, utility, info_gain, risk, ambiguity = do_G_prob_method(Graph, agent, policies)
+    #G, q_pi, utility, info_gain, risk, ambiguity = do_G_qpi_prob_method(Graph, agent, policies)
 
     # put polices in same order and size as policy iterator
     n_policies = agent.policies.number_policies
@@ -852,11 +853,11 @@ function do_G_qpi_prob_method(Graph, agent, policies)
     # this is the G * prob method, where prob is cascaded from node 0 to leaves
     
     # create matrices to hold results
-    G = Matrix{Union{Missing, Float64}}(undef, length(policies), 1)
-    utility = Matrix{Union{Missing, Float64}}(undef, length(policies), 1)
-    info_gain = Matrix{Union{Missing, Float64}}(undef, length(policies), 1)
-    risk = Matrix{Union{Missing, Float64}}(undef, length(policies), 1)
-    ambiguity = Matrix{Union{Missing, Float64}}(undef, length(policies), 1)
+    G = Matrix{Union{Missing, Float64}}(undef, length(policies), agent.policy_len)
+    utility = Matrix{Union{Missing, Float64}}(undef, length(policies), agent.policy_len)
+    info_gain = Matrix{Union{Missing, Float64}}(undef, length(policies), agent.policy_len)
+    risk = Matrix{Union{Missing, Float64}}(undef, length(policies), agent.policy_len)
+    ambiguity = Matrix{Union{Missing, Float64}}(undef, length(policies), agent.policy_len)
 
     println("\nEnumerate policies ----")
     for (i_policy, policy) in enumerate(policies)
@@ -954,7 +955,8 @@ function do_G_qpi_prob_method(Graph, agent, policies)
                 
                 # first update node from child, if any children
                 for child in children
-                    @infiltrate; @assert false    
+                    @infiltrate; @assert false "todo: fully implement this method"
+
                     # sum G etc. over children (ObsNodes)
                     Graph[node].G_updated += Graph[child].G_updated
                     Graph[node].utility_updated += Graph[child].utility_updated
@@ -1030,6 +1032,7 @@ function recurse(Graph, agent, level, ObsLabel)
     policy_prune_threshold = 1/16
     prune_penalty = 512
     use_means = false
+    use_SI_graph_for_standard_inference = true
 
     qs = Graph[ObsLabel].qs_next
     outcome = Graph[ObsLabel].outcome
@@ -1194,26 +1197,59 @@ function recurse(Graph, agent, level, ObsLabel)
     qo_pi_sizes = [1:x.size[1] for x in Graph[children[1]].qo_pi[1]]
     outcome_iterator = Iterators.product(qo_pi_sizes...) # every possible combination of observations e.g., (23, 2, 1)
     
+
     for (idx, ActionLabel) in enumerate(children)
         
         qo_next = Graph[ActionLabel].qo_pi[1]
         skip_outcomes = true
         
-        if false
+        # do standard inference?
+        if use_SI_graph_for_standard_inference
             # test without belief updates due to likely observations
             # use this for non-sophisticated (standard) inference
-            @infiltrate; @assert false
             skip_outcomes = false
-            k= 1
-            #NN += 1
-            println("        n= {}, calling sophisticated, NN={}".format(n, NN))
-            q_pi_next, G_next = sophisticated_inference_search(qs, policies, 
-                A, B, C, A_factor_list, B_factor_list, I,
-                horizon, policy_prune_threshold, state_prune_threshold,
-                prune_penalty, gamma, inference_params, n+1, k)
+            
+            # make Obs node and link to parent, overwrite ObsLabel, make only a single Obs node
+            ObsLabel = copy(ActionLabel)
+            ObsLabel[end] = Label(level, outcome, Graph[ActionLabel].action, "Obs")
+            
+            if ObsLabel in collect(MGN.labels(Graph))
+                # the label should not exist yet
+                @infiltrate; @assert false
+            end
+            
+            # do not call update_posterior_states to get qs_next, use original
+            qs_next = Graph[ActionLabel].qs_pi[1]  
+            prob = 1.0
+            cnt = 1
+            outcome = nothing  # this is a dummy ObsNode
+
+            Graph[ObsLabel] = ObsNode(
+                qs_next,
+                nothing,  # utility_updated
+                nothing,  # info_gain_updated
+                nothing,  # ambiguity_updated
+                nothing,  # risk_updated
+                nothing,  # G_updated
+                nothing,  # q_pi_updated
+                prob,
+                nothing,  # prob_updated
+                Graph[ActionLabel].subpolicy,
+                outcome,
+                level,
+                cnt
+            )
+
+            Graph[ActionLabel, ObsLabel] = GraphEdge()
+            
+            printfmtln("\n        level= {}, calling sophisticated", level)
+            #@infiltrate; @assert false
+            recurse(Graph, agent, level+1, ObsLabel)
+            
             continue
         end
             
+        # do regular SI
         cnt = 0
         for (i_outcome, outcome) in enumerate(outcome_iterator)    
             n = length(outcome)
@@ -1222,7 +1258,8 @@ function recurse(Graph, agent, level, ObsLabel)
                 probs[i] = qo_next[i][outcome[i]]
             end
             prob  = prod(vcat(1.0, probs))
-
+            
+            #@infiltrate; @assert false
             # ignore low probability states in the search tree
             if prob < state_prune_threshold
                 continue
@@ -1271,8 +1308,6 @@ function recurse(Graph, agent, level, ObsLabel)
             )
 
             Graph[ActionLabel, ObsLabel] = GraphEdge()
-
-            
             
             printfmtln("\n        level= {}, calling sophisticated", level)
             #@infiltrate; @assert false
