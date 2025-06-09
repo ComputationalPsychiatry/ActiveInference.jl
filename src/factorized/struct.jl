@@ -17,8 +17,8 @@ using Revise
 mutable struct AIF
     #A::Vector{Array{T, N}} where {T <: Real, N} # A-matrix
     #B::Vector{Array{T, N}} where {T <: Real, N} # B-matrix
-    A::Vector{Array{T}} where {T <: Real} # A-matrix
-    B::Vector{Array{T}} where {T <: Real} # B-matrix
+    A::Union{Vector{Array{T}} where {T <: Real}, Vector{Array{T, N}} where {T <: Real, N}}  # A-matrix
+    B::Union{Vector{Array{T}} where {T <: Real}, Vector{Array{T, N}} where {T <: Real, N}} # B-matrix
     
     
     C::Vector{Array{Real}} # C-vectors
@@ -208,6 +208,7 @@ function create_aif(A, B;
         "FPI_dF_tol" => FPI_dF_tol
     )
 
+    #@infiltrate; @assert false
     return AIF( A,
                 B,
                 C, 

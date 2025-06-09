@@ -280,8 +280,6 @@ function process_observation(
     metamodel
     )
 
-
-
     # Initialize the processed_observation vector
     processed_observation = Vector{Vector{Float64}}(undef, n_modalities)
 
@@ -300,7 +298,7 @@ end
 """ Update Posterior States """
 function update_posterior_states(
     #A::Vector{Array{T,N}} where {T <: Real, N}, 
-    A::Vector{Array{T}} where {T <: Real}, 
+    A::Union{Vector{Array{T}} where {T <: Real}, Vector{Array{T, N}} where {T <: Real, N}}, 
     metamodel,
     obs::Vector{Int64}; 
     prior::Union{Nothing, Vector{Vector{T}}} where T <: Real = nothing, 
@@ -308,7 +306,6 @@ function update_posterior_states(
     dF_tol::Float64=dF_tol, 
     kwargs...)
     
-
     num_obs, num_states, num_modalities, num_factors = get_model_dimensions(A)
     
     obs_processed = process_observation(

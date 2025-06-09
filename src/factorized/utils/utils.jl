@@ -26,8 +26,8 @@ end
 
 """ Get Model Dimensions from either A or B Matrix """
 function get_model_dimensions(
-    A::Union{Nothing, Vector{Array{T}} where {T <: Real}} = nothing, 
-    B::Union{Nothing, Vector{Array{T}} where {T <: Real}} = nothing
+    A::Union{Nothing, Vector{Array{T}} where {T <: Real}, Vector{Array{T, N}} where {T <: Real, N}}=nothing , 
+    B::Union{Nothing, Vector{Array{T}} where {T <: Real}, Vector{Array{T, N}} where {T <: Real, N}}=nothing 
     )
     
     if A === nothing && B === nothing

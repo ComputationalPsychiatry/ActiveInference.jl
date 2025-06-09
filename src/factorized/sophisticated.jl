@@ -253,7 +253,7 @@ end
 """ Update Posterior States """
 function update_posterior_states(
     #A::Vector{Array{T,N}} where {T <: Real, N}, 
-    A::Vector{Array{T}} where {T <: Real}, 
+    A::Union{Vector{Array{T}} where {T <: Real}, Vector{Array{T, N}} where {T <: Real, N}}, 
     metamodel,
     obs::Vector{Int64}; 
     prior::Union{Nothing, Vector{Vector{T}}} where T <: Real = nothing, 
@@ -283,7 +283,7 @@ end
 
 function get_expected_obs(
     qs_pi, 
-    A::Vector{Array{T}} where {T <: Real},
+    A::Union{Vector{Array{T}} where {T <: Real}, Vector{Array{T, N}} where {T <: Real, N}},
     metamodel,
     )
     
