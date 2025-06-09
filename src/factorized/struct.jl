@@ -66,6 +66,9 @@ mutable struct AIF
     settings::Dict{String,Any} # Settings Dictionary
     save_history::Bool # Save history boolean flag
     sophisticated_inference::Bool
+    use_SI_graph_for_standard_inference::Bool  # use SI graph, but for standard inference
+    graph_postprocessing_method::String  # either "G_prob_method", "G_prob_qpi_method", "marginal_EFE_method"
+    use_sum_for_calculating_G::Bool  # use sum over rows of info_gain and utility matrices to calculate G
     horizon::Int64
     metamodel
 end
@@ -99,6 +102,9 @@ function create_aif(A, B;
                     FPI_dF_tol=0.001,
                     save_history=true,
                     sophisticated_inference=false,
+                    use_SI_graph_for_standard_inference=false,
+                    graph_postprocessing_method = "G_prob_method",
+                    use_sum_for_calculating_G = false,
                     horizon = 1,
                     metamodel = metamodel,
     )
@@ -252,6 +258,9 @@ function create_aif(A, B;
                 settings, 
                 save_history,
                 sophisticated_inference,
+                use_SI_graph_for_standard_inference,
+                graph_postprocessing_method,
+                use_sum_for_calculating_G,
                 horizon,
                 metamodel,
                 )
@@ -291,6 +300,9 @@ function init_aif(A, B; C=nothing, D=nothing, E=nothing, pA=nothing, pB=nothing,
                   settings::Union{Nothing, Dict} = nothing,
                   save_history::Bool = true, 
                   sophisticated_inference = false,
+                  use_SI_graph_for_standard_inference = false,
+                  graph_postprocessing_method = "G_prob_method",
+                  use_sum_for_calculating_G = false,
                   horizon = 1,
                   verbose::Bool = true,
                   metamodel = nothing,
@@ -434,6 +446,9 @@ function init_aif(A, B; C=nothing, D=nothing, E=nothing, pA=nothing, pB=nothing,
                     FPI_dF_tol=FPI_dF_tol,
                     save_history=save_history,
                     sophisticated_inference = sophisticated_inference,
+                    use_SI_graph_for_standard_inference = use_SI_graph_for_standard_inference,
+                    graph_postprocessing_method = graph_postprocessing_method,
+                    use_sum_for_calculating_G = use_sum_for_calculating_G,
                     horizon = horizon,
                     metamodel=metamodel,
                     )
@@ -572,7 +587,9 @@ end
 function infer_policies!(aif::AIF)
     # Update posterior over policies and expected free energies of policies
     
-    if aif.sophisticated_inference
+    @assert aif.graph_postprocessing_method in ["G_prob_method", "G_prob_qpi_method", "marginal_EFE_method"]
+
+    if aif.sophisticated_inference | aif.use_SI_graph_for_standard_inference
         q_pi, G, utility, info_gain, risk, ambiguity = Sophisticated.update_posterior_policies(aif)
     else    
         q_pi, G, utility, info_gain, risk, ambiguity = update_posterior_policies(aif)

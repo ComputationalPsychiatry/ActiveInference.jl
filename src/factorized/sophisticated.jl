@@ -498,8 +498,6 @@ function update_posterior_policies(agent)
     qo_pi = Vector{Float64}[]
     lnE = capped_log(agent.E)
     
-    use_means = false
-    
     
     Graph = MGN.MetaGraph(
         Graphs.DiGraph();  # underlying graph structure
@@ -619,8 +617,13 @@ function update_posterior_policies(agent)
     # the returns here are for policies identified in this function, not in policy iterator
     
     # choose one of the following methods
-    G, q_pi, utility, info_gain, risk, ambiguity = do_G_prob_method(Graph, agent, policies)
-    #G, q_pi, utility, info_gain, risk, ambiguity = do_G_qpi_prob_method(Graph, agent, policies)
+    if agent.graph_postprocessing_method == "G_prob_method"
+        G, q_pi, utility, info_gain, risk, ambiguity = do_G_prob_method(Graph, agent, policies)
+    elseif agent.graph_postprocessing_method == "G_prob_qpi_method"
+        G, q_pi, utility, info_gain, risk, ambiguity = do_G_prob_qpi_method(Graph, agent, policies)
+    elseif agent.graph_postprocessing_method == "marginal_EFE_method"
+        G, q_pi, utility, info_gain, risk, ambiguity = do_marginal_EFE_method(Graph, agent, policies)
+    end
 
     # put polices in same order and size as policy iterator
     n_policies = agent.policies.number_policies
@@ -718,7 +721,7 @@ function do_G_prob_method(Graph, agent, policies)
 
             if isa(Graph[node], ObsNode) && Graph[node].ith_outcome > 1
                 # curious how many ObsNodes an ActionNode might have?
-                printfmtln("    trimmed graph subpolicy= {}, cnt= {}", Graph[node].subpolicy, Graph[node].ith_outcome)
+                #printfmtln("    trimmed graph subpolicy= {}, cnt= {}", Graph[node].subpolicy, Graph[node].ith_outcome)
             end           
         end
         #printfmtln("\nsubpolicies={}, vlist size = {}", [x for x in subpolicies], length(vlist))
@@ -810,28 +813,29 @@ function do_G_prob_method(Graph, agent, policies)
 
             end
 
-            if false
-                # average G etc. over all nodes in this level (??) If not, last layer will have high G etc.
-                G[i_policy, level] = G[i_policy, level] / length(nodes)
-                utility[i_policy, level] = utility[i_policy, level] / length(nodes)
-                info_gain[i_policy, level] = info_gain[i_policy, level] / length(nodes)
-                risk[i_policy, level] = risk[i_policy, level] / length(nodes)
-                ambiguity[i_policy, level] += Graph[node].ambiguity / length(nodes)
-            end
+            
         end
     end
         
-    #G_ = Statistics.mean.(skipmissing.(eachrow(utility))) + Statistics.mean.(skipmissing.(eachrow(info+gain)))
-    G_ = (
-        Statistics.maximum.(skipmissing.(eachrow(info_gain)))
-        +
-        (
-            Statistics.minimum.(skipmissing.(eachrow(utility)))
+    if agent.use_sum_for_calculating_G == false || any(ismissing.(info_gain)) || any(ismissing.(utility))
+        G_ = (
+            Statistics.maximum.(skipmissing.(eachrow(info_gain)))
             +
-            Statistics.maximum.(skipmissing.(eachrow(utility)))
-        ) ./ 2
-    )
-    
+            (
+                Statistics.minimum.(skipmissing.(eachrow(utility)))
+                +
+                Statistics.maximum.(skipmissing.(eachrow(utility)))
+            ) ./ 2
+        )
+    else
+        # use sum, as in pymdp
+        G_ = (
+            Statistics.sum.(eachrow(info_gain))
+            +
+            Statistics.sum.(eachrow(utility))
+        )
+    end
+
     # transfer policies data to the policies of the policy iterator
     #Eidx = agent.E[idx]
     #lnE = capped_log(Eidx)
@@ -849,7 +853,7 @@ function do_G_prob_method(Graph, agent, policies)
 end
 
 
-function do_G_qpi_prob_method(Graph, agent, policies)
+function do_G_prob_qpi_method(Graph, agent, policies)
     # this is the G * prob method, where prob is cascaded from node 0 to leaves
     
     # create matrices to hold results
@@ -906,7 +910,7 @@ function do_G_qpi_prob_method(Graph, agent, policies)
 
             if isa(Graph[node], ObsNode) && Graph[node].ith_outcome > 1
                 # curious how many ObsNodes an ActionNode might have?
-                printfmtln("    trimmed graph subpolicy= {}, cnt= {}", Graph[node].subpolicy, Graph[node].ith_outcome)
+                #printfmtln("    trimmed graph subpolicy= {}, cnt= {}", Graph[node].subpolicy, Graph[node].ith_outcome)
             end           
         end
         #printfmtln("\nsubpolicies={}, vlist size = {}", [x for x in subpolicies], length(vlist))
@@ -997,16 +1001,24 @@ function do_G_qpi_prob_method(Graph, agent, policies)
         end
     end
         
-    #G_ = Statistics.mean.(skipmissing.(eachrow(utility))) + Statistics.mean.(skipmissing.(eachrow(info+gain)))
-    G_ = (
-        Statistics.maximum.(skipmissing.(eachrow(info_gain)))
-        +
-        (
-            Statistics.minimum.(skipmissing.(eachrow(utility)))
+    if agent.use_sum_for_calculating_G == false || any(ismissing.(info_gain)) || any(ismissing.(utility))
+        G_ = (
+            Statistics.maximum.(skipmissing.(eachrow(info_gain)))
             +
-            Statistics.maximum.(skipmissing.(eachrow(utility)))
-        ) ./ 2
-    )
+            (
+                Statistics.minimum.(skipmissing.(eachrow(utility)))
+                +
+                Statistics.maximum.(skipmissing.(eachrow(utility)))
+            ) ./ 2
+        )
+    else
+        # use sum, as in pymdp
+        G_ = (
+            Statistics.sum.(eachrow(info_gain))
+            +
+            Statistics.sum.(eachrow(utility))
+        )
+    end
     
     # transfer policies data to the policies of the policy iterator
     #Eidx = agent.E[idx]
@@ -1026,14 +1038,21 @@ end
 
 
 # --------------------------------------------------------------------------------------------------
+function do_marginal_EFE_method(Graph, agent, policies)
+    # this is the G * prob * qpi marginal EFE method (as per pymdp)
+    @infiltrate; @assert false  # not yet implemented
+
+end
+
+
+# --------------------------------------------------------------------------------------------------
 function recurse(Graph, agent, level, ObsLabel)
     
     state_prune_threshold = 1/16
     policy_prune_threshold = 1/16
     prune_penalty = 512
     use_means = false
-    use_SI_graph_for_standard_inference = true
-
+    
     qs = Graph[ObsLabel].qs_next
     outcome = Graph[ObsLabel].outcome
 
@@ -1204,7 +1223,7 @@ function recurse(Graph, agent, level, ObsLabel)
         skip_outcomes = true
         
         # do standard inference?
-        if use_SI_graph_for_standard_inference
+        if agent.use_SI_graph_for_standard_inference
             # test without belief updates due to likely observations
             # use this for non-sophisticated (standard) inference
             skip_outcomes = false

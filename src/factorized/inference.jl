@@ -643,7 +643,7 @@ end
 
 function get_expected_obs(
     qs_pi, 
-    A::Vector{Array{T}} where {T <: Real},
+    A::Union{Vector{Array{T}} where {T <: Real}, Vector{Array{T, N}} where {T <: Real, N}},
     metamodel,
     )
 
