@@ -26,8 +26,8 @@ mutable struct AIF
     E::Vector{T} where T <: Real       # E-vector (Habits)
     #pA::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} # Dirichlet priors for A-matrix
     #pB::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} # Dirichlet priors for B-matrix
-    pA::Union{Vector{Array{T}}, Nothing} where {T <: Real} # Dirichlet priors for A-matrix
-    pB::Union{Vector{Array{T}}, Nothing} where {T <: Real} # Dirichlet priors for B-matrix
+    pA::Union{Vector{Array{T,N}}, Nothing} where {T <: Real, N} # Dirichlet priors for A-matrix
+    pB::Union{Vector{Array{T,N}}, Nothing} where {T <: Real, N} # Dirichlet priors for B-matrix
     
     
     pD::Union{Vector{Array{Real}}, Nothing} # Dirichlet priors for D-vector
@@ -104,7 +104,7 @@ function create_aif(A, B;
                     sophisticated_inference=false,
                     use_SI_graph_for_standard_inference=false,
                     graph_postprocessing_method = "G_prob_method",
-                    use_sum_for_calculating_G = false,
+                    use_sum_for_calculating_G = true,
                     horizon = 1,
                     metamodel = metamodel,
     )
@@ -302,7 +302,7 @@ function init_aif(A, B; C=nothing, D=nothing, E=nothing, pA=nothing, pB=nothing,
                   sophisticated_inference = false,
                   use_SI_graph_for_standard_inference = false,
                   graph_postprocessing_method = "G_prob_method",
-                  use_sum_for_calculating_G = false,
+                  use_sum_for_calculating_G = true,
                   horizon = 1,
                   verbose::Bool = true,
                   metamodel = nothing,

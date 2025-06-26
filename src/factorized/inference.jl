@@ -495,7 +495,6 @@ function update_posterior_policies(agent)
     qo_pi = Vector{Float64}[]
     lnE = capped_log(agent.E)
     
-    use_means = true
     #@infiltrate; @assert false
 
     #printfmtln("\nqs_current= {}", vcat(argmax(qs[1]), qs[2:end]))
@@ -532,21 +531,17 @@ function update_posterior_policies(agent)
                 utility_ = calc_expected_utility(qo_pi, agent.C)
                 #G[idx] += utility_
                 if length(utility_) == n_steps
-                    if use_means
-                        # use mean 
-                        G[idx] += mean(utility_)  # mean rather than sum due to missings
+                    if agent.use_sum_for_calculating_G && !any(ismissing.(utility_)
+                        # use sum  
+                        G[idx] += sum(utility_)  
                     else
-                        # use extremes
-                        G[idx] += (maximum(utility_) + minimum(utility_)) / 2  # mean rather than sum due to missings
+                        # use extremes; todo: pass in desired function for this
+                        G[idx] += (maximum(utility_) + minimum(utility_)) / 2  # due to missings
                     end
                 else
-                    # early stop
-                    if use_means
-                        G[idx] += mean(skipmissing(utility_))
-                    else
-                        # use extremes
-                        G[idx] += (maximum(skipmissing(utility_)) + minimum(skipmissing(utility_))) / 2
-                    end
+                    # early stop, use extremes; todo: pass in desired function for this
+                    @assert agent.use_sum_for_calculating_G == false  # a utility is short, sum cannot be used for any
+                    G[idx] += (maximum(skipmissing(utility_)) + minimum(skipmissing(utility_))) / 2
                 end
 
                 utility[idx, 1:utility_.size[1]] = utility_
@@ -567,22 +562,18 @@ function update_posterior_policies(agent)
                 
                 #G[idx] += info_gain_
                 if length(utility_) == n_steps
-                    if use_means
-                        # use mean 
-                        G[idx] += mean(info_gain_)  # mean rather than sum due to missings
+                    if agent.use_sum_for_calculating_G && !any(ismissing.(utility_)
+                        # use sum
+                        G[idx] += sum(info_gain_)  
                     else
-                        # use extremes
+                        # use extremes; todo: pass in desired function for this
                         #G[idx] += (maximum(info_gain_) + minimum(info_gain_)) / 2  # mean rather than sum due to missings
                         G[idx] += maximum(info_gain_) 
                     end
                 else
-                    # early stop
-                    if use_means
-                        G[idx] += mean(skipmissing(info_gain_))
-                    else
-                        #G[idx] += (maximum(skipmissing(info_gain_)) + minimum(skipmissing(info_gain_))) / 2
-                        G[idx] += maximum(skipmissing(info_gain_)) 
-                    end
+                    # early stop, use extremes; todo: pass in desired function for this
+                    @assert agent.use_sum_for_calculating_G == false  # a info_gain is short, sum cannot be used for any
+                    G[idx] += maximum(skipmissing(info_gain_)) 
                 end  
                 info_gain[idx,1:info_gain_.size[1]] = info_gain_
                 ambiguity[idx,1:ambiguity_.size[1]] = ambiguity_
@@ -608,13 +599,13 @@ function update_posterior_policies(agent)
                     G[idx] += ReverseDiff.value(calc_pA_info_gain(pA, qo_pi, qs_pi))
                 # Otherwise calculate it and add it to the G vector
                 else
-                    G[idx] += calc_pA_info_gain(pA, qo_pi, qs_pi)
+                    G[idx] += calc_pA_info_gain(agent.pA, qo_pi, qs_pi)
                 end
             end
 
             if agent.pB !== nothing
-                #@infiltrate; @assert false
-                G[idx] += calc_pB_info_gain(pB, qs_pi, qs, policy)
+                @infiltrate; @assert false
+                G[idx] += calc_pB_info_gain(agent.pB, qs_pi, qs, policy)
             end
         end
 
@@ -867,8 +858,10 @@ function calc_pA_info_gain(pA, qo_pi, qs_pi)
     return pA_info_gain
 end
 
+
 """ Calculate state to state info Gain """
 function calc_pB_info_gain(pB, qs_pi, qs_prev, policy)
+    
     @infiltrate; @assert false
     n_steps = length(qs_pi)
     num_factors = length(pB)

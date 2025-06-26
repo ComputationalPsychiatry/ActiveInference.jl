@@ -1051,8 +1051,7 @@ function recurse(Graph, agent, level, ObsLabel)
     state_prune_threshold = 1/16
     policy_prune_threshold = 1/16
     prune_penalty = 512
-    use_means = false
-    
+       
     qs = Graph[ObsLabel].qs_next
     outcome = Graph[ObsLabel].outcome
 
