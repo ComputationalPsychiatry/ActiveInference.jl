@@ -531,7 +531,7 @@ function update_posterior_policies(agent)
                 utility_ = calc_expected_utility(qo_pi, agent.C)
                 #G[idx] += utility_
                 if length(utility_) == n_steps
-                    if agent.use_sum_for_calculating_G && !any(ismissing.(utility_)
+                    if agent.use_sum_for_calculating_G && !any(ismissing.(utility_))
                         # use sum  
                         G[idx] += sum(utility_)  
                     else
@@ -562,7 +562,7 @@ function update_posterior_policies(agent)
                 
                 #G[idx] += info_gain_
                 if length(utility_) == n_steps
-                    if agent.use_sum_for_calculating_G && !any(ismissing.(utility_)
+                    if agent.use_sum_for_calculating_G && !any(ismissing.(utility_))
                         # use sum
                         G[idx] += sum(info_gain_)  
                     else
@@ -604,7 +604,6 @@ function update_posterior_policies(agent)
             end
 
             if agent.pB !== nothing
-                @infiltrate; @assert false
                 G[idx] += calc_pB_info_gain(agent.pB, qs_pi, qs, policy)
             end
         end
