@@ -38,7 +38,7 @@ mutable struct AIF
     lr_pD::Real # pD Learning parameter
     fr_pD::Real # PD Forgetting parameter
     modalities_to_learn::Union{String, Vector{Int64}} # Modalities can be eithe "all" or "# modality"
-    factors_to_learn::Union{String, Vector{Int64}} # Modalities can be either "all" or "# factor"
+    factors_to_learn::Union{String, Vector{Symbol}} # Modalities can be either "all" or factor name
     gamma::Real # Gamma parameter
     alpha::Real # Alpha parameter
     policies
@@ -54,6 +54,7 @@ mutable struct AIF
     info_gain::Matrix{Union{Missing, Float64}} 
     risk::Matrix{Union{Missing, Float64}} 
     ambiguity::Matrix{Union{Missing, Float64}} 
+    info_gain_B::Union{Nothing, Matrix{Union{Missing, Float64}}} 
     action::Vector{Int} # Last action
     use_utility::Bool # Utility Boolean Flag
     use_states_info_gain::Bool # States Information Gain Boolean Flag
@@ -173,6 +174,12 @@ function create_aif(A, B;
     risk = Matrix{Float64}(undef, 0, 0)  #zeros(policies.number_policies, policies[1].size[1])
     ambiguity = Matrix{Float64}(undef, 0, 0)  #zeros(length(policies), policies[1].size[1])
     
+    if pB == nothing
+        info_gain_B = nothing
+    else
+        info_gain_B = Matrix{Float64}(undef, 0, 0)  #zeros(length(policies), policies[1].size[1])
+    end
+    
     action = Int[]
     
     # initialize states dictionary
@@ -246,6 +253,7 @@ function create_aif(A, B;
                 info_gain,
                 risk,
                 ambiguity,
+                info_gain_B,
                 action, 
                 use_utility,
                 use_states_info_gain, 
@@ -592,7 +600,7 @@ function infer_policies!(aif::AIF)
     if aif.sophisticated_inference | aif.use_SI_graph_for_standard_inference
         q_pi, G, utility, info_gain, risk, ambiguity = Sophisticated.update_posterior_policies(aif)
     else    
-        q_pi, G, utility, info_gain, risk, ambiguity = update_posterior_policies(aif)
+        q_pi, G, utility, info_gain, risk, ambiguity, info_gain_B = update_posterior_policies(aif)
     end
 
     #@infiltrate; @assert false
@@ -602,6 +610,7 @@ function infer_policies!(aif::AIF)
     aif.info_gain = info_gain
     aif.risk = risk
     aif.ambiguity = ambiguity
+    aif.info_gain_B = info_gain_B
     
 
     # Push changes to agent's history
@@ -645,12 +654,23 @@ end
 
 """ Update B-matrix """
 function update_B!(aif::AIF)
-    @infiltrate; @assert false
-    if length(get_history(aif, "posterior_states")) > 1
+    #@infiltrate; @assert false
+    if length(aif.states["posterior_states"]) > 1
 
-        qs_prev = get_history(aif, "posterior_states")[end-1]
+        qs_prev = aif.states["posterior_states"][end-1]
 
-        qB = update_state_likelihood_dirichlet(aif.pB, aif.B, aif.action, aif.qs_current, qs_prev, lr = aif.lr_pB, fr = aif.fr_pB, factors = aif.factors_to_learn)
+        # todo: why not just pass aif for most of these?
+        qB = update_state_likelihood_dirichlet(
+                                aif.pB, 
+                                aif.B, 
+                                aif.action, 
+                                aif.qs_current, 
+                                qs_prev, 
+                                aif.metamodel,
+                                lr = aif.lr_pB, 
+                                fr = aif.fr_pB, 
+                                factors_to_learn = aif.factors_to_learn,  # either "all" or list of symbols?
+                            )
 
         aif.pB = deepcopy(qB)
         aif.B = deepcopy(normalize_arrays(qB))

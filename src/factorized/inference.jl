@@ -68,7 +68,7 @@ function get_expected_states(
     #faz(n) = join(collect(Iterators.take(az, n)), "")
     
     
-    n_steps = length(policy[1])  # same for all actions
+    n_steps = length(policy[1])  # policy length is the same for all actions
     action_names = keys(metamodel.action_deps)
     Biis_with_action = [ii for ii in 1:length(B) if length(intersect(metamodel.state_deps[ii], action_names)) > 0]
     # initializing posterior predictive density as a list of beliefs over time
@@ -76,12 +76,7 @@ function get_expected_states(
     null_actions = [metamodel.policies.action_contexts[action][:null_action] for action in action_names]
     null_action_ids = [findfirst(x -> x == null_actions[ii], metamodel.action_deps[ii]) for ii in 1:length(action_names)]
 
-    # todo:
-    # - watch locations over steps and filter out steps with repeating locations, except stay
-    # should the iterator be filtered at all originally?
-    # tests on initial state vs. post action
-    
-    stop_early_at_t = n_steps + 100  # should this policy stop early, at a specified time step?
+    stop_early_at_t = n_steps + 10000  # should this policy stop early, at a specified time step?
     for t in 1:n_steps
             
         if t == stop_early_at_t
@@ -92,15 +87,27 @@ function get_expected_states(
         for Bii in 1:length(B) 
             
             # list of the hidden state factor indices that the dynamics of `qs[Bii]` depend on
-            factors = metamodel.state_deps[Bii]
-            factor_idx = [findfirst(x -> x == j, keys(metamodel.state_deps)) for j in factors]
+            # potentially more than one action per B matrix
+            factors = metamodel.state_deps[Bii]  # eg: [:loc, :loc, :move], with last being an action
+            # potentially, factors for this B matrix could have more than one action
             
+            factor_idx = [findfirst(x -> x == j, keys(metamodel.state_deps)) for j in factors]
+            # eg., [1,1,nothing), where nothing is for an action
+
             Bc = copy(B[Bii])
             selections = nothing
 
-            # handle action
+            # select out action dimensions
             if Bii in Biis_with_action
-                selections = [(name, pol[t], metamodel.action_deps[name][pol[t]], null_action_id) 
+
+                # here we handle potentially more than one action for this B matrix; 
+                # e.g. policy = ((1,2), (4,5)) for action_names = (:move, :jump)
+                # Then, selections[1] might equal 
+                # (action_name = :move, action_option_id = 1, action_option_name = :UP, null_action_id = 5)
+                
+                selections = [
+                    NamedTuple{(:action_name, :action_option_id, :action_option_name, :null_action_id)}(
+                        (name, pol[t], metamodel.action_deps[name][pol[t]], null_action_id))
                     for (name, pol, null_action_id) in zip(action_names, policy, null_action_ids)
                 ]
                 #printfmtln("\nstep={}, Bii={}, selections= {}", t, Bii, selections)
@@ -109,7 +116,7 @@ function get_expected_states(
                 for (i_selection, selection) in enumerate(selections)
                     if !(
                         # is this action unwanted (e.g., takes agent off the grid)?
-                        metamodel.policies.action_contexts[selection[1]][:option_context][selection[3]](qs_pi[t])
+                        metamodel.policies.action_contexts[selection.action_name][:option_context][selection.action_option_name](qs_pi[t])
                         )
                         #@infiltrate; @assert false
                         return nothing  # entire policy for all B matrices and actions, is invalid
@@ -121,11 +128,11 @@ function get_expected_states(
                 for (idep, dep) in enumerate(factors) 
                     if dep in keys(metamodel.action_deps)
                         # this dim is an action
-                        push!(idx, selections[iaction][2])
+                        push!(idx, selections[iaction].action_option_id)
                         iaction += 1
                     else
                         # this is a state
-                        push!(idx, 1:Bc.size[idep])
+                        push!(idx, 1:Bc.size[idep])  # e.g., push!(idx, (100,100,5)[1]) if idep==1
                     end
                 end
                 
@@ -166,9 +173,9 @@ function get_expected_states(
                     continue for the reminder of this policy step.
                     =# 
                     
-                    if t < n_steps && !(metamodel.policies.action_contexts[selection[1]][:stopfx](qs_pi[t+1]))
-                        # are all remaining actions "stay"
-                        if !all(policy[i_selection][t+1:end] .== selection[4])
+                    if t < n_steps && !(metamodel.policies.action_contexts[selection.action_name][:stopfx](qs_pi[t+1]))
+                        # are all remaining actions a null action, like "stay"
+                        if !all(policy[i_selection][t+1:end] .== selection.null_action_id)
                             #@infiltrate; @assert false    
                             return nothing  # entire policy for all B matrices and actions, is invalid
                         else
@@ -489,6 +496,12 @@ function update_posterior_policies(agent)
     info_gain = Matrix{Union{Missing, Float64}}(undef, n_policies, n_steps)
     risk = Matrix{Union{Missing, Float64}}(undef, n_policies, n_steps)
     ambiguity = Matrix{Union{Missing, Float64}}(undef, n_policies, n_steps)
+    
+    if agent.pB == nothing
+        info_gain_B = nothing
+    else
+        info_gain_B = Matrix{Union{Missing, Float64}}(undef, n_policies, n_steps)
+    end
         
     #q_pi = Vector{Float64}(undef, n_steps)
     qs_pi = Vector{Float64}[]
@@ -560,14 +573,12 @@ function update_posterior_policies(agent)
                 #info_gain_ = calc_states_info_gain(agent.A, qs_pi)
                 info_gain_, ambiguity_ = compute_info_gain(qs_pi, qo_pi, agent.A, agent.metamodel, idx)
                 
-                #G[idx] += info_gain_
                 if length(utility_) == n_steps
                     if agent.use_sum_for_calculating_G && !any(ismissing.(utility_))
                         # use sum
                         G[idx] += sum(info_gain_)  
                     else
                         # use extremes; todo: pass in desired function for this
-                        #G[idx] += (maximum(info_gain_) + minimum(info_gain_)) / 2  # mean rather than sum due to missings
                         G[idx] += maximum(info_gain_) 
                     end
                 else
@@ -604,7 +615,23 @@ function update_posterior_policies(agent)
             end
 
             if agent.pB !== nothing
-                G[idx] += calc_pB_info_gain(agent.pB, qs_pi, qs, policy)
+                info_gain_B_ = calc_pB_info_gain(agent.pB, qs_pi, qs, policy, agent.metamodel)
+                
+                if length(info_gain_B_) == n_steps
+                    if agent.use_sum_for_calculating_G && !any(ismissing.(info_gain_B_))
+                        # use sum
+                        G[idx] += sum(info_gain_B_)  
+                    else
+                        # use extremes; todo: pass in desired function for this
+                        G[idx] += maximum(info_gain_B_) 
+                    end
+                else
+                    # early stop, use extremes; todo: pass in desired function for this
+                    @assert agent.use_sum_for_calculating_G == false  # a info_gain is short, sum cannot be used for any
+                    G[idx] += maximum(skipmissing(info_gain_B_)) 
+                end  
+                info_gain_B[idx,1:info_gain_B_.size[1]] = info_gain_B_
+
             end
         end
 
@@ -624,7 +651,7 @@ function update_posterior_policies(agent)
     # note: now G and q_pi are no longer consistent
     #@infiltrate; @assert false
     
-    return q_pi, G, utility, info_gain, risk, ambiguity
+    return q_pi, G, utility, info_gain, risk, ambiguity, info_gain_B
 end
 
 
@@ -748,7 +775,6 @@ end
 
 MINVAL = eps(Float64)
 function stable_xlogx(x)
-    
     zz =  [LEF.xlogy.(z, clamp.(z, MINVAL, Inf)) for z in x]
     #@infiltrate; @assert false
     return zz
@@ -817,8 +843,6 @@ function compute_info_gain(qs, qo, A, metamodel, policy_id)
 end
 
 
-
-
 """ Calculate States Information Gain """
 function calc_states_info_gain(A, qs_pi)
     n_steps = length(qs_pi)
@@ -826,17 +850,17 @@ function calc_states_info_gain(A, qs_pi)
     states_surprise = zeros(n_steps)
 
     for t in 1:n_steps
-        #states_surprise += calculate_bayesian_surprise(A, qs_pi[t])
         states_surprise[t] = calculate_bayesian_surprise(A, qs_pi[t])
-
     end
 
     return states_surprise
 end
 
+
 """ Calculate observation to state info Gain """
 function calc_pA_info_gain(pA, qo_pi, qs_pi)
-    @infiltrate; @assert false
+    @infiltrate; @assert false  # not yet implemented
+    
     n_steps = length(qo_pi)
     num_modalities = length(pA)
 
@@ -859,34 +883,105 @@ end
 
 
 """ Calculate state to state info Gain """
-function calc_pB_info_gain(pB, qs_pi, qs_prev, policy)
+function calc_pB_info_gain(pB, qs_pi, qs_prev, policy, metamodel)
+    # this is the factorized version
+    # policity eg: ((1, 1, 1),) --- one action, three steps
     
-    @infiltrate; @assert false
-    n_steps = length(qs_pi)
-    num_factors = length(pB)
-
-    wB = Vector{Any}(undef, num_factors)
-    for (factor, pB_f) in enumerate(pB)
-        wB[factor] = spm_wnorm(pB_f)
+    # We follow the same idea as in get_expected_states() by selecting out actions from each B matrix.
+    # But instead of finishing with a dot(B_new, qs), here we filter out actions from a wB matrix of
+    # the same shape as B[ii].
+    
+    n_steps = length(qs_pi)  # this might be less than the policy length, if there was early stopping
+    if n_steps != length(policy[1])
+        @infiltrate; @assert false  # todo: validate that all of the following work for early stopping
     end
+    
+    action_names = keys(metamodel.action_deps)
+    Biis_with_action = [ii for ii in 1:length(pB) if length(intersect(metamodel.state_deps[ii], action_names)) > 0]
+    null_actions = [metamodel.policies.action_contexts[action][:null_action] for action in action_names]
+    null_action_ids = [findfirst(x -> x == null_actions[ii], metamodel.action_deps[ii]) for ii in 1:length(action_names)]
 
-    pB_info_gain = 0
-
+    info_gain_per_step = zeros(n_steps)
     for t in 1:n_steps
-        if t == 1
-            previous_qs = qs_prev
-        else
-            previous_qs = qs_pi[t-1]
-        end
+        for Bii in 1:length(pB) 
 
-        policy_t = policy[t, :]
+            # list of the hidden state factor indices that the dynamics of `qs[Bii]` depend on
+            # potentially more than one action per B matrix
+            factors = metamodel.state_deps[Bii]  # eg: [:loc, :loc, :move], with last being an action
+            # potentially, factors for this B matrix could have more than one action
+            
+            factor_idx = [findfirst(x -> x == j, keys(metamodel.state_deps)) for j in factors]
+            # eg., [1,1,nothing), where nothing is for an action
 
-        for (factor, a_i) in enumerate(policy_t)
-            wB_factor_t = wB[factor][:,:,Int(a_i)] .* (pB[factor][:,:,Int(a_i)] .> 0)
-            pB_info_gain -= dot(qs_pi[t][factor], wB_factor_t * previous_qs[factor])
+            # wB takes the role of Bc in get_expected_states()
+            wB = spm_wnorm(pB[Bii])  # W := .5 (1 ./ a - 1 ./ a_sum) 
+            selections = nothing
+            idx = nothing
+
+            # select out action dimensions
+            if Bii in Biis_with_action
+
+                # here we handle potentially more than one action for this B matrix; 
+                # e.g. policy = ((1,2), (4,5)) for action_names = (:move, :jump)
+                # Then, selections[1] might equal 
+                # (action_name = :move, action_option_id = 1, action_option_name = :UP, null_action_id = 5)
+                
+                selections = [
+                    NamedTuple{(:action_name, :action_option_id, :action_option_name, :null_action_id)}(
+                        (name, pol[t], metamodel.action_deps[name][pol[t]], null_action_id))
+                    for (name, pol, null_action_id) in zip(action_names, policy, null_action_ids)
+                ]
+                #printfmtln("\nstep={}, Bii={}, selections= {}", t, Bii, selections)
+                
+                idx = []  # index of dims of this B matrix, states always come before actions in depencency lists
+                iaction = 1
+                for (idep, dep) in enumerate(factors) 
+                    if dep in keys(metamodel.action_deps)
+                        # this dim is an action
+                        push!(idx, selections[iaction].action_option_id)
+                        iaction += 1
+                    else
+                        # this is a state
+                        push!(idx, 1:wB.size[idep])  # e.g., push!(idx, (100,100,5)[1]) if idep==1
+                    end
+                end
+                pBc = pB[Bii][idx...]
+                wB = wB[idx...]  # select out actions, now only state dependencies left
+            else
+                pBc = pB[Bii]  # no actions for this B matrix
+                idx = [1:B[Bii].size[i] for i in 1:ndims(B[Bii])]  
+            end
+
+            # the 'past posterior' used for the information gain about pB here is the posterior
+            # over expected states at the timestep previous to the one under consideration
+            # if we're on the first timestep, we just use the latest posterior in the
+            # entire action-perception cycle as the previous posterior
+            if t == 1
+                previous_qs = qs_prev
+            # otherwise, we use the expected states for the timestep previous to the timestep under consideration
+            else
+                previous_qs = qs_pi[t - 1]
+            end
+
+            # get expected states
+            deps = Vector{Vector{Float64}}()
+            for idep in reverse(factor_idx[2:end])  # first factor is new state, other are dependencies or actions 
+                if isnothing(idep)
+                    # this dependency is an action
+                    continue
+                end
+                push!(deps, previous_qs[idep])
+            end
+            
+            wB .*= Float64.(pBc .> 0)  # only consider wB if pB > 0
+            Wqs = dot_product1(wB, deps)
+            info_gain_per_step[t] -= dot(qs_pi[t][Bii], Wqs)
+
+            #@infiltrate; @assert false
         end
     end
-    return pB_info_gain
+
+    return info_gain_per_step
 end
 
 
