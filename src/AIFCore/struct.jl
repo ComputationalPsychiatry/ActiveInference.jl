@@ -22,7 +22,7 @@ abstract type MixedStates<:AbstractStateType end
 abstract type NoStates<:AbstractStateType end
 
 #Abstract type for generative models
-abstract type GenerativeModel{
+abstract type AbstractGenerativeModel{
     TypeAction<:AbstractActionType,
     TypeObservation<:AbstractObservationType,
     TypeState<:AbstractStateType,
@@ -34,12 +34,11 @@ abstract type PerceptualInferenceProcess end
 ### Action process types ###
 abstract type ActionSelectionProcess end
 
-
 struct AIFAgent 
 
     ## Generative Model ##
     # Struct containing a generative model of the AbstractGenerativeModel type
-    generative_model::GenerativeModel
+    generative_model::AbstractGenerativeModel
 
     ## Perceptual process ##
     # Function for inference (perception)

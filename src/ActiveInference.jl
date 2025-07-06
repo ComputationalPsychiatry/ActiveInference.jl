@@ -27,8 +27,34 @@ include("pomdp/POMDP.jl")
 include("utils/helper_functions.jl")
 include("utils/create_matrix_templates.jl")
 
+# Include the AIFCore module first
+include("AIFCore/struct.jl")
+using .ActiveInferenceCore
+
+# Include the DiscretePOMDP module
+include("DiscretePOMDP/DiscretePOMDP.jl")
+using .DiscretePOMDP
+
 export # utils/create_matrix_templates.jl
         create_matrix_templates,
+
+       # AIFCore module
+       AbstractGenerativeModel,
+       DiscreteActions,
+       DiscreteObservations, 
+       DiscreteStates,
+       ContinuousActions,
+       ContinuousObservations,
+       ContinuousStates,
+       MixedActions,
+       MixedObservations,
+       MixedStates,
+       AIFAgent,
+       active_inference,
+
+       # DiscretePOMDP module
+       DiscretePOMDP,
+       init_generative_model,
 
        # struct.jl
        init_pomdp_aif_settings,

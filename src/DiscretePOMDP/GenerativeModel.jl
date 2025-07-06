@@ -4,11 +4,10 @@ In this script, we define a concrete generative model for the Discrete POMDP as 
 
 ### Discrete POMDP Generative Model ###
 
-include("../AIFCore/struct.jl")
-include("../utils/create_matrix_templates.jl")
-include("../utils/maths.jl")
-include("../utils/utils.jl")
-using .ActiveInferenceCore: GenerativeModel, DiscreteActions, DiscreteObservations, DiscreteStates
+# include("../utils/create_matrix_templates.jl")
+# include("../utils/maths.jl")
+# include("../utils/utils.jl")
+using ..ActiveInferenceCore: AbstractGenerativeModel, DiscreteActions, DiscreteObservations, DiscreteStates
 
 
 """
@@ -19,7 +18,7 @@ Discrete POMDP generative model containing the following fields:
 - `D`: D-vectors (Prior over states)
 - `E`: E-vector (Habits)
 """
-@kwdef mutable struct DiscretePOMDP <: GenerativeModel{DiscreteActions, DiscreteObservations, DiscreteStates}
+@kwdef mutable struct GenerativeModel <: AbstractGenerativeModel{DiscreteActions, DiscreteObservations, DiscreteStates}
 
     A::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} = nothing # A-matrix
     B::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} = nothing # B-matrix
@@ -29,15 +28,15 @@ Discrete POMDP generative model containing the following fields:
 
 end
 
-A, B, C, D, E = create_matrix_templates([4, 2], [4, 3, 2], [4, 1], 2, "uniform")
+# A, B, C, D, E = create_matrix_templates([4, 2], [4, 3, 2], [4, 1], 2, "uniform")
 
-DP = DiscretePOMDP(A, B, C, D, E)
+# DP = DP = GenerativeModel(A, B, C, D, E)
 
 
-supertype(typeof(DP))
-fieldnames(typeof(DP))
+# supertype(typeof(DP))
+# fieldnames(typeof(DP))
 
-dp = init_generative_model(A = A, B = B, D = D)
+# dp = init_generative_model(A = A, B = B, D = D)
 
 
 ### Initialization of Generative Model ###
@@ -46,13 +45,13 @@ dp = init_generative_model(A = A, B = B, D = D)
 function init_generative_model(; kwargs...)
     
     # Create an instance of the parameter struct
-    GenerativeModel = DiscretePOMDP(; kwargs...)
+    GenerativeModelInstance = GenerativeModel(; kwargs...)
 
     # Perform checks using the fields
-    check_parameters(GenerativeModel)
+    check_parameters(GenerativeModelInstance)
 
     # Return an instance of the generative model
-    return GenerativeModel
+    return GenerativeModelInstance
 end
 
 ### Check parameters ###
@@ -70,10 +69,10 @@ Throws an error if the generative model parameters are not valid:
 - Not both the parameter and their prior can be provided.
 
 """
-function check_parameters(GenerativeModel::DiscretePOMDP)
+function check_parameters(gm::GenerativeModel)
 
     # Destructures the parameters of the parameter struct
-    (; A, B, C, D, E) = GenerativeModel
+    (; A, B, C, D, E) = gm
 
     if isnothing(A) || isnothing(B)
         throw(ArgumentError("A and B must be provided in order to infer structure of the generative model."))
@@ -81,17 +80,17 @@ function check_parameters(GenerativeModel::DiscretePOMDP)
 
     # Check if the number of states in A, B, and D are consistent.
     # We let this check be done on either the prior or the parameter, depending on which is provided.
-    check_parameter_states(GenerativeModel)
+    check_parameter_states(gm)
 
     # Check if the number of observation modalities in A and C are consistent.
     # We let this check be done on either the prior or the parameter, depending on which is provided.
-    if !isnothing(GenerativeModel.C)
-        check_parameter_observations(GenerativeModel)
+    if !isnothing(gm.C)
+        check_parameter_observations(gm)
     end
 
     # Check if the values are non-negative
-    for name in fieldnames(typeof(GenerativeModel))
-        parameter = getfield(GenerativeModel, name)
+    for name in fieldnames(typeof(gm))
+        parameter = getfield(gm, name)
 
         # If parameter has not been provided, don't check.
         if !isnothing(parameter) && name != :C
@@ -104,7 +103,7 @@ function check_parameters(GenerativeModel::DiscretePOMDP)
     end
 
     # Check if the probability distributions are normalized. Only A, B, D, and E are probability distributions.
-    params_check_norm = (;GenerativeModel.A, GenerativeModel.B, GenerativeModel.D, GenerativeModel.E)
+    params_check_norm = (;gm.A, gm.B, gm.D, gm.E)
 
     for name in fieldnames(typeof(params_check_norm))
         parameter = getfield(params_check_norm, name)
@@ -125,10 +124,10 @@ end
 """
 Function to check if the statefactor dimensions of the parameters are consistent.
 """
-function check_parameter_states(GenerativeModel::DiscretePOMDP)
+function check_parameter_states(gm::GenerativeModel)
 
     # Destructures the parameters of the parameter struct
-    (; A, B, D) = GenerativeModel
+    (; A, B, D) = gm
 
     A_states = [size(A[1], factor + 1) for factor in 1:length(size(A[1])[2:end])]
     B_states = [size(B[factor], 1) for factor in eachindex(B)]
@@ -165,11 +164,11 @@ end
 """
 Function to check if the number of observationmodalities in the parameters are consistent.
 """
-function check_parameter_observations(GenerativeModel::DiscretePOMDP)
+function check_parameter_observations(gm::GenerativeModel)
 
     # Check the number of observations in A/pA and C
-    A_observations = [size(GenerativeModel.A[modality], 1) for modality in eachindex(GenerativeModel.A)]
-    C_observations = [size(GenerativeModel.C[modality], 1) for modality in eachindex(GenerativeModel.C)]
+    A_observations = [size(gm.A[modality], 1) for modality in eachindex(gm.A)]
+    C_observations = [size(gm.C[modality], 1) for modality in eachindex(gm.C)]
 
     # Throw an error if the number of observations are different
     if A_observations != C_observations
@@ -186,61 +185,61 @@ Infer generative model parameters that are not provided.
 
 If parameters C, D, or E are not provided, they are inferred from the provided parameters pA or A and pB or B.
 """
-function infer_missing_parameters(parameters::POMDPActiveInferenceParameters, settings::POMDPActiveInferenceSettings, verbose::Bool = true)
+# function infer_missing_parameters(parameters::POMDPActiveInferenceParameters, settings::POMDPActiveInferenceSettings, verbose::Bool = true)
 
-    # If pA is provided, we create A based on pA
-    if isnothing(parameters.A)
-        parameters.A = normalize_arrays(deepcopy(parameters.pA))
-    end
+#     # If pA is provided, we create A based on pA
+#     if isnothing(parameters.A)
+#         parameters.A = normalize_arrays(deepcopy(parameters.pA))
+#     end
 
-    # If pB is provided, we create B based on pB
-    if isnothing(parameters.B)
-        parameters.B = normalize_arrays(deepcopy(parameters.pB))
-    end
+#     # If pB is provided, we create B based on pB
+#     if isnothing(parameters.B)
+#         parameters.B = normalize_arrays(deepcopy(parameters.pB))
+#     end
 
-    # If C is not provided, we create C based on the number of observations
-    if isnothing(parameters.C)
+#     # If C is not provided, we create C based on the number of observations
+#     if isnothing(parameters.C)
 
-        # Extracting n_observations
-        n_observations = [size(A, 1) for A in parameters.A]
+#         # Extracting n_observations
+#         n_observations = [size(A, 1) for A in parameters.A]
 
-        # Creating C with zero vectors
-        parameters.C = [zeros(observation_dimension) for observation_dimension in n_observations]
+#         # Creating C with zero vectors
+#         parameters.C = [zeros(observation_dimension) for observation_dimension in n_observations]
 
-        if verbose
-            @warn "No C-vector provided, no prior preferences will be used."
-        end
-    end
+#         if verbose
+#             @warn "No C-vector provided, no prior preferences will be used."
+#         end
+#     end
     
-    # If D is not provided, we create either based on pD if provided. Otherwise, we create D based on the number of states
-    if isnothing(parameters.D) && isnothing(parameters.pD)
+#     # If D is not provided, we create either based on pD if provided. Otherwise, we create D based on the number of states
+#     if isnothing(parameters.D) && isnothing(parameters.pD)
         
-        # Extracting n_states
-        n_states = [size(B, 1) for B in parameters.B]
+#         # Extracting n_states
+#         n_states = [size(B, 1) for B in parameters.B]
 
-        # Uniform D vectors
-        parameters.D = [fill(1.0 / state_dimension, state_dimension) for state_dimension in n_states]
+#         # Uniform D vectors
+#         parameters.D = [fill(1.0 / state_dimension, state_dimension) for state_dimension in n_states]
 
-        if verbose
-            @warn "No D-vector provided, uniform priors over states will be used."
-        end
+#         if verbose
+#             @warn "No D-vector provided, uniform priors over states will be used."
+#         end
 
-    elseif !isnothing(parameters.pD)
-        parameters.D = normalize_arrays(deepcopy(parameters.pD))
-    end
+#     elseif !isnothing(parameters.pD)
+#         parameters.D = normalize_arrays(deepcopy(parameters.pD))
+#     end
 
-    if isnothing(parameters.E)
-        # Extracting n_controls and calculating the number of policies
-        B_or_pB = isnothing(parameters.B) ? parameters.pB : parameters.B
-        n_controls = [size(B_or_pB[factor], 3) for factor in eachindex(B_or_pB)]  
-        n_policies = prod(n_controls) ^ settings.policy_length
+#     if isnothing(parameters.E)
+#         # Extracting n_controls and calculating the number of policies
+#         B_or_pB = isnothing(parameters.B) ? parameters.pB : parameters.B
+#         n_controls = [size(B_or_pB[factor], 3) for factor in eachindex(B_or_pB)]  
+#         n_policies = prod(n_controls) ^ settings.policy_length
 
-        # Uniform E vector
-        parameters.E = fill(1.0 / n_policies, n_policies)
+#         # Uniform E vector
+#         parameters.E = fill(1.0 / n_policies, n_policies)
 
-        if verbose == true
-            @warn "No E-vector provided, uniform prior over policies will be used."
-        end
-    end
+#         if verbose == true
+#             @warn "No E-vector provided, uniform prior over policies will be used."
+#         end
+#     end
 
-end
+# end
