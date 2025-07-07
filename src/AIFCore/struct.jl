@@ -29,10 +29,10 @@ abstract type AbstractGenerativeModel{
 } end
 
 ### Perceptual process types ###
-abstract type PerceptualInferenceProcess end
+abstract type AbstractPerceptualProcess end
 
 ### Action process types ###
-abstract type ActionSelectionProcess end
+abstract type AbstractActionProcess end
 
 struct AIFAgent 
 
@@ -47,11 +47,11 @@ struct AIFAgent
 
     # Function for calculating the predictive posterior
     prediction::Function
-    perception_struct::PerceptualInferenceProcess
+    perception_struct::AbstractPerceptualProcess
 
     # Action process
     action::Function
-    action_struct::ActionSelectionProcess
+    action_struct::AbstractActionProcess
     
 end
 

@@ -1,12 +1,15 @@
 """ utilities for the generative model of a DiscretePOMDP """
 
 
-### Check parameters ###
+### Check generative model ###
 """
 check generative model parameters
 
 # Arguments
-- `parameters::POMDPActiveInferenceParameters`
+- `A::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} = nothing`: A-matrix (Observation Likelihood model)
+- `B::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} = nothing`: B-matrix (Transition model)
+- `C::Union{Vector{Vector{T}}, Nothing} where {T <: Real} = nothing`: C-vectors (Preferences over observations)
+- `D::Union{Vector{Vector{T}}, Nothing} where {T <: Real} = nothing`: D-vectors (Prior over states)
 
 Throws an error if the generative model parameters are not valid:
 - Both A and B must be provided.
@@ -16,10 +19,12 @@ Throws an error if the generative model parameters are not valid:
 - Not both the parameter and their prior can be provided.
 
 """
-function check_parameters(gm::GenerativeModel)
-
-    # Destructures the parameters of the parameter struct
-    (; A, B, C, D, E) = gm
+function check_generative_model(
+    A::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} = nothing,
+    B::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} = nothing,
+    C::Union{Vector{Vector{T}}, Nothing} where {T <: Real} = nothing,
+    D::Union{Vector{Vector{T}}, Nothing} where {T <: Real} = nothing
+)
 
     if isnothing(A) || isnothing(B)
         throw(ArgumentError("A and B must be provided in order to infer structure of the generative model."))
@@ -27,20 +32,20 @@ function check_parameters(gm::GenerativeModel)
 
     # Check if the number of states in A, B, and D are consistent.
     # We let this check be done on either the prior or the parameter, depending on which is provided.
-    check_parameter_states(gm)
+    check_parameter_states(A, B, D)
 
     # Check if the number of observation modalities in A and C are consistent.
     # We let this check be done on either the prior or the parameter, depending on which is provided.
-    if !isnothing(gm.C)
-        check_parameter_observations(gm)
+    if !isnothing(C)
+        check_parameter_observations(A, C)
     end
 
     # Check if the values are non-negative
-    for name in fieldnames(typeof(gm))
-        parameter = getfield(gm, name)
+    parameters = (("A", A), ("B", B), ("D", D))
+    for (name, parameter) in parameters
 
         # If parameter has not been provided, don't check.
-        if !isnothing(parameter) && name != :C
+        if !isnothing(parameter)
             if !is_non_negative(parameter)
                 throw(ArgumentError("All elements must be non-negative in parameter '$(name)'"))
             end
@@ -50,10 +55,10 @@ function check_parameters(gm::GenerativeModel)
     end
 
     # Check if the probability distributions are normalized. Only A, B, D, and E are probability distributions.
-    params_check_norm = (;gm.A, gm.B, gm.D, gm.E)
+    params_check_norm = (("A", A), ("B", B), ("D", D))
 
-    for name in fieldnames(typeof(params_check_norm))
-        parameter = getfield(params_check_norm, name)
+    for (name, parameter) in params_check_norm
+
         # If parameter has not been provided, don't check.
         if !isnothing(parameter)
             try 
@@ -71,10 +76,11 @@ end
 """
 Function to check if the statefactor dimensions of the parameters are consistent.
 """
-function check_parameter_states(gm::GenerativeModel)
-
-    # Destructures the parameters of the parameter struct
-    (; A, B, D) = gm
+function check_parameter_states(
+    A::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} = nothing,
+    B::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} = nothing,
+    D::Union{Vector{Vector{T}}, Nothing} where {T <: Real} = nothing
+)
 
     A_states = [size(A[1], factor + 1) for factor in 1:length(size(A[1])[2:end])]
     B_states = [size(B[factor], 1) for factor in eachindex(B)]
@@ -111,11 +117,14 @@ end
 """
 Function to check if the number of observationmodalities in the parameters are consistent.
 """
-function check_parameter_observations(gm::GenerativeModel)
+function check_parameter_observations(
+    A::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} = nothing,
+    C::Union{Vector{Vector{T}}, Nothing} where {T <: Real} = nothing
+)
 
     # Check the number of observations in A/pA and C
-    A_observations = [size(gm.A[modality], 1) for modality in eachindex(gm.A)]
-    C_observations = [size(gm.C[modality], 1) for modality in eachindex(gm.C)]
+    A_observations = [size(A[modality], 1) for modality in eachindex(A)]
+    C_observations = [size(C[modality], 1) for modality in eachindex(C)]
 
     # Throw an error if the number of observations are different
     if A_observations != C_observations
@@ -133,30 +142,37 @@ Infer generative model parameters that are not provided.
 
 If parameters C, D, or E are not provided, they are inferred from the provided parameters pA or A and pB or B.
 """
-function infer_missing_parameters(gm::GenerativeModel; verbose::Bool = true)
+function infer_missing_parameters(
+    A::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} = nothing,
+    B::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} = nothing,
+    C::Union{Vector{Vector{T}}, Nothing} where {T <: Real} = nothing,
+    D::Union{Vector{Vector{T}}, Nothing} where {T <: Real} = nothing,
+    verbose::Bool = true
+)
 
     # If C is not provided, we create C based on the number of observations
-    if isnothing(gm.C)
+    if isnothing(C)
 
         # Extracting n_observations
-        n_observations = [size(A, 1) for A in gm.A]
+        n_observations = [size(A, 1) for A in A]
 
         # Creating C with zero vectors
-        gm.C = [zeros(observation_dimension) for observation_dimension in n_observations]
+        C = [zeros(observation_dimension) for observation_dimension in n_observations]
 
         if verbose
             @info "No C-vector provided, no prior preferences will be used."
         end
+
     end
     
     # If D is not provided, we create either based on pD if provided. Otherwise, we create D based on the number of states
-    if isnothing(gm.D)
+    if isnothing(D)
         
         # Extracting n_states
-        n_states = [size(B, 1) for B in gm.B]
+        n_states = [size(B, 1) for B in B]
 
         # Uniform D vectors
-        gm.D = [fill(1.0 / state_dimension, state_dimension) for state_dimension in n_states]
+        D = [fill(1.0 / state_dimension, state_dimension) for state_dimension in n_states]
 
         if verbose
             @info "No D-vector provided, uniform priors over states will be used."
@@ -164,17 +180,5 @@ function infer_missing_parameters(gm::GenerativeModel; verbose::Bool = true)
 
     end
 
-    # if isnothing(gm.E)
-    #     # Extracting n_controls and calculating the number of infer_policies
-    #     n_controls = [size(gm.B[factor], 3) for factor in eachindex(gm.B)]  
-    #     n_policies = prod(n_controls) ^ settings.policy_length
-
-    #     # Uniform E vector
-    #     gm.E = fill(1.0 / n_policies, n_policies)
-
-    #     if verbose == true
-    #         @info "No E-vector provided, uniform prior over policies will be used."
-    #     end
-    # end
-
+    return C, D
 end
