@@ -34,6 +34,7 @@ abstract type AbstractPerceptualProcess end
 ### Action process types ###
 abstract type AbstractActionProcess end
 
+#NOTE: when making this agent, make the prior be defined by D in the generative model as part of the initialization function
 struct AIFAgent 
 
     ## Generative Model ##

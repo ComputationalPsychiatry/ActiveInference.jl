@@ -19,7 +19,7 @@ mutable struct GenerativeModel <: AbstractGenerativeModel{DiscreteActions, Discr
     B::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N}
     C::Union{Vector{Vector{T}}, Nothing} where {T <: Real}
     D::Union{Vector{Vector{T}}, Nothing} where {T <: Real}
-    info::InfoStruct
+    info::GenerativeModelInfo
 
     function GenerativeModel(;
         A::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} = nothing,
@@ -35,7 +35,7 @@ mutable struct GenerativeModel <: AbstractGenerativeModel{DiscreteActions, Discr
         C, D = infer_missing_parameters(A, B, C, D, verbose)
         
         # Create info struct with model information
-        info = InfoStruct(A, B, C, D)
+        info = GenerativeModelInfo(A, B, C, D)
         
         # Show model information if verbose
         show_info(info; verbose=verbose)

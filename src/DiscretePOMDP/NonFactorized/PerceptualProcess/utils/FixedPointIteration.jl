@@ -85,3 +85,44 @@ function fixed_point_iteration(
         return qs
     end
 end
+
+
+""" Calculate Free Energy """
+function calc_free_energy(qs::Vector{Vector{T}} where T <: Real, prior, n_factors, likelihood=nothing)
+    # Initialize free energy
+    free_energy = 0.0
+    
+    # Calculate free energy for each factor
+    for factor in 1:n_factors
+        # Neg-entropy of posterior marginal
+        negH_qs = dot(qs[factor], log.(qs[factor] .+ 1e-16))
+        # Cross entropy of posterior marginal with prior marginal
+        xH_qp = -dot(qs[factor], prior[factor])
+        # Add to total free energy
+        free_energy += negH_qs + xH_qp
+    end
+    
+    # Subtract accuracy
+    if likelihood !== nothing
+        free_energy -= compute_accuracy(likelihood, qs)
+    end
+    
+    return free_energy
+end
+
+
+""" Calculate Accuracy Term """
+function compute_accuracy(log_likelihood, qs::Vector{Vector{T}} where T <: Real)
+    n_factors = length(qs)
+    ndims_ll = ndims(log_likelihood)
+    dims = (ndims_ll - n_factors + 1) : ndims_ll
+
+    # Calculate the accuracy term
+    accuracy = sum(
+        log_likelihood[indices...] * prod(qs[factor][indices[dims[factor]]] for factor in 1:n_factors)
+        for indices in Iterators.product((1:size(log_likelihood, i) for i in 1:ndims_ll)...)
+    )
+
+    return accuracy
+end
+

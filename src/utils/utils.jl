@@ -174,3 +174,59 @@ function check_probability_distribution(Vector::Vector{T}) where T<:Real
 
     return true
 end
+
+"""
+    process_observation(observation::Int, n_modalities::Int, n_observations::Vector{Int})
+
+Process a single modality observation. Returns a one-hot encoded vector. 
+
+# Arguments
+- `observation::Int`: The index of the observed state with a single observation modality.
+- `n_modalities::Int`: The number of observation modalities in the observation. 
+- `n_observations::Vector{Int}`: A vector containing the number of observations for each modality.
+
+# Returns
+- `Vector{Vector{Real}}`: A vector containing a single one-hot encoded observation.
+"""
+function process_observation(observation::Int, n_modalities::Int, n_observations::Vector{Int})
+
+    # Check if there is only one modality
+    if n_modalities == 1
+        # Create a one-hot encoded vector for the observation
+        processed_observation = onehot(observation, n_observations[1]) 
+    end
+
+    # Return the processed observation wrapped in a vector
+    return [processed_observation]
+end
+
+"""
+    process_observation(observation::Union{Array{Int}, Tuple{Vararg{Int}}}, n_modalities::Int, n_observations::Vector{Int})
+
+Process observation with multiple modalities and return them in a one-hot encoded format 
+
+# Arguments
+- `observation::Union{Array{Int}, Tuple{Vararg{Int}}}`: A collection of indices of the observed states for each modality.
+- `n_modalities::Int`: The number of observation modalities in the observation. 
+- `n_observations::Vector{Int}`: A vector containing the number of observations for each modality.
+
+# Returns
+- `Vector{Vector{Real}}`: A vector containing one-hot encoded vectors for each modality.
+"""
+function process_observation(observation::Union{Array{Int}, Tuple{Vararg{Int}}}, n_modalities::Int, n_observations::Vector{Int})
+
+    # Initialize the processed_observation vector
+    processed_observation = Vector{Vector{Float64}}(undef, n_modalities)
+
+    # Check if the length of observation matches the number of modalities
+    if length(observation) == n_modalities
+        for (modality, modality_observation) in enumerate(observation)
+            # Create a one-hot encoded vector for the current modality observation
+            one_hot = onehot(modality_observation, n_observations[modality])
+            # Add the one-hot vector to the processed_observation vector
+            processed_observation[modality] = one_hot
+        end
+    end
+
+    return processed_observation
+end

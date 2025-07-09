@@ -1,19 +1,18 @@
 module DiscretePOMDP
 
-# Import the abstract type from the parent module
-using ..ActiveInferenceCore: AbstractGenerativeModel, AbstractPerceptualProcess
+# Import the abstract types from the parent module
+using ..ActiveInferenceCore
+using ..ActiveInferenceCore: AbstractGenerativeModel, AbstractPerceptualProcess, DiscreteActions, DiscreteObservations, DiscreteStates
 
-# Generative Model
-include("GenerativeModel\\utils\\GenerativeModelInfoStruct.jl")
-include("GenerativeModel\\utils\\CheckGenerativeModel.jl")
-include("GenerativeModel\\GenerativeModel.jl")
 
-# Perceptual Process
-include("PerceptualProcess\\utils\\LearningStructs.jl")
-include("PerceptualProcess\\utils\\LearningUtils.jl")
-include("PerceptualProcess\\PerceptualProcess.jl")
+# Include the NonFactorized submodule
+include("NonFactorized/NonFactorized.jl")
+using .NonFactorized
 
-# Including util functions from general utils folder
+# Re-export the NonFactorized module's exports so they can be accessed as DiscretePOMDP.GenerativeModel
+export GenerativeModel, PerceptualProcess, Learn_A, Learn_B, Learn_D
+
+# Including general util functions that might be shared across different factorization types
 include("../utils/maths.jl")
 include("../utils/utils.jl")
 

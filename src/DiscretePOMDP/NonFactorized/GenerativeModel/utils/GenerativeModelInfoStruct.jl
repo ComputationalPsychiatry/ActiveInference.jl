@@ -1,4 +1,4 @@
-mutable struct InfoStruct
+mutable struct GenerativeModelInfo
 
     model_type::String
     abstract_model_type::String
@@ -15,7 +15,7 @@ mutable struct InfoStruct
     """
     Internal constructor for InfoStruct that extracts information from generative model parameters.
     """
-    function InfoStruct(A, B, C, D)
+    function GenerativeModelInfo(A, B, C, D)
 
         # Determine which components are present (should all be, but in case something is missing this is useful)
         components = String[]
@@ -68,7 +68,7 @@ end
 """
 Pretty print function for InfoStruct.
 """
-function show_info(info::InfoStruct; verbose::Bool = true)
+function show_info(info::GenerativeModelInfo; verbose::Bool = true)
     if !verbose
         return
     end
