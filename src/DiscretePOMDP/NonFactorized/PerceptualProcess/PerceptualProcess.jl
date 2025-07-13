@@ -2,7 +2,7 @@
 In this script, we define a the perceptual inference process for the DiscretePOMDP.
 """
 
-using ..ActiveInferenceCore: AbstractPerceptualProcess
+using ..ActiveInferenceCore: AbstractPerceptualProcess, AIFAgent
 
 #Struct for containing current beliefs and optimization engine
 mutable struct PerceptualProcess <: AbstractPerceptualProcess
@@ -19,7 +19,6 @@ mutable struct PerceptualProcess <: AbstractPerceptualProcess
     optim_engine::Function #Default is handwritten optim CAVI
 
     function PerceptualProcess(;
-        generative_model::GenerativeModel,
         qs::Union{Vector{Vector{Float64}}, Nothing} = nothing,
         A_learning::Union{Nothing, Learn_A} = nothing,
         B_learning::Union{Nothing, Learn_B} = nothing,
@@ -28,21 +27,20 @@ mutable struct PerceptualProcess <: AbstractPerceptualProcess
     )
 
         # compare_generative_perceptual(generative_model, A_learning, B_learning, D_learning)
-        create_learning_priors(generative_model, A_learning, B_learning, D_learning)
-        @show typeof(A_learning)
+        # create_learning_priors(A_learning, B_learning, D_learning) # use in agent creation instead
+
         info_struct = PerceptualProcessInfo(A_learning, B_learning, D_learning, optim_engine)
 
         new(qs, nothing, A_learning, B_learning, D_learning, info_struct, optim_engine)
     end
 end
 
-function perception(;
-    generative_model::GenerativeModel,
-    perceptual_process::PerceptualProcess,
+function perception(
+    agent::AIFAgent,
     observation::Vector{Int}
 )
-    new_posterior_states = perceptual_process.optim_engine(perceptual_process, generative_model, observation)
-
+    # new_posterior_states = agent.perceptual_process.optim_engine(perceptual_process, generative_model, observation)
+    println("Hello World")
 
 end
 

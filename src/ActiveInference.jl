@@ -28,8 +28,9 @@ include("utils/helper_functions.jl")
 include("utils/create_matrix_templates.jl")
 
 # Include the AIFCore module first
-include("AIFCore/AIFCore.jl")
+include("ActiveInferenceCore/ActiveInferenceCore.jl")
 using .ActiveInferenceCore
+export AIFAgent
 
 # Include the DiscretePOMDP module
 include("DiscretePOMDP/DiscretePOMDP.jl")

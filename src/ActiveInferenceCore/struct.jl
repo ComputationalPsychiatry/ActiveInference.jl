@@ -1,5 +1,3 @@
-module ActiveInferenceCore
-
 ### Generative model types ###
 # Abstract types for defining the types of actions, observations, and states a generative model can handle.
 abstract type AbstractActionType end
@@ -42,24 +40,32 @@ struct AIFAgent
     generative_model::AbstractGenerativeModel
 
     ## Perceptual process ##
+    perceptual_process::AbstractPerceptualProcess
     # Function for inference (perception)
     perception::Function
-    store_new_beliefs!::Function
+    # store_new_beliefs!::Function
 
     # Function for calculating the predictive posterior
-    prediction::Function
-    perception_struct::AbstractPerceptualProcess
+    # prediction::Function
 
     # Action process
-    action::Function
-    action_struct::AbstractActionProcess
+    # action::Function
+    # action_process::AbstractActionProcess
+
+    function AIFAgent(;
+        generative_model::AbstractGenerativeModel,
+        perceptual_process::AbstractPerceptualProcess,
+        perception::Function
+    )
+        new(generative_model, perceptual_process, perception)
+    end
     
 end
 
-function active_inference(agent::AIFAgent, obs::Vector{Float64})
+function active_inference(agent::AIFAgent, observation::Vector{Float64})
 
     # Perform perception process
-    new_beliefs = agent.perception(agent)
+    new_beliefs = agent.perception(agent, observation)
 
     # Store new beliefs
     agent.store_new_beliefs!(agent, new_beliefs)
@@ -73,6 +79,3 @@ function active_inference(agent::AIFAgent, obs::Vector{Float64})
 
     return action_distribution
 end
-
-end
-

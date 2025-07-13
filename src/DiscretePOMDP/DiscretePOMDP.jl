@@ -10,7 +10,7 @@ include("NonFactorized/NonFactorized.jl")
 using .NonFactorized
 
 # Re-export the NonFactorized module's exports so they can be accessed as DiscretePOMDP.GenerativeModel
-export GenerativeModel, PerceptualProcess, Learn_A, Learn_B, Learn_D
+# export GenerativeModel, PerceptualProcess, Learn_A, Learn_B, Learn_D
 
 # Including general util functions that might be shared across different factorization types
 include("../utils/maths.jl")

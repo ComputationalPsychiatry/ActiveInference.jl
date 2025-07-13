@@ -1,3 +1,26 @@
+""" Update the agents's beliefs over states """
+# function infer_states(perceptual_process::PerceptualProcess, obs::Vector{Int64})
+
+#     if !isempty(aif.states.action)
+#         int_action = round.(Int, aif.states.action)
+#         aif.states.prior = get_expected_states(aif.states.qs_current, aif.parameters.B, reshape(int_action, 1, length(int_action)))[1]
+#     else
+#         aif.states.prior = aif.parameters.D
+#     end
+
+#     # Update posterior over states
+#     aif.states.qs_current = update_posterior_states(aif.parameters.A, obs, prior=aif.states.prior, num_iter=aif.settings.FPI_n_iter, dF_tol=aif.settings.FPI_tol)
+
+#     # Adding the obs to the agent struct
+#     aif.states.obs_current = obs
+
+#     # Push changes to agent's history
+#     push!(aif.history.prior, aif.states.prior)
+#     push!(aif.history.qs_current, aif.states.qs_current)
+#     push!(aif.history.obs_current, aif.states.obs_current)
+
+#     return aif.states.qs_current
+# end
 
 """ Run State Inference via Fixed-Point Iteration """
 function fixed_point_iteration(

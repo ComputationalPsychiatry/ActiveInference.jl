@@ -30,5 +30,6 @@ include("../../utils/utils.jl")
 # Export main types and functions
 export GenerativeModel, PerceptualProcess
 export Learn_A, Learn_B, Learn_D
+export perception
 
 end

@@ -108,7 +108,7 @@ function check_learning_structs(
     end
 
     if !isnothing(prior)
-        @info "From $struct_name: Using a prior will override the parameter specified in the generative model. Ensure this is intended. Otherwise, use concentration_parameter, which will create a prior based on the parameter specified in the generative model."
+        @info "From $struct_name: Using a prior will override the parameter specified in the generative model. Ensure this is intended. Otherwise, use concentration_parameter, which will create a prior based on the parameter specified in the generative model when creating the agent struct."
     end
 
     return true
