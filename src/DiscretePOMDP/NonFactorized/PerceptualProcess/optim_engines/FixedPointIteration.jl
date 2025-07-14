@@ -1,50 +1,62 @@
+
+""" FixedPointIteration struct containing the settings. """
+@kwdef struct FixedPointIteration <: AbstractOptimEngine 
+    num_iter::Int = 10
+    dF_tol::Float64 = 1e-3
+    dF::Float64 = 1.0
+end
+
 """ Update the agents's beliefs over states """
-# function infer_states(perceptual_process::PerceptualProcess, obs::Vector{Int64})
+function infer_states(agent::AIFAgent, observation::Vector{Int64}, optim_engine::FixedPointIteration)
 
-#     if !isempty(aif.states.action)
-#         int_action = round.(Int, aif.states.action)
-#         aif.states.prior = get_expected_states(aif.states.qs_current, aif.parameters.B, reshape(int_action, 1, length(int_action)))[1]
-#     else
-#         aif.states.prior = aif.parameters.D
-#     end
+    println("Using FixedPointIteration for state inference")
 
-#     # Update posterior over states
-#     aif.states.qs_current = update_posterior_states(aif.parameters.A, obs, prior=aif.states.prior, num_iter=aif.settings.FPI_n_iter, dF_tol=aif.settings.FPI_tol)
+    if agent.action_process.action !== nothing
+        int_action = round.(Int, agent.action_process.action)
+        agent.perceptual_process.prior = get_expected_states(agent.perceptual_process.posterior_states, agent.generative_model.B, reshape(int_action, 1, length(int_action)))[1]
+    end
 
-#     # Adding the obs to the agent struct
-#     aif.states.obs_current = obs
+    # make observations into a one-hot encoded vector
+    processed_observation = process_observation(
+        observation, 
+        agent.generative_model.info.n_modalities, 
+        agent.generative_model.info.n_observations
+    )
 
-#     # Push changes to agent's history
-#     push!(aif.history.prior, aif.states.prior)
-#     push!(aif.history.qs_current, aif.states.qs_current)
-#     push!(aif.history.obs_current, aif.states.obs_current)
+    # perform fixed-point iteration
+    posterior_states = fixed_point_iteration(;
+        A = agent.generative_model.A,
+        observation = processed_observation,
+        n_factors = agent.generative_model.info.n_factors,
+        n_states = agent.generative_model.info.n_states,
+        prior = agent.perceptual_process.prior,
+        num_iter = optim_engine.num_iter,
+        dF = optim_engine.dF,
+        dF_tol = optim_engine.dF_tol
+    )
 
-#     return aif.states.qs_current
-# end
+    return posterior_states
+end
 
 """ Run State Inference via Fixed-Point Iteration """
-function fixed_point_iteration(
-    A::Vector{Array{T,N}} where {T <: Real, N}, obs::Vector{Vector{Float64}}, num_obs::Vector{Int64}, num_states::Vector{Int64};
+function fixed_point_iteration(;
+    A::Vector{Array{T,N}} where {T <: Real, N}, observation::Vector{Vector{Float64}}, n_factors::Vector{Int64}, n_states::Vector{Int64},
     prior::Union{Nothing, Vector{Vector{T}}} where T <: Real = nothing, 
     num_iter::Int=num_iter, dF::Float64=1.0, dF_tol::Float64=dF_tol
 )
-    # Get model dimensions (NOTE Sam: We need to save model dimensions in the AIF struct in the future)
-    n_modalities = length(num_obs)
-    n_factors = length(num_states)
-
     # Get joint likelihood
-    likelihood = get_joint_likelihood(A, obs, num_states)
+    likelihood = get_joint_likelihood(A, observation, n_states)
     likelihood = capped_log(likelihood)
 
     # Initialize posterior and prior
     qs = Vector{Vector{Float64}}(undef, n_factors)
     for factor in 1:n_factors
-        qs[factor] = ones(num_states[factor]) / num_states[factor]
+        qs[factor] = ones(n_states[factor]) / n_states[factor]
     end
 
     # If no prior is provided, create a default prior with uniform distribution
     if prior === nothing
-        prior = create_matrix_templates(num_states)
+        prior = create_matrix_templates(n_states)
     end
     
     # Create a copy of the prior to avoid modifying the original

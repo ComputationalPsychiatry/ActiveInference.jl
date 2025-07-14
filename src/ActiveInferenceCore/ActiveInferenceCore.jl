@@ -1,6 +1,6 @@
 module ActiveInferenceCore
 
-include("struct.jl")
+include("CoreUtils/struct.jl")
 
 export AIFAgent
 

@@ -5,7 +5,7 @@ NonFactorized submodule for DiscretePOMDP containing non-factorized implementati
 module NonFactorized
 
 # Import from parent modules
-using ...ActiveInferenceCore: AbstractGenerativeModel, AbstractPerceptualProcess, DiscreteActions, DiscreteObservations, DiscreteStates
+using ...ActiveInferenceCore: AbstractGenerativeModel, AbstractPerceptualProcess, AbstractOptimEngine, DiscreteActions, DiscreteObservations, DiscreteStates, AIFAgent
 
 # Include generative model type and files
 include("GenerativeModel/utils/GenerativeModelInfoStruct.jl")
@@ -15,7 +15,7 @@ include("GenerativeModel/GenerativeModel.jl")
 # Include the perceptual process type and files
 include("PerceptualProcess/utils/LearningStructs.jl")
 include("PerceptualProcess/utils/PerceptualProcessInfoStruct.jl")
-include("PerceptualProcess/utils/FixedPointIteration.jl")
+include("PerceptualProcess/optim_engines/FixedPointIteration.jl")
 include("PerceptualProcess/utils/utils.jl")
 include("PerceptualProcess/PerceptualProcess.jl")
 

@@ -29,6 +29,9 @@ abstract type AbstractGenerativeModel{
 ### Perceptual process types ###
 abstract type AbstractPerceptualProcess end
 
+# Optimization engine abstract type
+abstract type AbstractOptimEngine end
+
 ### Action process types ###
 abstract type AbstractActionProcess end
 
