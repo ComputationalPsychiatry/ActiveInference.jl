@@ -13,7 +13,8 @@ include("GenerativeModel/utils/CheckGenerativeModel.jl")
 include("GenerativeModel/GenerativeModel.jl")
 
 # Include the perceptual process type and files
-include("PerceptualProcess/utils/LearningStructs.jl")
+include("PerceptualProcess/learning/LearningStructs.jl")
+include("PerceptualProcess/learning/learning_update_functions.jl")
 include("PerceptualProcess/utils/PerceptualProcessInfoStruct.jl")
 include("PerceptualProcess/optim_engines/FixedPointIteration.jl")
 include("PerceptualProcess/utils/utils.jl")
@@ -21,7 +22,10 @@ include("PerceptualProcess/PerceptualProcess.jl")
 
 
 # Include action process type and files
-include("ActionProcess.jl")
+include("ActionProcess/ActionProcess.jl")
+
+# Include agent initialization
+include("AgentInitialization/AgentInit.jl")
 
 # Include utility functions
 include("../../utils/maths.jl")

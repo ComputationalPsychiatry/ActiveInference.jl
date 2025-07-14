@@ -77,7 +77,8 @@ function show_info(info::GenerativeModelInfo; verbose::Bool = true)
     println("🧠 Generative Model Information")
     println("="^100)
 
-    clean_model_type = replace(info.model_type, r"ActiveInference.ActiveInferenceCore." => "")
+    clean_model_type = replace(info.model_type, r"ActiveInference." => "")
+    clean_model_type = replace(clean_model_type, r".GenerativeModel" => "")
     clean_abstract_type = replace(info.abstract_model_type, r"ActiveInference.ActiveInferenceCore." => "")
     
     println("📋 Model Type:$(" "^9) $clean_model_type")

@@ -13,20 +13,22 @@ mutable struct Learn_A
     forgetting_rate::Float64
     concentration_parameter::Union{Float64, Nothing}
     prior::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N}
+    modalities_to_learn::Vector{Int}
     struct_name::String
 
     function Learn_A(;
         learning_rate::Float64 = 1.0,
         forgetting_rate::Float64 = 1.0,
         concentration_parameter::Union{Float64, Nothing} = nothing,
-        prior::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} = nothing
+        prior::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} = nothing,
+        modalities_to_learn::Vector{Int} = Int[]
     )
 
         struct_name = "Learn_A"
         # Validate learning rate and forgetting rate
         check_learning_structs(learning_rate, forgetting_rate, concentration_parameter, prior, struct_name)
 
-        return new(learning_rate, forgetting_rate, concentration_parameter, prior)
+        return new(learning_rate, forgetting_rate, concentration_parameter, prior, modalities_to_learn, struct_name)
     end
 
 end
@@ -37,19 +39,21 @@ mutable struct Learn_B
     forgetting_rate::Float64
     concentration_parameter::Union{Float64, Nothing}
     prior::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N}
+    factors_to_learn::Vector{Int}
     struct_name::String
 
     function Learn_B(;
         learning_rate::Float64 = 1.0,
         forgetting_rate::Float64 = 1.0,
         concentration_parameter::Union{Float64, Nothing} = nothing,
-        prior::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} = nothing
+        prior::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} = nothing,
+        factors_to_learn::Vector{Int} = Int[]
     )
         struct_name = "Learn_B"
         # Validate learning rate and forgetting rate
         check_learning_structs(learning_rate, forgetting_rate, concentration_parameter, prior, struct_name)
 
-        return new(learning_rate, forgetting_rate, concentration_parameter, prior)
+        return new(learning_rate, forgetting_rate, concentration_parameter, prior, factors_to_learn, struct_name)
     end
 
 end
@@ -60,19 +64,21 @@ mutable struct Learn_D
     forgetting_rate::Float64
     concentration_parameter::Union{Float64, Nothing}
     prior::Union{Vector{Vector{T}}, Nothing} where {T <: Real}
+    factors_to_learn::Vector{Int}
     struct_name::String
 
     function Learn_D(;
         learning_rate::Float64 = 1.0,
         forgetting_rate::Float64 = 1.0,
         concentration_parameter::Union{Float64, Nothing} = nothing,
-        prior::Union{Vector{Vector{T}}, Nothing} where {T <: Real} = nothing
+        prior::Union{Vector{Vector{T}}, Nothing} where {T <: Real} = nothing,
+        factors_to_learn::Vector{Int} = Int[]
     )
         struct_name = "Learn_D"
         # Validate learning rate and forgetting rate
         check_learning_structs(learning_rate, forgetting_rate, concentration_parameter, prior, struct_name)
 
-        return new(learning_rate, forgetting_rate, concentration_parameter, prior)
+        return new(learning_rate, forgetting_rate, concentration_parameter, prior, factors_to_learn, struct_name)
     end
 
 end

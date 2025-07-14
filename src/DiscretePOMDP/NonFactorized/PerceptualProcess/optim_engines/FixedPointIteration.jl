@@ -7,7 +7,7 @@
 end
 
 """ Update the agents's beliefs over states """
-function infer_states(agent::AIFAgent, observation::Vector{Int64}, optim_engine::FixedPointIteration)
+function infer_states(agent::AIFAgent, optim_engine::FixedPointIteration)
 
     println("Using FixedPointIteration for state inference")
 
@@ -18,7 +18,7 @@ function infer_states(agent::AIFAgent, observation::Vector{Int64}, optim_engine:
 
     # make observations into a one-hot encoded vector
     processed_observation = process_observation(
-        observation, 
+        agent.perceptual_process.current_observation, 
         agent.generative_model.info.n_modalities, 
         agent.generative_model.info.n_observations
     )

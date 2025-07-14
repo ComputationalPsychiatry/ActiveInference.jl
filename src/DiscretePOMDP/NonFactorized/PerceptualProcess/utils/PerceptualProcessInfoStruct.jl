@@ -32,3 +32,34 @@ mutable struct PerceptualProcessInfo
             optim_engine_name, optim_engine_type)
     end
 end
+
+"""
+Pretty print function for PerceptualProcessInfo.
+"""
+function show_info(info::PerceptualProcessInfo; verbose::Bool = true)
+    if !verbose
+        return
+    end
+    
+    println("\n" * "="^100)
+    println("👁️  Perceptual Process Information")
+    println("="^100)
+
+    clean_engine_type = replace(string(info.optim_engine_type), r"ActiveInference\.DiscretePOMDP\.NonFactorized\." => "")
+    
+    println("\n⚙️  Optimization Engine: $clean_engine_type")
+    
+    println("\n📊 Learning Configuration:")
+
+    if !info.learning_enabled
+        println("   • Learning enabled: $(info.learning_enabled)")
+    end
+
+    if info.learning_enabled
+        println("   • A-parameter learning: $(info.A_learning_enabled)")
+        println("   • B-parameter learning: $(info.B_learning_enabled)")
+        println("   • D-parameter learning: $(info.D_learning_enabled)")
+    end
+    
+    println("="^100)
+end
