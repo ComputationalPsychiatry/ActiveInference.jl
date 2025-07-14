@@ -731,8 +731,8 @@ function update_posterior_policies(agent)
     end
 
     #@infiltrate; @assert false  
+    # for SI, do not use info gain from parameter learning
     return q_pi_policies, G_policies, utility_policies, info_gain_policies, risk_policies, ambiguity_policies
-
 end 
 
 
@@ -899,7 +899,11 @@ function do_G_prob_method(Graph, agent, policies)
             
         end
     end
-        
+
+    if (any(ismissing.(info_gain)) || any(ismissing.(utility))) && agent.use_sum_for_calculating_G == true
+        printfmtln("\n!!! Warning: Info gain or utility has missing elements, ignoring use_sum_for_calculating_G = true.\n")
+    end
+
     if agent.use_sum_for_calculating_G == false || any(ismissing.(info_gain)) || any(ismissing.(utility))
         G_ = (
             Statistics.maximum.(skipmissing.(eachrow(info_gain)))

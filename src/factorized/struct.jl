@@ -605,6 +605,7 @@ function infer_policies!(aif::AIF)
 
     if aif.sophisticated_inference | aif.use_SI_graph_for_standard_inference
         q_pi, G, utility, info_gain, risk, ambiguity = Sophisticated.update_posterior_policies(aif)
+        info_gain_B  = nothing
     else    
         q_pi, G, utility, info_gain, risk, ambiguity, info_gain_B = update_posterior_policies(aif)
     end
