@@ -71,7 +71,9 @@ mutable struct AIF
     graph_postprocessing_method::String  # either "G_prob_method", "G_prob_qpi_method", "marginal_EFE_method"
     use_sum_for_calculating_G::Bool  # use sum over rows of info_gain and utility matrices to calculate G
     horizon::Int64
+    verbose::Bool
     metamodel
+
 end
 
 # Create ActiveInference Agent 
@@ -107,6 +109,7 @@ function create_aif(A, B;
                     graph_postprocessing_method = "G_prob_method",
                     use_sum_for_calculating_G = true,
                     horizon = 1,
+                    verbose = false,
                     metamodel = metamodel,
     )
 
@@ -270,6 +273,7 @@ function create_aif(A, B;
                 graph_postprocessing_method,
                 use_sum_for_calculating_G,
                 horizon,
+                verbose,
                 metamodel,
                 )
 end
@@ -312,7 +316,8 @@ function init_aif(A, B; C=nothing, D=nothing, E=nothing, pA=nothing, pB=nothing,
                   graph_postprocessing_method = "G_prob_method",
                   use_sum_for_calculating_G = true,
                   horizon = 1,
-                  verbose::Bool = true,
+                  warn::Bool = false,
+                  verbose::Bool = false,
                   metamodel = nothing,
     )
 
@@ -348,24 +353,24 @@ function init_aif(A, B; C=nothing, D=nothing, E=nothing, pA=nothing, pB=nothing,
     end
 
     # Throw warning if no D-vector is provided. 
-    if verbose == true && isnothing(C)
+    if warn == true && isnothing(C)
         @warn "No C-vector provided, no prior preferences will be used."
     end 
 
     # Throw warning if no D-vector is provided. 
-    if verbose == true && isnothing(D)
+    if warn == true && isnothing(D)
         @warn "No D-vector provided, a uniform distribution will be used."
     end 
 
     # Throw warning if no E-vector is provided. 
-    if verbose == true && isnothing(E)
+    if warn == true && isnothing(E)
         @warn "No E-vector provided, a uniform distribution will be used."
     end           
     
     # Check if settings are provided or use defaults
     if isnothing(settings)
 
-        if verbose == true
+        if warn == true
             @warn "No settings provided, default settings will be used."
         end
 
@@ -387,7 +392,7 @@ function init_aif(A, B; C=nothing, D=nothing, E=nothing, pA=nothing, pB=nothing,
     # Check if parameters are provided or use defaults
     if isnothing(parameters)
 
-        if verbose == true
+        if warn == true
             @warn "No parameters provided, default parameters will be used."
         end
         
@@ -458,11 +463,12 @@ function init_aif(A, B; C=nothing, D=nothing, E=nothing, pA=nothing, pB=nothing,
                     graph_postprocessing_method = graph_postprocessing_method,
                     use_sum_for_calculating_G = use_sum_for_calculating_G,
                     horizon = horizon,
+                    verbose = verbose,
                     metamodel=metamodel,
                     )
 
     #Print out agent settings
-    if verbose == true
+    if warn == true
         settings_summary = 
         """
         AIF Agent initialized successfully with the following settings and parameters:
@@ -732,9 +738,9 @@ mutable struct ObsNode
     prob_updated::Union{Missing, Nothing, Float64}
     
     subpolicy::Union{Missing, Nothing, Tuple}
-    outcome::Union{Missing, Nothing, Tuple}
+    observation::Union{Missing, Nothing, Tuple}
     level::Int64
-    ith_outcome::Int64
+    ith_observation::Int64
 end
 
 mutable struct ActionNode
@@ -756,7 +762,7 @@ mutable struct ActionNode
     
     action::Union{Missing, Nothing, Int64}
     subpolicy::Union{Missing, Nothing, Tuple}
-    outcome::Union{Missing, Nothing, Tuple}
+    observation::Union{Missing, Nothing, Tuple}
     level::Int64
 end
 
@@ -777,7 +783,7 @@ end
 
 struct Label
     level::Int64
-    outcome::Union{Nothing, NTuple{N, Int64} where N}
+    observation::Union{Nothing, NTuple{N, Int64} where N}
     action::Union{Nothing, Int64}
     type::String
 end

@@ -17,6 +17,7 @@ import AbstractTrees as AT
 import Graphs
 import LinearAlgebra as LA
 import Statistics
+import Dates
 
 include("./struct.jl")
 include("./utils/maths.jl")
@@ -52,17 +53,15 @@ end
 """ Get Expected States """
 function get_expected_states(
     qs::Vector{Vector{T}} where T <: Real, 
-    B, 
-    policy,
-    metamodel;
-    policy_full::Union{Nothing, Tuple}= nothing
+    agent, 
+    policy;  # just the current action. e.g., (1,) on first call, (3,) on next, etc.
+    policy_full::Union{Nothing, Tuple}= nothing  # e.g., (1,) on first call, (1,3) on next, (1,3,2) on next, etc.
     )
 
-    # simple one-action policy considred here. todo: test for multiple actions
+    B = agent.B
+    metamodel = agent.metamodel
 
-    #az = Iterators.Stateful(join(collect('a':'z'), ""))
-    #faz(n) = join(collect(Iterators.take(az, n)), "")
-    
+    # simple one-action policy considred here. todo: test for multiple actions
     
     n_steps = length(policy[1])  # same policy len for all actions
     action_names = keys(metamodel.action_deps)
@@ -79,11 +78,15 @@ function get_expected_states(
     
     t = 1  # policy len = 1 for sophisticated inference
     
-    printfmtln("policy_full= {}, qs[1]= {}", policy_full, argmax(qs[1]))
+    if agent.verbose
+        printfmtln("policy={}, policy_full= {}, qs[1]= {}", policy, policy_full, argmax(qs[1]))
+    end
+
     #if policy_full == (3,3,3)
     #    @infiltrate; @assert false    
     #end
-
+    #@infiltrate; @assert false
+    
     if !(metamodel.policies.action_contexts[:move][:stopfx](qs)) && length(policy_full) > 1
         # check if STAY places agent at stop point
         #@infiltrate; @assert false    
@@ -279,13 +282,13 @@ end
 
 
 """ Get Expected Observations """
-#function get_expected_obs(qs_pi, A::Vector{Array{T,N}} where {T <: Real, N})
-
 function get_expected_obs(
     qs_pi, 
-    A::Union{Vector{Array{T}} where {T <: Real}, Vector{Array{T, N}} where {T <: Real, N}},
-    metamodel,
+    agent
     )
+
+    A = agent.A
+    metamodel = agent.metamodel
     
     n_steps = length(qs_pi)  # this might be equal to or less than policy length, if stop was reached
     
@@ -325,7 +328,7 @@ function get_expected_obs(
                 Am = copy(A_m)
                 Am = vcat(Am, zeros(1, Am.size[2:end]...))
                 res = dot_product1(Am, deps)
-                if printflag == 10
+                if agent.verbose && printflag == 10
                     printfmtln("\nmodailty= {}, remade Am={}", modality, res)
                     printflag = 1
                 end
@@ -482,26 +485,41 @@ end
 
 
 # --------------------------------------------------------------------------------------------------
+function recurse_parents(node, Graph, path)
+        # find all parents from leaf to root in tree graph, starting at leaf
+        # returns list of nodes
+        push!(path, node)
+        node = collect(MGN.inneighbor_labels(Graph, node))
+        if node.size[1] == 1
+            # should only be one parent
+            #printfmtln("node= \n{}\n", node[1])
+            recurse_parents(node[1], Graph, path)
+        elseif node.size[1] == 0
+            return path
+        else
+            @infiltrate; @assert false
+        end
+    end
+
+
+# --------------------------------------------------------------------------------------------------
 #### Policy Inference #### 
 """ Update Posterior over Policies """
 function update_posterior_policies(agent)
     
     qs = agent.qs_current
 
-    #n_steps = agent.policies[1].size[1]
-    #n_policies = length(agent.policies)
     n_steps = agent.policy_len
     n_policies = agent.policies.number_policies
     
-    #q_pi = Vector{Float64}(undef, n_steps)
     qs_pi = Vector{Float64}[]
     qo_pi = Vector{Float64}[]
     lnE = capped_log(agent.E)
     
-    
+    t0 = Dates.time()
+
     Graph = MGN.MetaGraph(
         Graphs.DiGraph();  # underlying graph structure
-        #Multigraphs.Multigraph(0),
         label_type = Vector{Label},  # partial or complete policy tuple
         vertex_data_type = Union{ObsNode, ActionNode, EarlyStop, BadPath}, 
         edge_data_type = GraphEdge,  
@@ -514,6 +532,9 @@ function update_posterior_policies(agent)
     
     recurse(Graph, agent, 1, ObsLabel)
     
+    printfmtln("\nmake graph  time= {}\n", round((Dates.time() - t0) , digits=2))
+    t0 = Dates.time()
+
     if Graphs.nv(Graph) == 0
         @infiltrate; @assert false    
     end 
@@ -534,24 +555,49 @@ function update_posterior_policies(agent)
 
     # collect all dfs paths from node 0 to leaves
     paths = []
+    max_level = 0
     for ii in Graphs.vertices(Graph)
         node = MGN.label_for(Graph, ii)
-
+        if isa(Graph[node], ObsNode) 
+            max_level = max(max_level, Graph[node].level)
+        end
         if false && isa(Graph[node], ObsNode)
-            if Graph[node].ith_outcome > 1
-                #printfmtln("full dfs subpolicy= {}, cnt= {}", Graph[node].subpolicy, Graph[node].i_outcome)
+            if Graph[node].ith_observation > 1
+                #printfmtln("full dfs subpolicy= {}, cnt= {}", Graph[node].subpolicy, Graph[node].i_observation)
                 #@infiltrate; @assert false    
             end
         end    
         if Graphs.outdegree(Graph, ii) == 0
             # leaf
-            push!(paths, Graphs.a_star(Graph, 1, ii))
+            #test = Graphs.a_star(Graph, 1, ii)
+            parents = recurse_parents(node, Graph, [])
+            
+            #=
+            todo: the conversion from node to code and then edge is unnecessary and extra work. Its 
+            only done to match the result of Graphs.a_star. Keeping as nodes will eliminate the need
+            later for calls to MGN.label_for. 
+            =#
+            parents = [(MGN.code_for(Graph, parents[j+1]), MGN.code_for(Graph, parents[j])) for j in 1:length(parents)-1]
+            push!(paths, Graphs.Edge.(reverse(parents)))
+            #@infiltrate; @assert false
         end
     end
 
-    if length(paths) <= 6
+    printfmtln("\ncollect dfs paths time= {}\n", round((Dates.time() - t0) , digits=2))
+    t0 = Dates.time()
+    #@infiltrate; @assert false
+
+    if max_level == 0
+        printfmtln("\n-----\nError: No observation nodes greater than level 0 in graph.\n----\n")
         @infiltrate; @assert false    
-    end 
+    end
+    
+    if max_level < n_steps-1
+        printfmtln("\n-------\nWarning!! ------\nmax_level={} is < policy_length={}\n-----\n", 
+        max_level, n_steps
+        )
+        @infiltrate; @assert false    
+    end
     
     # clean up dfs paths
     bad_nodes = Set()
@@ -578,6 +624,9 @@ function update_posterior_policies(agent)
         end
 
     end
+
+    printfmtln("\ncleanup dfs paths time= {}\n", round((Dates.time() - t0) , digits=2))
+    t0 = Dates.time()
     
     # delete all unwanted nodes 
     for node in bad_nodes
@@ -588,12 +637,26 @@ function update_posterior_policies(agent)
         @infiltrate; @assert false    
     end 
 
+    printfmtln("\ndelete nodes time= {}\n", round((Dates.time() - t0) , digits=2))
+    t0 = Dates.time()
+    
+    
     # Now all dfs paths are valid and end in an actionNode. Get a list of valid policies.
     policies = Set()
     for ii in Graphs.vertices(Graph)
         if Graphs.outdegree(Graph, ii) == 0
             # leaf
-            path = Graphs.a_star(Graph, 1, ii)
+            #path = Graphs.a_star(Graph, 1, ii)
+            node = MGN.label_for(Graph, ii)
+            parents = recurse_parents(node, Graph, [])
+            #=
+            todo: the conversion from node to code and then edge is unnecessary and extra work. Its 
+            only done to match the result of Graphs.a_star. Keeping as nodes will eliminate the need
+            later for calls to MGN.label_for. 
+            =#
+            parents = [(MGN.code_for(Graph, parents[j+1]), MGN.code_for(Graph, parents[j])) for j in 1:length(parents)-1]
+            path = Graphs.Edge.(reverse(parents))
+
             policy = []
             for edge in path  # skip node 0
                 dst = MGN.label_for(Graph, edge.dst)  
@@ -614,6 +677,10 @@ function update_posterior_policies(agent)
         @infiltrate; @assert false    
     end 
 
+    printfmtln("\nget policies list time= {}\n", round((Dates.time() - t0) , digits=2))
+    t0 = Dates.time()
+    
+
     # the returns here are for policies identified in this function, not in policy iterator
     
     # choose one of the following methods
@@ -624,6 +691,10 @@ function update_posterior_policies(agent)
     elseif agent.graph_postprocessing_method == "marginal_EFE_method"
         G, q_pi, utility, info_gain, risk, ambiguity = do_marginal_EFE_method(Graph, agent, policies)
     end
+
+    printfmtln("\ndo G time= {}\n", round((Dates.time() - t0) , digits=2))
+    t0 = Dates.time()
+    
 
     # put polices in same order and size as policy iterator
     n_policies = agent.policies.number_policies
@@ -644,6 +715,7 @@ function update_posterior_policies(agent)
             push!(policies_, tuple( vcat(p, repeat([5], agent.policy_len))[1:agent.policy_len]...))
         end
     end
+
 
     for (ii, policy) in enumerate(agent.policies.policy_iterator)
         jj = findfirst(x->x == policy[1], policies_)
@@ -719,10 +791,10 @@ function do_G_prob_method(Graph, agent, policies)
                 end
             end
 
-            if isa(Graph[node], ObsNode) && Graph[node].ith_outcome > 1
+            #if isa(Graph[node], ObsNode) && Graph[node].ith_observation > 1
                 # curious how many ObsNodes an ActionNode might have?
-                #printfmtln("    trimmed graph subpolicy= {}, cnt= {}", Graph[node].subpolicy, Graph[node].ith_outcome)
-            end           
+                #printfmtln("    trimmed graph subpolicy= {}, cnt= {}", Graph[node].subpolicy, Graph[node].ith_observation)
+            #end           
         end
         #printfmtln("\nsubpolicies={}, vlist size = {}", [x for x in subpolicies], length(vlist))
     
@@ -767,7 +839,18 @@ function do_G_prob_method(Graph, agent, policies)
                     
                     # cascade prob_updated on ObsNodes starting from root to leaf
                     node_id = MGN.code_for(Graph, node)
-                    path = Graphs.a_star(Graph, 1, node_id)
+                    #path = Graphs.a_star(Graph, 1, node_id)
+
+                    parents = recurse_parents(node, Graph, [])
+            
+                    #=
+                    todo: the conversion from node to code and then edge is unnecessary and extra work. Its 
+                    only done to match the result of Graphs.a_star. Keeping as nodes will eliminate the need
+                    later for calls to MGN.label_for. 
+                    =#
+                    parents = [(MGN.code_for(Graph, parents[j+1]), MGN.code_for(Graph, parents[j])) for j in 1:length(parents)-1]
+                    path = Graphs.Edge.(reverse(parents))
+
                     prob = 1
                     for edge in path
                         label = MGN.label_for(Graph, edge.src)
@@ -908,9 +991,9 @@ function do_G_prob_qpi_method(Graph, agent, policies)
                 end
             end
 
-            if isa(Graph[node], ObsNode) && Graph[node].ith_outcome > 1
+            if isa(Graph[node], ObsNode) && Graph[node].ith_observation > 1
                 # curious how many ObsNodes an ActionNode might have?
-                #printfmtln("    trimmed graph subpolicy= {}, cnt= {}", Graph[node].subpolicy, Graph[node].ith_outcome)
+                #printfmtln("    trimmed graph subpolicy= {}, cnt= {}", Graph[node].subpolicy, Graph[node].ith_observation)
             end           
         end
         #printfmtln("\nsubpolicies={}, vlist size = {}", [x for x in subpolicies], length(vlist))
@@ -1048,14 +1131,16 @@ end
 # --------------------------------------------------------------------------------------------------
 function recurse(Graph, agent, level, ObsLabel)
     
-    state_prune_threshold = 1/16
+    observation_prune_threshold = 1/100  #1/16
     policy_prune_threshold = 1/16
     prune_penalty = 512
        
     qs = Graph[ObsLabel].qs_next
-    outcome = Graph[ObsLabel].outcome
+    observation = Graph[ObsLabel].observation
 
-    printfmtln("\n------\nlevel={}, outcome={}", level, outcome)
+    if agent.verbose
+        printfmtln("\n------\nlevel={}, observation={}", level, observation)
+    end
 
     # to keep simple, use only one action here, todo: allow multiple actions
     children = []
@@ -1073,10 +1158,12 @@ function recurse(Graph, agent, level, ObsLabel)
             end
         end
 
-        ActionLabel = vcat(ObsLabel, Label(level, outcome, action, "Action")) 
-        printfmtln("\nActionLabel[end]= \n{}", 
-            Dict(key=>getfield(ActionLabel[end], key) for key ∈ fieldnames(Label))
-        )
+        ActionLabel = vcat(ObsLabel, Label(level, observation, action, "Action")) 
+        if agent.verbose
+            printfmtln("\nActionLabel[end]= \n{}", 
+                Dict(key=>getfield(ActionLabel[end], key) for key ∈ fieldnames(Label))
+            )
+        end
         if ActionLabel in collect(MGN.labels(Graph))
             # the label should not exist yet
             @infiltrate; @assert false
@@ -1091,7 +1178,7 @@ function recurse(Graph, agent, level, ObsLabel)
             continue
         end
         
-        qs_pi = get_expected_states(qs, agent.B, (action,), agent.metamodel, policy_full = subpolicy)  # assume one action only
+        qs_pi = get_expected_states(qs, agent, (action,), policy_full = subpolicy)  # assume one action only
         #@infiltrate; @assert false
 
         if isnothing(qs_pi) 
@@ -1108,7 +1195,7 @@ function recurse(Graph, agent, level, ObsLabel)
             continue  
         end
 
-        qo_pi = get_expected_obs(qs_pi, agent.A, agent.metamodel)  
+        qo_pi = get_expected_obs(qs_pi, agent)  
         
         G = 0
         if agent.use_utility
@@ -1152,7 +1239,7 @@ function recurse(Graph, agent, level, ObsLabel)
            
             action,
             subpolicy,
-            outcome,
+            observation,
             level,
         )
         
@@ -1169,7 +1256,9 @@ function recurse(Graph, agent, level, ObsLabel)
     end
 
     if level == agent.policy_len
-        println("returning terminal path")
+        if agent.verbose
+            println("returning terminal path")
+        end
         return # just return the graph
     end
     
@@ -1206,30 +1295,30 @@ function recurse(Graph, agent, level, ObsLabel)
         #    Graph[child].q_pi = q_pi[ii]  
         end
     end
-    children = [children[ii] for ii in good]
+    good_children = [children[ii] for ii in good]
     
-    if length(children) == 0
+    if length(good_children) == 0
         @infiltrate; @assert false
     end
 
-    qo_pi_sizes = [1:x.size[1] for x in Graph[children[1]].qo_pi[1]]
-    outcome_iterator = Iterators.product(qo_pi_sizes...) # every possible combination of observations e.g., (23, 2, 1)
+    qo_pi_sizes = [1:x.size[1] for x in Graph[good_children[1]].qo_pi[1]]
+    observation_iterator = Iterators.product(qo_pi_sizes...) # every possible combination of observations e.g., (23, 2, 1) for 3 observations
     
 
-    for (idx, ActionLabel) in enumerate(children)
+    for (idx, ActionLabel) in enumerate(good_children)
         
         qo_next = Graph[ActionLabel].qo_pi[1]
-        skip_outcomes = true
+        skip_observations = true
         
         # do standard inference?
         if agent.use_SI_graph_for_standard_inference
             # test without belief updates due to likely observations
             # use this for non-sophisticated (standard) inference
-            skip_outcomes = false
+            skip_observations = false
             
             # make Obs node and link to parent, overwrite ObsLabel, make only a single Obs node
             ObsLabel = copy(ActionLabel)
-            ObsLabel[end] = Label(level, outcome, Graph[ActionLabel].action, "Obs")
+            ObsLabel[end] = Label(level, observation, Graph[ActionLabel].action, "Obs")
             
             if ObsLabel in collect(MGN.labels(Graph))
                 # the label should not exist yet
@@ -1240,7 +1329,7 @@ function recurse(Graph, agent, level, ObsLabel)
             qs_next = Graph[ActionLabel].qs_pi[1]  
             prob = 1.0
             cnt = 1
-            outcome = nothing  # this is a dummy ObsNode
+            observation = nothing  # this is a dummy ObsNode
 
             Graph[ObsLabel] = ObsNode(
                 qs_next,
@@ -1253,14 +1342,16 @@ function recurse(Graph, agent, level, ObsLabel)
                 prob,
                 nothing,  # prob_updated
                 Graph[ActionLabel].subpolicy,
-                outcome,
+                observation,
                 level,
                 cnt
             )
 
             Graph[ActionLabel, ObsLabel] = GraphEdge()
             
-            printfmtln("\n        level= {}, calling sophisticated", level)
+            if agent.verbose
+                printfmtln("\n        level= {}, calling sophisticated", level)
+            end
             #@infiltrate; @assert false
             recurse(Graph, agent, level+1, ObsLabel)
             
@@ -1269,40 +1360,45 @@ function recurse(Graph, agent, level, ObsLabel)
             
         # do regular SI
         cnt = 0
-        for (i_outcome, outcome) in enumerate(outcome_iterator)    
-            n = length(outcome)
+        for (i_observation, observation) in enumerate(observation_iterator)    
+            n = length(observation)
             probs = zeros(n)
-            for i in 1:length(outcome)
-                probs[i] = qo_next[i][outcome[i]]
+            for i in 1:length(observation)
+                probs[i] = qo_next[i][observation[i]]
             end
             prob  = prod(vcat(1.0, probs))
             
             #@infiltrate; @assert false
             # ignore low probability states in the search tree
-            if prob < state_prune_threshold
+            if prob < observation_prune_threshold
+                #    printfmtln("        level= {}, observation= {}, probs= {}, prob= {}", 
+                #    level, observation, round.(probs, sigdigits=3), round(prob, sigdigits=3)
+                #)
                 continue
             end
 
-            skip_outcomes = false
+            skip_observations = false
             cnt += 1
 
-            printfmtln("        level= {}, outcome= {}, probs= {}, prob= {}", 
-                level, outcome, round.(probs, sigdigits=3), round(prob, sigdigits=3)
-            )
-            
+            if agent.verbose
+                printfmtln("        level= {}, observation= {}, probs= {}, prob= {}", 
+                    level, observation, round.(probs, sigdigits=3), round(prob, sigdigits=3)
+                )
+            end
+
             qs_next = update_posterior_states(
                 agent.A, 
                 agent.metamodel,
-                collect(outcome), 
+                collect(observation), 
                 prior = Graph[ActionLabel].qs_pi[1], 
                 num_iter = agent.FPI_num_iter, 
                 dF_tol = agent.FPI_dF_tol
             )
         
             # make Obs node and link to parent, overwrite ObsLabel
-            # ObsLabel = vcat(ActionLabel, Label(level, outcome, Graph[ActionLabel].action, "Obs"))  # longer
+            # ObsLabel = vcat(ActionLabel, Label(level, observation, Graph[ActionLabel].action, "Obs"))  # longer
             ObsLabel = copy(ActionLabel)
-            ObsLabel[end] = Label(level, outcome, Graph[ActionLabel].action, "Obs")
+            ObsLabel[end] = Label(level, observation, Graph[ActionLabel].action, "Obs")
             
             if ObsLabel in collect(MGN.labels(Graph))
                 # the label should not exist yet
@@ -1320,14 +1416,16 @@ function recurse(Graph, agent, level, ObsLabel)
                 prob,
                 nothing,  # prob_updated
                 Graph[ActionLabel].subpolicy,
-                outcome,
+                observation,
                 level,
                 cnt
             )
 
             Graph[ActionLabel, ObsLabel] = GraphEdge()
             
-            printfmtln("\n        level= {}, calling sophisticated", level)
+            if agent.verbose
+                printfmtln("\n        level= {}, calling sophisticated", level)
+            end
             #@infiltrate; @assert false
             recurse(Graph, agent, level+1, ObsLabel)
             
@@ -1337,20 +1435,27 @@ function recurse(Graph, agent, level, ObsLabel)
             #G[idx] += G_weighted
         end
 
-        printfmtln("        level= {}, ending outcome loop, idx={}, obs cnt= {}", level, idx, cnt)            
-        if cnt > 1
+        if agent.verbose
+            printfmtln("        level= {}, ending observation loop, idx={}, obs cnt= {}", level, idx, cnt)            
+        end
+        if cnt > 1 && agent.verbose
             printfmtln("\nsubpolicy= {}", Graph[ActionLabel].subpolicy)
             #@infiltrate; @assert false
         end
-        if skip_outcomes == true
-            # all outcome's were skipped
-            @infiltrate; @assert false
+        if skip_observations == true
+            # all observation's were skipped; could be true in first sim steps if learning a B matrix
+            printfmtln("\n---- Warning ---\nNo observations, not extending branch. level= {}, observation= {}, actions= {}\n-------\n", 
+                level, observation, [x.action for x in ActionLabel]
+            )
+            #@infiltrate; @assert false
         end
         
         #@infiltrate; @assert false
 
     end
-    printfmtln("    level = {}, ending idx loop", level)
+    if agent.verbose
+        printfmtln("    level = {}, ending idx loop", level)
+    end
         
 end
 
