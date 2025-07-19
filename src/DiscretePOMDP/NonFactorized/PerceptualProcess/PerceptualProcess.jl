@@ -55,7 +55,7 @@ function perception(
     # Set the current posterior_states to the previous_posterior states
     agent.perceptual_process.previous_posterior_states = agent.perceptual_process.posterior_states
 
-    # Infer states using the specified optimization engine
+    # Infer states with muætiple dispatch on the optimization engine
     new_posterior_states = infer_states(agent, agent.perceptual_process.optim_engine)
     agent.perceptual_process.posterior_states = new_posterior_states
 
@@ -65,6 +65,4 @@ function perception(
     end
 
 end
-
-
 

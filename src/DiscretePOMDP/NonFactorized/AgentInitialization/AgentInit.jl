@@ -2,24 +2,22 @@
 function AIFAgent(;
     generative_model::GenerativeModel,
     perceptual_process::PerceptualProcess,
-    perception::Function
+    perception::Function,
+    prediction::Function = predict_states_observations,
+    action_process::AbstractActionProcess
 )
     
-    fill_missing_parameters(generative_model, perceptual_process)
+    fill_missing_parameters(generative_model, perceptual_process, action_process)
 
-    return AIFAgent(generative_model, perceptual_process, perception)
+    return AIFAgent(generative_model, perceptual_process, perception, prediction, action_process)
 end
 
 
-
 #### Below are functions for filling out missing parameters ####
-function fill_missing_parameters(generative_model::GenerativeModel, perceptual_process::PerceptualProcess)
+function fill_missing_parameters(generative_model::GenerativeModel, perceptual_process::PerceptualProcess, action_process::ActionProcess)
 
     # Provide the prior over states from the generative model to the perceptual_process
     perceptual_process.prior = generative_model.D
-
-    # Create a default E parameter based on policy length from action_process
-    # missing #
 
     # Create Prior over learned parameters if concentration parameter is given.
     create_learning_priors(
@@ -29,7 +27,20 @@ function fill_missing_parameters(generative_model::GenerativeModel, perceptual_p
         perceptual_process.D_learning
     )
 
-    return
+    # Create policies if not provided
+    if isnothing(action_process.policies)
+        
+        action_process.policies = construct_policies(
+            generative_model.info.controls_per_factor, 
+            action_process.policy_length
+        )
+        
+    end
+
+    # Create a default E parameter based on policy length from action_process
+    n_policies = length(action_process.policies)
+    action_process.E = fill(1.0 / n_policies, n_policies)
+
 end 
 
 function create_learning_priors(
@@ -51,4 +62,30 @@ function create_learning_priors(
         D_learning.prior = deepcopy(generative_model.D) .* D_learning.concentration_parameter
     end
 
+end
+
+""" Function to create the policies of the agent based on the generative model."""
+function construct_policies(n_controls::Vector{Int}, policy_length::Int)
+
+    # Create a vector of possible actions for each time step
+    x = repeat(n_controls, policy_length)
+
+    # Generate all combinations of actions across all time steps
+    policies = collect(Iterators.product([1:i for i in x]...))
+
+    # Initialize an empty vector to store transformed policies
+    transformed_policies = Vector{Matrix{Int64}}()
+
+    for policy_tuple in policies
+        # Convert tuple into a vector
+        policy_vector = collect(policy_tuple)
+        
+        # Reshape the policy vector into a matrix and transpose it
+        policy_matrix = reshape(policy_vector, (length(policy_vector) ÷ policy_length, policy_length))'
+        
+        # Push the reshaped matrix to the vector of transformed policies
+        push!(transformed_policies, policy_matrix)
+    end
+
+    return transformed_policies
 end

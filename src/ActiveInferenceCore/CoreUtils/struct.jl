@@ -49,11 +49,11 @@ struct AIFAgent
     # store_new_beliefs!::Function
 
     # Function for calculating the predictive posterior
-    # prediction::Function
+    prediction::Function
 
     # Action process
     # action::Function
-    # action_process::AbstractActionProcess
+    action_process::AbstractActionProcess
 
     # function AIFAgent(;
     #     generative_model::AbstractGenerativeModel,

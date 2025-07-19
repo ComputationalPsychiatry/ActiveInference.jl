@@ -42,7 +42,7 @@ function get_expected_states(qs::Vector{Vector{Float64}}, B, policy::Vector{Matr
     
     # Preparing vessel for the expected states for all policies. Has number of undefined entries equal to the
     # number of policies
-    qs_pi_all = Vector{Any}(undef, n_policies)
+    qs_pi_all = Vector{Vector{Vector{Vector{Float64}}}}(undef, length(n_policies))
 
     # Looping through all policies
     for (policy_idx, policy_x) in enumerate(policy)
@@ -330,7 +330,6 @@ function update_posterior_policies(
         end
 
     end
-
     
     q_pi = softmax(G * gamma + lnE, dims=1)
 
