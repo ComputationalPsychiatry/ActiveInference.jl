@@ -4,8 +4,14 @@ NonFactorized submodule for DiscretePOMDP containing non-factorized implementati
 
 module NonFactorized
 
+# Import necessary packages
+using ...ActiveInference: ReverseDiff, LogExpFunctions, LinearAlgebra
+using ...ActiveInference.LogExpFunctions: softmax
+using ...ActiveInference.LinearAlgebra: dot
+
 # Import from parent modules
 using ...ActiveInferenceCore: AbstractGenerativeModel, AbstractPerceptualProcess, AbstractActionProcess, AbstractOptimEngine, DiscreteActions, DiscreteObservations, DiscreteStates, AIFAgent
+
 
 # Include generative model type and files
 include("GenerativeModel/utils/GenerativeModelInfoStruct.jl")
@@ -24,6 +30,7 @@ include("PerceptualProcess/PerceptualProcess.jl")
 # Include action process type and files
 include("ActionProcess/ActionProcess.jl")
 include("ActionProcess/utils/prediction_utils.jl")
+include("ActionProcess/utils/posterior_policies_utils.jl")
 
 # Include agent initialization
 include("AgentInitialization/AgentInit.jl")

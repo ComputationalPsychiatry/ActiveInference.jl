@@ -4,12 +4,13 @@ function AIFAgent(;
     perceptual_process::PerceptualProcess,
     perception::Function,
     prediction::Function = predict_states_observations,
+    action::Function = get_action_distribution,
     action_process::AbstractActionProcess
 )
     
     fill_missing_parameters(generative_model, perceptual_process, action_process)
 
-    return AIFAgent(generative_model, perceptual_process, perception, prediction, action_process)
+    return AIFAgent(generative_model, perceptual_process, perception, prediction, action, action_process)
 end
 
 

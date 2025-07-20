@@ -52,18 +52,9 @@ struct AIFAgent
     prediction::Function
 
     # Action process
-    # action::Function
+    action::Function
     action_process::AbstractActionProcess
 
-    # function AIFAgent(;
-    #     generative_model::AbstractGenerativeModel,
-    #     perceptual_process::AbstractPerceptualProcess,
-    #     perception::Function
-    # )
-    #     println("From AIFCore")
-    #     new(generative_model, perceptual_process, perception)
-    # end
-    
 end
 
 function active_inference(agent::AIFAgent, observation::Vector{Float64})
