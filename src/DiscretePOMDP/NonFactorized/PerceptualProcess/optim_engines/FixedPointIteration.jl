@@ -9,10 +9,8 @@ end
 """ Update the agents's beliefs over states """
 function infer_states(agent::AIFAgent, optim_engine::FixedPointIteration)
 
-    println("Using FixedPointIteration for state inference")
-
-    if agent.action_process.action !== nothing
-        int_action = round.(Int, agent.action_process.action)
+    if agent.action_process.previous_action !== nothing
+        int_action = round.(Int, agent.action_process.previous_action)
         agent.perceptual_process.prior = get_expected_states(agent.perceptual_process.posterior_states, agent.generative_model.B, reshape(int_action, 1, length(int_action)))[1]
     end
 
@@ -40,7 +38,7 @@ end
 
 """ Run State Inference via Fixed-Point Iteration """
 function fixed_point_iteration(;
-    A::Vector{Array{T,N}} where {T <: Real, N}, observation::Vector{Vector{Float64}}, n_factors::Vector{Int64}, n_states::Vector{Int64},
+    A::Vector{Array{T,N}} where {T <: Real, N}, observation::Vector{Vector{Float64}}, n_factors::Int64, n_states::Vector{Int64},
     prior::Union{Nothing, Vector{Vector{T}}} where T <: Real = nothing, 
     num_iter::Int=num_iter, dF::Float64=1.0, dF_tol::Float64=dF_tol
 )

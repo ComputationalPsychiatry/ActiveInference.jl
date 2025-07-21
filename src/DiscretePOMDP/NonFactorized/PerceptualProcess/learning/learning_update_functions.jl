@@ -127,7 +127,7 @@ function update_B(agent::AIFAgent)
         qB = update_state_likelihood_dirichlet(
             agent.perceptual_process.B_learning.prior, 
             agent.generative_model.B, 
-            agent.action_process.action, 
+            agent.action_process.previous_action, 
             agent.perceptual_process.posterior_states, 
             agent.perceptual_process.previous_posterior_states, 
             agent.perceptual_process.B_learning.learning_rate, 

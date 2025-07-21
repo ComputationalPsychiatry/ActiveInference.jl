@@ -57,20 +57,16 @@ struct AIFAgent
 
 end
 
-function active_inference(agent::AIFAgent, observation::Vector{Float64})
+function active_inference(agent::AIFAgent, observation::Vector{Int64})
 
     # Perform perception process
-    new_beliefs = agent.perception(agent, observation)
+    agent.perception(agent, observation)
 
     # Store new beliefs
-    agent.store_new_beliefs!(agent, new_beliefs)
-
-    # Make predictions for Sophisticated Inference
-    #agent.prediction(agent) # probably doesn't belong here
+    agent.prediction(agent)
 
     # Perform action process
-    # Should we here include a differentitation between planning and action selection?
-    action_distribution = agent.action(agent)
+    action_distribution, G = agent.action(agent)
 
     return action_distribution
 end

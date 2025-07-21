@@ -8,7 +8,7 @@ using ..ActiveInferenceCore: AbstractActionProcess, AIFAgent
 mutable struct ActionProcess <: AbstractActionProcess
 
     # Struct for containing the "meta" information, such as whether to update parameters etc
-    # info::ActionProcessInfo
+    info::ActionProcessInfo
 
     # Settings for the actions process
     use_utility::Bool
@@ -30,6 +30,10 @@ mutable struct ActionProcess <: AbstractActionProcess
     posterior_policies::Union{Vector{Float64}, Nothing}
     expected_free_energy::Union{Vector{Float64}, Nothing}
 
+    # Field for action selection
+    action_selection::String
+    alpha::Real
+
     function ActionProcess(;
         use_utility::Bool = true,
         use_states_info_gain::Bool = true,
@@ -42,9 +46,48 @@ mutable struct ActionProcess <: AbstractActionProcess
         predicted_observations::Union{Vector{Int}, Nothing} = nothing,
         previous_action::Union{Vector{Int}, Nothing} = nothing,
         posterior_policies::Union{Vector{Float64}, Nothing} = nothing,
-        expected_free_energy::Union{Vector{Float64}, Nothing} = nothing
+        expected_free_energy::Union{Vector{Float64}, Nothing} = nothing,
+        action_selection::String = "stochastic",
+        alpha::Real = 16.0,
+        verbose::Bool = true
     )
-        new(use_utility, use_states_info_gain, use_param_info_gain, gamma, E, policy_length, policies, predicted_states, predicted_observations, previous_action, posterior_policies, expected_free_energy)
+
+        # Create the ActionProcessInfo struct
+        info = ActionProcessInfo(
+            use_utility,
+            use_states_info_gain,
+            use_param_info_gain,
+            policy_length,
+            policies,
+            E,
+            gamma,
+            action_selection,
+            alpha
+        )
+
+        show_info(info, verbose=verbose)
+
+        if action_selection != "stochastic" && action_selection != "deterministic"
+            error("action_selection must be either 'stochastic' or 'deterministic'")
+        end
+
+        new(
+            info, 
+            use_utility, 
+            use_states_info_gain, 
+            use_param_info_gain, 
+            gamma, 
+            E, 
+            policy_length, 
+            policies, 
+            predicted_states, 
+            predicted_observations, 
+            previous_action, 
+            posterior_policies, 
+            expected_free_energy, 
+            action_selection,
+            alpha
+        )
     end
 end
 
@@ -58,8 +101,9 @@ function predict_states_observations(agent::AIFAgent)
 
 end
 
-function get_action_distribution(agent::AIFAgent)
+function action_distribution(agent::AIFAgent; act::Bool = false)
 
+    # Get posterior over policies and expected free energies
     q_pi, G = update_posterior_policies(
         qs = agent.perceptual_process.posterior_states,
         A = agent.generative_model.A,
@@ -79,7 +123,23 @@ function get_action_distribution(agent::AIFAgent)
     agent.action_process.posterior_policies = q_pi
     agent.action_process.expected_free_energy = G
 
-    return q_pi, G
+    # If action is enabled, sample an action from the posterior policies
+    if act
+        # Sample action from the posterior policies
+        action = sample_action(
+            q_pi = q_pi, 
+            policies = agent.action_process.policies, 
+            n_controls = agent.generative_model.info.controls_per_factor; 
+            action_selection=agent.action_process.info.action_selection, 
+            alpha=agent.action_process.info.alpha
+        )
+
+        agent.action_process.previous_action = action
+        return q_pi, G, action
+    else
+        return q_pi, G
+    end
+
 end
 
 

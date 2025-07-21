@@ -8,6 +8,7 @@ module NonFactorized
 using ...ActiveInference: ReverseDiff, LogExpFunctions, LinearAlgebra
 using ...ActiveInference.LogExpFunctions: softmax
 using ...ActiveInference.LinearAlgebra: dot
+using ...ActiveInference.Distributions: Multinomial
 
 # Import from parent modules
 using ...ActiveInferenceCore: AbstractGenerativeModel, AbstractPerceptualProcess, AbstractActionProcess, AbstractOptimEngine, DiscreteActions, DiscreteObservations, DiscreteStates, AIFAgent
@@ -16,6 +17,7 @@ using ...ActiveInferenceCore: AbstractGenerativeModel, AbstractPerceptualProcess
 # Include generative model type and files
 include("GenerativeModel/utils/GenerativeModelInfoStruct.jl")
 include("GenerativeModel/utils/CheckGenerativeModel.jl")
+include("GenerativeModel/utils/create_matrix_templates.jl")
 include("GenerativeModel/GenerativeModel.jl")
 
 # Include the perceptual process type and files
@@ -28,9 +30,11 @@ include("PerceptualProcess/PerceptualProcess.jl")
 
 
 # Include action process type and files
+include("ActionProcess/utils/ActionProcessInfoStruct.jl")
 include("ActionProcess/ActionProcess.jl")
 include("ActionProcess/utils/prediction_utils.jl")
 include("ActionProcess/utils/posterior_policies_utils.jl")
+include("ActionProcess/utils/action_selection.jl")
 
 # Include agent initialization
 include("AgentInitialization/AgentInit.jl")

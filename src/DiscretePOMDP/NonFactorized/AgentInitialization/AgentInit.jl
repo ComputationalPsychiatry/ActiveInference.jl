@@ -2,9 +2,9 @@
 function AIFAgent(;
     generative_model::GenerativeModel,
     perceptual_process::PerceptualProcess,
-    perception::Function,
+    perception::Function = perception,
     prediction::Function = predict_states_observations,
-    action::Function = get_action_distribution,
+    action::Function = action_distribution,
     action_process::AbstractActionProcess
 )
     
