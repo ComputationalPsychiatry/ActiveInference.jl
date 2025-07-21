@@ -1,4 +1,4 @@
-mutable struct GenerativeModelInfo
+struct GenerativeModelInfo
 
     model_type::String
     abstract_model_type::String

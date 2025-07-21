@@ -2,7 +2,7 @@
 InfoStruct for tracking perceptual process configuration and learning settings.
 """
 
-mutable struct PerceptualProcessInfo
+struct PerceptualProcessInfo
 
     # Learning flag - whether any parameters are being learned
     learning_enabled::Bool

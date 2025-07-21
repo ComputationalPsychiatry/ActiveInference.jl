@@ -70,3 +70,17 @@ function active_inference(agent::AIFAgent, observation::Vector{Int64})
 
     return action_distribution
 end
+
+function active_inference_action(agent::AIFAgent, observation::Vector{Int64})
+
+    # Perform perception process
+    agent.perception(agent, observation)
+
+    # Store new beliefs
+    agent.prediction(agent)
+
+    # Perform action process
+    action_distribution, G, action = agent.action(agent, act = true)
+
+    return action
+end

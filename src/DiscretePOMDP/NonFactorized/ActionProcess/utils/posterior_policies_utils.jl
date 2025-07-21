@@ -9,8 +9,8 @@ function update_posterior_policies(;
     use_utility::Bool=true,
     use_states_info_gain::Bool=true,
     use_param_info_gain::Bool=false,
-    pA = nothing,
-    pB = nothing,
+    A_learning = nothing,
+    B_learning = nothing,
     E::Vector{T} where T <: Real = nothing,
     gamma::Real=16.0
 )
@@ -51,19 +51,19 @@ function update_posterior_policies(;
 
         # Calculate expected information gain of parameters (learning)
         if use_param_info_gain
-            if pA !== nothing
+            if A_learning !== nothing
 
                 # if ReverseDiff is tracking pA information gain, get the value
-                if ReverseDiff.istracked(calc_pA_info_gain(pA, qo_pi, qs_pi))
-                    G[idx] += ReverseDiff.value(calc_pA_info_gain(pA, qo_pi, qs_pi))
+                if ReverseDiff.istracked(calc_pA_info_gain(A_learning.prior, qo_pi, qs_pi))
+                    G[idx] += ReverseDiff.value(calc_pA_info_gain(A_learning.prior, qo_pi, qs_pi))
                 # Otherwise calculate it and add it to the G vector
                 else
-                    G[idx] += calc_pA_info_gain(pA, qo_pi, qs_pi)
+                    G[idx] += calc_pA_info_gain(A_learning.prior, qo_pi, qs_pi)
                 end
             end
 
-            if pB !== nothing
-                G[idx] += calc_pB_info_gain(pB, qs_pi, qs, policy)
+            if B_learning !== nothing
+                G[idx] += calc_pB_info_gain(B_learning.prior, qs_pi, qs, policy)
             end
         end
 

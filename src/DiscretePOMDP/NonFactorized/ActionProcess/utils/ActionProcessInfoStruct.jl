@@ -2,7 +2,7 @@
 InfoStruct for tracking action process configuration and policy settings.
 """
 
-mutable struct ActionProcessInfo
+struct ActionProcessInfo
 
     # Utility and information gain flags
     use_utility::Bool

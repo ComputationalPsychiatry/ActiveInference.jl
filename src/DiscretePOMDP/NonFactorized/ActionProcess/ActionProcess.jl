@@ -114,8 +114,8 @@ function action_distribution(agent::AIFAgent; act::Bool = false)
         use_utility = agent.action_process.use_utility,
         use_states_info_gain = agent.action_process.use_states_info_gain,
         use_param_info_gain = agent.action_process.use_param_info_gain,
-        pA = agent.perceptual_process.A_learning.prior,
-        pB = agent.perceptual_process.B_learning.prior,
+        A_learning = agent.perceptual_process.A_learning,
+        B_learning = agent.perceptual_process.B_learning,
         E = agent.action_process.E,
         gamma = agent.action_process.gamma
     )
