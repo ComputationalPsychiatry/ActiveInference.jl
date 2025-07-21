@@ -3,11 +3,11 @@
 This function wraps the POMDP action-perception loop used for simulating and fitting the data.
 
 Arguments:
-- `agent::Agent`: An instance of ActionModels `Agent` type, which contains AIF type object as a substruct.
+- `agent::Agent`: An instance of ActionModels `Agent` type, which contains Agent type object as a substruct.
 - `obs::Vector{Int64}`: A vector of observations, where each observation is an integer.
 - `obs::Tuple{Vararg{Int}}`: A tuple of observations, where each observation is an integer.
 - `obs::Int64`: A single observation, which is an integer.
-- `aif::AIF`: An instance of the `AIF` type, which contains the agent's state, parameters, and substructures.
+- `agent::Agent`: An instance of the `Agent` type, which contains the agent's state, parameters, and substructures.
 
 Outputs:
 - Returns a `Distributions.Categorical` distribution or a vector of distributions, representing the probability distributions for actions per each state factor.
@@ -35,7 +35,7 @@ function action_pomdp!(agent::Agent, obs::Vector{Int64})
         if !(previous_action isa Vector)
             previous_action = previous_action isa Integer ? [previous_action] : collect(previous_action)
         end
-        #Store the action in the AIF substruct
+        #Store the action in the Agent substruct
         agent.substruct.action = previous_action
     end
 
@@ -103,7 +103,7 @@ function action_pomdp!(agent::Agent, obs::Tuple{Vararg{Int}})
             previous_action = collect(previous_action)
         end
 
-        #Store the action in the AIF substruct
+        #Store the action in the Agent substruct
         agent.substruct.action = previous_action
     end
 
@@ -149,11 +149,11 @@ function action_pomdp!(agent::Agent, obs::Tuple{Vararg{Int}})
     return n_factors == 1 ? action_distribution[1] : action_distribution
 end
 
-function action_pomdp!(aif::AIF, obs::Vector{Int64})
+function action_pomdp!(agent::Agent, obs::Vector{Int64})
 
     ### Get parameters 
-    alpha = aif.parameters["alpha"]
-    n_factors = length(aif.settings["num_controls"])
+    alpha = agent.parameters["alpha"]
+    n_factors = length(agent.settings["num_controls"])
 
     # Initialize empty arrays for action distribution per factor
     action_p = Vector{Any}(undef, n_factors)
@@ -162,35 +162,35 @@ function action_pomdp!(aif::AIF, obs::Vector{Int64})
     ### Infer states & policies
 
     # Run state inference 
-    infer_states!(aif, obs)
+    infer_states!(agent, obs)
 
     # If action is empty, update D vectors
-    if ismissing(get_states(aif)["action"]) && aif.pD !== nothing
-        qs_t1 = get_history(aif)["posterior_states"][1]
-        update_D!(aif, qs_t1)
+    if ismissing(get_states(agent)["action"]) && agent.pD !== nothing
+        qs_t1 = get_history(agent)["posterior_states"][1]
+        update_D!(agent, qs_t1)
     end
 
     # If learning of the B matrix is enabled and agent has a previous action
-    if !ismissing(get_states(aif)["action"]) && aif.pB !== nothing
+    if !ismissing(get_states(agent)["action"]) && agent.pB !== nothing
 
         # Get the posterior over states from the previous time step
-        states_posterior = get_history(aif)["posterior_states"][end-1]
+        states_posterior = get_history(agent)["posterior_states"][end-1]
 
         # Update Transition Matrix
-        update_B!(aif, states_posterior)
+        update_B!(agent, states_posterior)
     end
 
     # If learning of the A matrix is enabled
-    if aif.pA !== nothing
-        update_A!(aif, obs)
+    if agent.pA !== nothing
+        update_A!(agent, obs)
     end
 
     # Run policy inference 
-    infer_policies!(aif)
+    infer_policies!(agent)
 
 
     ### Retrieve log marginal probabilities of actions
-    log_action_marginals = get_log_action_marginals(aif)
+    log_action_marginals = get_log_action_marginals(agent)
     
     ### Pass action marginals through softmax function to get action probabilities
     for factor in 1:n_factors

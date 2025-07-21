@@ -1,55 +1,26 @@
 
+module Inference
+
+
 using Format
 using Infiltrator
 using Revise
 
 #import LinearAlgebra as LA
-import OMEinsum as ein
-import LogExpFunctions as LEF
+
+
 #import IterTools
 #import Statistics
 
+include("./struct.jl")
 include("./algos.jl")
+include("./utils/maths.jl")
 
-#show(stdout, "text/plain", x)
+
 # @infiltrate; @assert false
 
 
-function dot_product1(X::Union{Array{Float64, N} where N, Matrix{Float64}}, xs::Vector{Vector{Float64}})
-    # xs is a vector of qs vectors for each dependency, in reverse order
-    
-    if isa(X, Matrix{Float64})
-        @assert length(xs) == 1
-        return X * xs[1]
-    end
 
-    sizes = [collect(x.size) for x in xs]
-    code2 = ein.EinCode([collect(X.size), sizes...], collect(X.size[1:end-length(sizes)]))
-    
-    return code2(X,xs...)
-end
-
-
-
-function dot_product2(X::Union{Array{Float64, N} where N, Matrix{Float64}}, xs::Vector{Vector{Float64}})
-    # xs is a vector of qs vectors for each dependency, in reverse order
-    
-    if isa(X, Matrix{Float64})
-        @assert length(xs) == 1
-        return X * xs[1]
-    end
-
-    for (ii, dep) in enumerate(xs)
-        printfmtln("\nii={}, X={}, dep={}", ii, X.size, dep.size)
-        
-        code2 = ein.EinCode([collect(X.size), [dep.size[1]]], collect(X.size[1:end-1]))
-        printfmtln("code2= {}", code2)
-        #@infiltrate; @assert false
-        X = code2(X,dep)
-    end
-
-    return X
-end
 
 
 """ -------- Inference Functions -------- """
@@ -193,288 +164,20 @@ function get_expected_states(
     return qs_pi[2:end]
 end
 
-""" 
-    Multiple dispatch for all expected states given all policies
 
-Multiple dispatch for getting expected states for all policies based on the agents currently
-inferred states and the transition matrices for each factor and action in the policy.
-
-qs::Vector{Vector{Real}} \n
-B: Vector{Array{<:Real}} \n
-policy: Vector{Matrix{Int64}}
-
-"""
-function get_expected_states(
-    qs::Vector{Vector{Float64}}, 
-    B, 
-    policy::Vector{Matrix{Int64}},
-    metamodel
-    )
-
-    @infiltrate; @assert false
-    
-    # Extracting the number of steps (policy_length) and factors from the first policy
-    n_steps, n_factors = size(policy[1])
-
-    # Number of policies
-    n_policies = length(policy)
-    
-    # Preparing vessel for the expected states for all policies. Has number of undefined entries equal to the
-    # number of policies
-    qs_pi_all = Vector{Any}(undef, n_policies)
-
-    # Looping through all policies
-    for (policy_idx, policy_x) in enumerate(policy)
-
-        # initializing posterior predictive density as a list of beliefs over time
-        qs_pi = [deepcopy(qs) for _ in 1:n_steps+1]
-
-        # expected states over time
-        for t in 1:n_steps
-            for control_factor in 1:n_factors
-                action = policy_x[t, control_factor]
-                
-                qs_pi[t+1][control_factor] = B[control_factor][:, :, action] * qs_pi[t][control_factor]
-            end
-        end
-        qs_pi_all[policy_idx] = qs_pi[2:end]
-    end
-    return qs_pi_all
-end
-
-"""
-    process_observation(observation::Int, n_modalities::Int, n_observations::Vector{Int})
-
-Process a single modality observation. Returns a one-hot encoded vector. 
-
-# Arguments
-- `observation::Int`: The index of the observed state with a single observation modality.
-- `n_modalities::Int`: The number of observation modalities in the observation. 
-- `n_observations::Vector{Int}`: A vector containing the number of observations for each modality.
-
-# Returns
-- `Vector{Vector{Real}}`: A vector containing a single one-hot encoded observation.
-"""
-function process_observation(observation::Int, n_modalities::Int, n_observations::Vector{Int})
-
-    # Check if there is only one modality
-    if n_modalities == 1
-        # Create a one-hot encoded vector for the observation
-        processed_observation = onehot(observation, n_observations[1]) 
-    end
-
-    # Return the processed observation wrapped in a vector
-    return [processed_observation]
-end
-
-"""
-    process_observation(observation::Union{Array{Int}, Tuple{Vararg{Int}}}, n_modalities::Int, n_observations::Vector{Int})
-
-Process observation with multiple modalities and return them in a one-hot encoded format 
-
-# Arguments
-- `observation::Union{Array{Int}, Tuple{Vararg{Int}}}`: A collection of indices of the observed states for each modality.
-- `n_modalities::Int`: The number of observation modalities in the observation. 
-- `n_observations::Vector{Int}`: A vector containing the number of observations for each modality.
-
-# Returns
-- `Vector{Vector{Real}}`: A vector containing one-hot encoded vectors for each modality.
-"""
-function process_observation(
-    observation::Union{Array{Int}, Tuple{Vararg{Int}}}, 
-    n_modalities::Int, 
-    n_observations::Vector{Int},
-    metamodel
-    )
-
-    # Initialize the processed_observation vector
-    processed_observation = Vector{Vector{Float64}}(undef, n_modalities)
-
-    # Check if the length of observation matches the number of modalities
-    if length(observation) == n_modalities
-        for (modality, modality_observation) in enumerate(observation)
-            # Create a one-hot encoded vector for the current modality observation
-            one_hot = onehot(modality_observation, n_observations[modality])
-            # Add the one-hot vector to the processed_observation vector
-            processed_observation[modality] = one_hot
-        end
-    end
-    return processed_observation
-end
 
 """ Update Posterior States """
-function update_posterior_states(
-    #A::Vector{Array{T,N}} where {T <: Real, N}, 
-    A::Union{Vector{Array{T}} where {T <: Real}, Vector{Array{T, N}} where {T <: Real, N}}, 
-    metamodel,
-    obs::Vector{Int64}; 
-    prior::Union{Nothing, Vector{Vector{T}}} where T <: Real = nothing, 
-    num_iter::Int=num_iter, 
-    dF_tol::Float64=dF_tol, 
-    kwargs...)
-    
-    num_obs, num_states, num_modalities, num_factors = get_model_dimensions(A)
-    
-    obs_processed = process_observation(
-        obs, 
-        num_modalities, 
-        num_obs,
-        metamodel
-    )
-    
-    qs = run_factorized_fpi(A, metamodel, obs_processed, prior, num_iter=num_iter)
+function update_posterior_states(agent::Agent, obs::NamedTuple{<:Any, <:NTuple{N, Int64} where {N}}) 
+    # todo: there seems to be no need for this function, except to call run_factorized_fpi.
+    # If this is just a pass through function, is that is what we want? Maybe later we will
+    # have other algorithms, in addition to fpi.
+
+    qs = run_factorized_fpi(agent, obs)  
 
     #@infiltrate; @assert false
-        
+
+    # we return qs rather than updating qs in the model to allow for calling update_posterior_states in SI
     return qs
-end
-
-#=
-""" Run State Inference via Fixed-Point Iteration """
-function fixed_point_iteration(
-    #A::Vector{Array{T,N}} where {T <: Real, N}, obs::Vector{Vector{Float64}}, num_obs::Vector{Int64}, num_states::Vector{Int64};
-    A::Vector{Array{T}} where {T <: Real}, 
-    metamodel::MetaModel,
-    obs::Vector{Vector{Float64}}, 
-    num_obs::Vector{Int64}, 
-    num_states::Vector{Int64};
-    prior::Union{Nothing, Vector{Vector{T}}} where T <: Real = nothing, 
-    num_iter::Int=num_iter, 
-    dF::Float64=1.0, 
-    dF_tol::Float64=dF_tol
-    )
-
-    # Get model dimensions (NOTE Sam: We need to save model dimensions in the AIF struct in the future)
-    n_modalities = length(num_obs)
-    n_factors = length(num_states)
-
-    # if metamodel, then num_states etc. might be wrong
-    if !isnothing(metamodel)
-        num_obs = [size(a, 1) for a in A]
-        num_states = nothing
-        n_modalities = length(num_obs)
-        n_factors = nothing
-    end
-    
-
-    # Get joint likelihood
-    likelihood = get_joint_likelihood(A, metamodel, obs, num_states)
-    likelihood = capped_log(likelihood)
-
-    # Initialize posterior and prior
-    qs = Vector{Vector{Float64}}(undef, n_factors)
-    for factor in 1:n_factors
-        qs[factor] = ones(num_states[factor]) / num_states[factor]
-    end
-
-    # If no prior is provided, create a default prior with uniform distribution
-    if prior === nothing
-        prior = create_matrix_templates(num_states)
-    end
-    
-    # Create a copy of the prior to avoid modifying the original
-    prior = deepcopy(prior)
-    prior = capped_log_array(prior) 
-
-    # Initialize free energy
-    prev_vfe = calc_free_energy(qs, prior, n_factors)
-
-    # Single factor condition
-    if n_factors == 1
-        qL = dot_product(likelihood, qs[1])  
-        return [softmax(qL .+ prior[1], dims=1)]
-
-    # If there are more factors
-    else
-        ### Fixed-Point Iteration ###
-        curr_iter = 0
-        ### Sam NOTE: We need check if ReverseDiff might potantially have issues with this while loop ###
-        while curr_iter < num_iter && dF >= dF_tol
-            qs_all = qs[1]
-            # Loop over each factor starting from the second one
-            for factor in 2:n_factors
-                # Reshape and multiply qs_all with the current factor's qs
-                qs_all = qs_all .* reshape(qs[factor], tuple(ones(Real, factor - 1)..., :, 1))
-            end
-
-            # Compute the log-likelihood
-            LL_tensor = likelihood .* qs_all
-
-            # Update each factor's qs
-            for factor in 1:n_factors
-                # Initialize qL for the current factor
-                qL = zeros(Real, size(qs[factor]))
-
-                # Compute qL for each state in the current factor
-                for i in 1:size(qs[factor], 1)
-                    qL[i] = sum([LL_tensor[indices...] / qs[factor][i] 
-                        for indices in Iterators.product([1:size(LL_tensor, dim) 
-                        for dim in 1:n_factors]...) if indices[factor] == i])
-                end
-
-                # If qs is tracked by ReverseDiff, get the value
-                if ReverseDiff.istracked(softmax(qL .+ prior[factor], dims=1))
-                    qs[factor] = ReverseDiff.value(softmax(qL .+ prior[factor], dims=1))
-                else
-                    # Otherwise, proceed as normal
-                    qs[factor] = softmax(qL .+ prior[factor], dims=1)
-                end
-            end
-
-            # Recompute free energy
-            vfe = calc_free_energy(qs, prior, n_factors, likelihood)
-
-            # Update stopping condition
-            dF = abs(prev_vfe - vfe)
-            prev_vfe = vfe
-
-            # Increment iteration
-            curr_iter += 1
-        end
-
-        return qs
-    end
-end
-=#
-
-
-""" Calculate Accuracy Term """
-function compute_accuracy(log_likelihood, qs::Vector{Vector{T}} where T <: Real)
-    n_factors = length(qs)
-    ndims_ll = ndims(log_likelihood)
-    dims = (ndims_ll - n_factors + 1) : ndims_ll
-
-    # Calculate the accuracy term
-    accuracy = sum(
-        log_likelihood[indices...] * prod(qs[factor][indices[dims[factor]]] for factor in 1:n_factors)
-        for indices in Iterators.product((1:size(log_likelihood, i) for i in 1:ndims_ll)...)
-    )
-
-    return accuracy
-end
-
-
-""" Calculate Free Energy """
-function calc_free_energy(qs::Vector{Vector{T}} where T <: Real, prior, n_factors, likelihood=nothing)
-    # Initialize free energy
-    free_energy = 0.0
-    
-    # Calculate free energy for each factor
-    for factor in 1:n_factors
-        # Neg-entropy of posterior marginal
-        negH_qs = dot(qs[factor], log.(qs[factor] .+ 1e-16))
-        # Cross entropy of posterior marginal with prior marginal
-        xH_qp = -dot(qs[factor], prior[factor])
-        # Add to total free energy
-        free_energy += negH_qs + xH_qp
-    end
-    
-    # Subtract accuracy
-    if likelihood !== nothing
-        free_energy -= compute_accuracy(likelihood, qs)
-    end
-    
-    return free_energy
 end
 
 
@@ -773,18 +476,7 @@ end
 
 # --------------------------------------------------------------------
 
-MINVAL = eps(Float64)
-function stable_xlogx(x)
-    zz =  [LEF.xlogy.(z, clamp.(z, MINVAL, Inf)) for z in x]
-    #@infiltrate; @assert false
-    return zz
-end
 
-
-function stable_entropy(x)
-    z = stable_xlogx(x)
-    return - sum(vcat(z...))  
-end
 
 
 function compute_info_gain(qs, qo, A, metamodel, policy_id)
@@ -1050,33 +742,21 @@ function sample_action(
 end
 
 
-""" Edited Compute Accuracy [Still needs to be nested within Fixed-Point Iteration] """
-function compute_accuracy_new(log_likelihood, qs::Vector{Vector{Real}})
-    n_factors = length(qs)
-    ndims_ll = ndims(log_likelihood)
-    dims = (ndims_ll - n_factors + 1) : ndims_ll
-
-    result_size = size(log_likelihood, 1) 
-    results = zeros(Real,result_size)
-
-    for indices in Iterators.product((1:size(log_likelihood, i) for i in 1:ndims_ll)...)
-        product = log_likelihood[indices...] * prod(qs[factor][indices[dims[factor]]] for factor in 1:n_factors)
-        results[indices[1]] += product
-    end
-
-    return results
-end
-
 """ Calculate State-Action Prediction Error """
-function calculate_SAPE(aif::AIF)
+function calculate_SAPE(agent::Agent)
 
-    qs_pi_all = get_expected_states(aif.qs_current, aif.B, aif.policies)
-    qs_bma = bayesian_model_average(qs_pi_all, aif.Q_pi)
+    # todo: is this function used anywhere?
+    @assert false
+    qs_pi_all = get_expected_states(agent.qs_current, agent.B, agent.policies)
+    qs_bma = bayesian_model_average(qs_pi_all, agent.Q_pi)
 
-    if length(aif.states["bayesian_model_averages"]) != 0
-        sape = kl_divergence(qs_bma, aif.states["bayesian_model_averages"][end])
-        push!(aif.states["SAPE"], sape)
+    if length(agent.states["bayesian_model_averages"]) != 0
+        sape = kl_divergence(qs_bma, agent.states["bayesian_model_averages"][end])
+        push!(agent.states["SAPE"], sape)
     end
 
-    push!(aif.states["bayesian_model_averages"], qs_bma)
+    push!(agent.states["bayesian_model_averages"], qs_bma)
 end
+
+
+end  # --- module

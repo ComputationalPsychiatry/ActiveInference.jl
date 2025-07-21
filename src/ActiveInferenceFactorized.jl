@@ -1,19 +1,33 @@
 module ActiveInferenceFactorized
 
-using ActionModels
-using LinearAlgebra
-using IterTools
-using Random
-using Distributions
-using LogExpFunctions
-using ReverseDiff
+# todo:  move most of these 'usings' to the modules where they are used, and make them either import x or import x: m1, m2,...
+# todo: maybe only include one files here, struct.jl, and any needed for ActionModels
 
-include("factorized/utils/maths.jl")
+using ActionModels
+#using LinearAlgebra
+#using IterTools
+#using Random
+#using Distributions
+#using LogExpFunctions
+#using ReverseDiff
+
+using Format
+using Infiltrator
+using Revise
+
+
 include("factorized/struct.jl")
+
+include("factorized/validate.jl")
+include("factorized/agent_functions.jl")
+
+
+
 include("factorized/sophisticated.jl")
 include("factorized/learning.jl")
 include("factorized/utils/utils.jl")
 include("factorized/inference.jl")
+
 include("ActionModelsExtensions/get_states.jl")
 include("ActionModelsExtensions/get_parameters.jl")
 include("ActionModelsExtensions/get_history.jl")
@@ -21,25 +35,31 @@ include("ActionModelsExtensions/set_parameters.jl")
 include("ActionModelsExtensions/reset.jl")
 include("ActionModelsExtensions/give_inputs.jl")
 include("ActionModelsExtensions/set_save_history.jl")
-include("factorized/POMDP.jl")
-include("factorized/utils/helper_functions.jl")
-include("factorized/utils/create_matrix_templates.jl")
 
+include("factorized/POMDP.jl")
+#include("factorized/utils/helper_functions.jl")
+#include("factorized/utils/create_matrix_templates.jl")
+
+
+# todo  move most of these to the modules where they are used, and make them include(...)
 export # utils/create_matrix_templates.jl
-        create_matrix_templates,
+       #todo: do all these really have to be exported?
        
+       #create_matrix_templates,
+       
+
        # utils/maths.jl
-       normalize_distribution,
-       softmax_array,
-       normalize_arrays,
+       #normalize_distribution,
+       #softmax_array,
+       #normalize_arrays,
 
        # utils/utils.jl
-       array_of_any_zeros, 
-       onehot,
-       get_model_dimensions,
+       #array_of_any_zeros, 
+       #onehot,
+       #get_model_dimensions,
 
        # struct.jl
-       init_aif,
+       init_agent,
        infer_states!,
        infer_policies!,
        sample_action!,
@@ -47,7 +67,7 @@ export # utils/create_matrix_templates.jl
        update_B!,
        update_D!,
        update_parameters!,
-       MetaModel,
+       
 
        # POMDP.jl
        action_factorized!,

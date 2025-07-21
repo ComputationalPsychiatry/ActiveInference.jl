@@ -177,7 +177,7 @@ function fixed_point_iteration(
     dF_tol::Float64=dF_tol
     )
 
-    # Get model dimensions (NOTE Sam: We need to save model dimensions in the AIF struct in the future)
+    # Get model dimensions (NOTE Sam: We need to save model dimensions in the Agent struct in the future)
     n_modalities = length(num_obs)
     n_factors = length(num_states)
 
@@ -563,15 +563,15 @@ function compute_accuracy_new(log_likelihood, qs::Vector{Vector{Real}})
 end
 
 """ Calculate State-Action Prediction Error """
-function calculate_SAPE(aif::AIF)
+function calculate_SAPE(agent::Agent)
 
-    qs_pi_all = get_expected_states(aif.qs_current, aif.B, aif.policies)
-    qs_bma = bayesian_model_average(qs_pi_all, aif.Q_pi)
+    qs_pi_all = get_expected_states(agent.qs_current, agent.B, agent.policies)
+    qs_bma = bayesian_model_average(qs_pi_all, agent.Q_pi)
 
-    if length(aif.states["bayesian_model_averages"]) != 0
-        sape = kl_divergence(qs_bma, aif.states["bayesian_model_averages"][end])
-        push!(aif.states["SAPE"], sape)
+    if length(agent.states["bayesian_model_averages"]) != 0
+        sape = kl_divergence(qs_bma, agent.states["bayesian_model_averages"][end])
+        push!(agent.states["SAPE"], sape)
     end
 
-    push!(aif.states["bayesian_model_averages"], qs_bma)
+    push!(agent.states["bayesian_model_averages"], qs_bma)
 end

@@ -73,16 +73,16 @@ function action_select(probabilities)
 end
 
 """ Function to get log marginal probabilities of actions """
-function get_log_action_marginals(aif)
-    num_factors = length(aif.num_controls)
-    q_pi = get_states(aif, "posterior_policies")
-    policies = get_states(aif, "policies")
+function get_log_action_marginals(agent)
+    num_factors = length(agent.num_controls)
+    q_pi = get_states(agent, "posterior_policies")
+    policies = get_states(agent, "policies")
     
     # Determine the element type from q_pi
     eltype_q_pi = eltype(q_pi)
 
     # Initialize action_marginals with the correct element type
-    action_marginals = create_matrix_templates(aif.num_controls, "zeros", eltype_q_pi)
+    action_marginals = create_matrix_templates(agent.num_controls, "zeros", eltype_q_pi)
     log_action_marginals = Vector{Any}(undef, num_factors)
     
     for (pol_idx, policy) in enumerate(policies)

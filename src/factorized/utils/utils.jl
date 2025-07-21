@@ -1,12 +1,97 @@
-using Format
-using Infiltrator
-using Revise
+
+
+module Utils
 
 #show(stdout, "text/plain", x)
 # @infiltrate; @assert false
 
 
 """ -------- Utility Functions -------- """
+
+
+
+"""
+Check if a matrix is a proper probability distribution.
+
+# Arguments
+
+- (Matrix{T}) where T<:Real
+
+Throws an error if the array is not a valid probability distribution:
+- The values must be non-negative.
+- The sum of the values must be approximately 1.
+"""
+function check_probability_distribution(M::Matrix{T}) where T<:Real
+    # Check for non-negativity
+    if any(M .< 0)
+        throw(ArgumentError("All elements must be non-negative."))
+    end
+
+    # Check for normalization
+    if !all(isapprox.(sum(M, dims=1), 1.0, rtol=1e-5, atol=1e-8))
+        throw(ArgumentError("The array is not normalized."))
+    end
+
+    return true
+end
+
+
+"""
+Check if a multidimensional array is a proper probability distribution.
+
+# Arguments
+
+- (A::Array{T, N}) where {N, T<:Real}
+
+Throws an error if the array is not a valid probability distribution:
+- The values must be non-negative.
+- The sum of the values must be approximately 1.
+"""
+function check_probability_distribution(A::Array{T, N}) where {N, T<:Real}
+    # Check for non-negativity
+    if any(A .< 0)
+        throw(ArgumentError("All elements must be non-negative."))
+    end
+
+    # Check for normalization
+    if !all(isapprox.(sum(A, dims=1), 1.0, rtol=1e-5, atol=1e-8))
+        throw(ArgumentError("The array is not normalized."))
+    end
+
+    return true
+end
+
+
+"""
+Check if the vector is a proper probability distribution.
+
+# Arguments
+
+- (V::Vector{T}) where T<:Real : The vector to be checked.
+
+Throws an error if the array is not a valid probability distribution:
+- The values must be non-negative.
+- The sum of the values must be approximately 1.
+"""
+function check_probability_distribution(V::Vector{T}) where T<:Real
+    # Check for non-negativity
+    if any(V .< 0)
+        throw(ArgumentError("All elements must be non-negative."))
+    end
+
+    # Check for normalization
+    if !isapprox.(sum(V), 1.0, rtol=1e-5, atol=1e-8)
+        throw(ArgumentError("The array is not normalized."))
+    end
+
+    return true
+end
+
+
+#=
+Todo: I comment out all the utils functions that I am not using. If they are no longer needed, we can
+delete them.
+
 
 """ Creates an array of "Any" with the desired number of sub-arrays filled with zeros"""
 function array_of_any_zeros(shape_list)
@@ -17,12 +102,6 @@ function array_of_any_zeros(shape_list)
     return arr
 end
 
-""" Creates a onehot encoded vector """
-function onehot(index::Int, vector_length::Int)
-    vector = zeros(vector_length)
-    vector[index] = 1.0
-    return vector
-end
 
 """ Get Model Dimensions from either A or B Matrix """
 function get_model_dimensions(
@@ -72,17 +151,18 @@ function action_select(probabilities)
     return findfirst(sample_onehot .== 1)
 end
 
+
 """ Function to get log marginal probabilities of actions """
-function get_log_action_marginals(aif)
-    num_factors = length(aif.num_controls)
-    q_pi = get_states(aif, "posterior_policies")
-    policies = get_states(aif, "policies")
+function get_log_action_marginals(agent)
+    num_factors = length(agent.num_controls)
+    q_pi = get_states(agent, "posterior_policies")
+    policies = get_states(agent, "policies")
     
     # Determine the element type from q_pi
     eltype_q_pi = eltype(q_pi)
 
     # Initialize action_marginals with the correct element type
-    action_marginals = create_matrix_templates(aif.num_controls, "zeros", eltype_q_pi)
+    action_marginals = create_matrix_templates(agent.num_controls, "zeros", eltype_q_pi)
     log_action_marginals = Vector{Any}(undef, num_factors)
     
     for (pol_idx, policy) in enumerate(policies)
@@ -101,81 +181,6 @@ function get_log_action_marginals(aif)
     return log_action_marginals
 end
 
-"""
-Check if the vector of arrays is a proper probability distribution.
+=#
 
-# Arguments
-
-- (Array::Vector{<:Array{T}}) where T<:Real
-
-Throws an error if the array is not a valid probability distribution:
-- The values must be non-negative.
-- The sum of the values must be approximately 1.
-"""
-function check_probability_distribution(Array::Vector{<:Array{T}}) where T<:Real
-    for tensor in Array
-        # Check for non-negativity
-        if any(tensor .< 0)
-            throw(ArgumentError("All elements must be non-negative."))
-        end
-
-        # Check for normalization
-        if !all(isapprox.(sum(tensor, dims=1), 1.0, rtol=1e-5, atol=1e-8))
-            throw(ArgumentError("The array is not normalized."))
-        end
-    end
-
-    return true
-end
-
-"""
-Check if the vector of vectors is a proper probability distribution.
-
-# Arguments
-
-- (Array::Vector{Vector{T}}) where T<:Real
-
-Throws an error if the array is not a valid probability distribution:
-- The values must be non-negative.
-- The sum of the values must be approximately 1.
-"""
-function check_probability_distribution(Array::Vector{Vector{T}}) where T<:Real
-    for vector in Array
-        # Check for non-negativity
-        if any(vector .< 0)
-            throw(ArgumentError("All elements must be non-negative."))
-        end
-
-        # Check for normalization
-        if !all(isapprox.(sum(vector, dims=1), 1.0, rtol=1e-5, atol=1e-8))
-            throw(ArgumentError("The array is not normalized."))
-        end
-    end
-
-    return true
-end
-
-"""
-Check if the vector is a proper probability distribution.
-
-# Arguments
-
-- (Vector::Vector{T}) where T<:Real : The vector to be checked.
-
-Throws an error if the array is not a valid probability distribution:
-- The values must be non-negative.
-- The sum of the values must be approximately 1.
-"""
-function check_probability_distribution(Vector::Vector{T}) where T<:Real
-    # Check for non-negativity
-    if any(Vector .< 0)
-        throw(ArgumentError("All elements must be non-negative."))
-    end
-
-    # Check for normalization
-    if !all(isapprox.(sum(Vector, dims=1), 1.0, rtol=1e-5, atol=1e-8))
-        throw(ArgumentError("The array is not normalized."))
-    end
-
-    return true
-end
+end  # -- module

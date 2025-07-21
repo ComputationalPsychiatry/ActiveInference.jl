@@ -1,9 +1,13 @@
 
+
+module Algos
+
+
 using Format
 using Infiltrator
 using Revise
 
-#import OMEinsum as einsum
+
 import LogExpFunctions as LEF
 
 #show(stdout, "text/plain", x)
@@ -81,6 +85,16 @@ function run_factorized_fpi(
     Run the fixed point iteration algorithm with sparse dependencies between factors and outcomes 
     """
 
+
+    one_hot = onehot(modality_observation, n_observations[modality])
+    
+    agent.A, 
+    agent.metamodel,
+    obs, 
+    prior=agent.prior, 
+    num_iter=agent.FPI_num_iter, 
+    dF_tol=agent.FPI_dF_tol
+
     #=
     Step 1: Compute marginal log likelihoods for each factor.
     Likelihood[ii].ndim will be size ndims(A[ii]) -1 (i.e., equal to the number of factors).
@@ -153,5 +167,6 @@ function run_factorized_fpi(
 end
 
 
+end  # -------- module
 
 

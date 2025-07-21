@@ -1,25 +1,25 @@
 """
-Resets an AIF type agent to its initial state
+Resets an Agent type agent to its initial state
 
-    reset!(aif::AIF)
+    reset!(agent::Agent)
 
 """
 
 using ActionModels
 
-function ActionModels.reset!(aif::AIF)
+function ActionModels.reset!(agent::Agent)
     # Reset the agent's state fields to initial conditions
-    aif.qs_current = create_matrix_templates([size(aif.B[f], 1) for f in eachindex(aif.B)])
-    aif.prior = aif.D
-    aif.Q_pi = ones(length(aif.policies)) / length(aif.policies)
-    aif.G = zeros(length(aif.policies))
-    aif.action = Int[]
+    agent.qs_current = create_matrix_templates([size(agent.B[f], 1) for f in eachindex(agent.B)])
+    agent.prior = agent.D
+    agent.Q_pi = ones(length(agent.policies)) / length(agent.policies)
+    agent.G = zeros(length(agent.policies))
+    agent.action = Int[]
 
     # Clear the history in the states dictionary
-    for key in keys(aif.states)
+    for key in keys(agent.states)
 
         if key != "policies"
-            aif.states[key] = []
+            agent.states[key] = []
         end
     end
     return nothing

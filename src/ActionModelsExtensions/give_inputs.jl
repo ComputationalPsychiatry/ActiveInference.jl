@@ -1,9 +1,9 @@
 """
 
-This is extends the give_inputs! function of ActionsModels.jl to work with instances of the AIF type.
+This is extends the give_inputs! function of ActionsModels.jl to work with instances of the Agent type.
 
-    single_input!(aif::AIF, obs)
-Give a single observation to an AIF agent. 
+    single_input!(agent::Agent, obs)
+Give a single observation to an Agent agent. 
 
 
 """
@@ -11,10 +11,10 @@ Give a single observation to an AIF agent.
 using ActionModels
 
 ### Give single observation to the agent
-function ActionModels.single_input!(aif::AIF, obs::Vector)
+function ActionModels.single_input!(agent::Agent, obs::Vector)
 
     # Running the action model to retrieve the action distributions
-    action_distributions = action_pomdp!(aif, obs)
+    action_distributions = action_pomdp!(agent, obs)
 
     # Get number of factors from the action distributions
     num_factors = length(action_distributions)
@@ -25,14 +25,14 @@ function ActionModels.single_input!(aif::AIF, obs::Vector)
         action = rand(action_distributions)
 
         # If the agent has not taken any actions yet
-        if isempty(aif.action)
-            push!(aif.action, action)
+        if isempty(agent.action)
+            push!(agent.action, action)
         else
         # Put the action in the last element of the action vector
-            aif.action[end] = action
+            agent.action[end] = action
         end
 
-        push!(aif.states["action"], aif.action)
+        push!(agent.states["action"], agent.action)
 
     # if there are multiple factors
     else
@@ -44,26 +44,26 @@ function ActionModels.single_input!(aif::AIF, obs::Vector)
             sampled_actions[factor] = rand(action_distributions[factor])
         end
         # If the agent has not taken any actions yet
-        if isempty(aif.action)
-            aif.action = sampled_actions
+        if isempty(agent.action)
+            agent.action = sampled_actions
         else
         # Put the action in the last element of the action vector
-            aif.action[end] = sampled_actions
+            agent.action[end] = sampled_actions
         end
         # Push the action to agent's states
-        push!(aif.states["action"], aif.action)
+        push!(agent.states["action"], agent.action)
     end
 
-    return aif.action
+    return agent.action
 end
 
-function ActionModels.give_inputs!(aif::AIF, observations::Vector)
+function ActionModels.give_inputs!(agent::Agent, observations::Vector)
     # For each individual observation run single_input! function
     for observation in observations
 
-        ActionModels.single_input!(aif, observation)
+        ActionModels.single_input!(agent, observation)
 
     end
 
-    return aif.states["action"]
+    return agent.states["action"]
 end

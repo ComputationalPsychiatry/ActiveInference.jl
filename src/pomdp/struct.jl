@@ -1,4 +1,4 @@
-""" -------- AIF Mutable Struct -------- """
+""" -------- Agent Mutable Struct -------- """
 
 using Format
 using Infiltrator
@@ -7,7 +7,7 @@ using Revise
 #show(stdout, "text/plain", x)
 # @infiltrate; @assert false
 
-mutable struct AIF
+mutable struct Agent
     #A::Vector{Array{T, N}} where {T <: Real, N} # A-matrix
     #B::Vector{Array{T, N}} where {T <: Real, N} # B-matrix
     A::Vector{Array{T}} where {T <: Real} # A-matrix
@@ -59,7 +59,7 @@ mutable struct AIF
 end
 
 # Create ActiveInference Agent 
-function create_aif(A, B;
+function create_agent(A, B;
                     C = nothing,
                     D = nothing,
                     E = nothing,
@@ -171,7 +171,7 @@ function create_aif(A, B;
         "FPI_dF_tol" => FPI_dF_tol
     )
 
-    return AIF( A,
+    return Agent( A,
                 B,
                 C, 
                 D, 
@@ -216,7 +216,7 @@ end
 
 """
 Initialize Active Inference Agent
-function init_aif(
+function init_agent(
         A,
         B;
         C=nothing,
@@ -243,7 +243,7 @@ function init_aif(
 - 'settings::Union{Nothing, Dict} = nothing':
 
 """
-function init_aif(A, B; C=nothing, D=nothing, E=nothing, pA=nothing, pB=nothing, pD=nothing,
+function init_agent(A, B; C=nothing, D=nothing, E=nothing, pA=nothing, pB=nothing, pD=nothing,
                   parameters::Union{Nothing, Dict{String, T}} where T<:Real = nothing,
                   settings::Union{Nothing, Dict} = nothing,
                   save_history::Bool = true, verbose::Bool = true,
@@ -358,8 +358,8 @@ function init_aif(A, B; C=nothing, D=nothing, E=nothing, pA=nothing, pB=nothing,
     FPI_num_iter = get(settings, "FPI_num_iter", 10 )
     FPI_dF_tol = get(settings, "FPI_dF_tol", 0.001 )
 
-    # Call create_aif 
-    aif = create_aif(A, B,
+    # Call create_agent 
+    agent = create_agent(A, B,
                     C=C,
                     D=D,
                     E=E,
@@ -392,23 +392,23 @@ function init_aif(A, B; C=nothing, D=nothing, E=nothing, pA=nothing, pB=nothing,
     if verbose == true
         settings_summary = 
         """
-        AIF Agent initialized successfully with the following settings and parameters:
-        - Gamma (γ): $(aif.gamma)
-        - Alpha (α): $(aif.alpha)
-        - Policy Length: $(aif.policy_len)
-        - Number of Controls: $(aif.num_controls)
-        - Controllable Factors Indices: $(aif.control_fac_idx)
-        - Use Utility: $(aif.use_utility)
-        - Use States Information Gain: $(aif.use_states_info_gain)
-        - Use Parameter Information Gain: $(aif.use_param_info_gain)
-        - Action Selection: $(aif.action_selection)
-        - Modalities to Learn = $(aif.modalities_to_learn)
-        - Factors to Learn = $(aif.factors_to_learn)
+        Agent Agent initialized successfully with the following settings and parameters:
+        - Gamma (γ): $(agent.gamma)
+        - Alpha (α): $(agent.alpha)
+        - Policy Length: $(agent.policy_len)
+        - Number of Controls: $(agent.num_controls)
+        - Controllable Factors Indices: $(agent.control_fac_idx)
+        - Use Utility: $(agent.use_utility)
+        - Use States Information Gain: $(agent.use_states_info_gain)
+        - Use Parameter Information Gain: $(agent.use_param_info_gain)
+        - Action Selection: $(agent.action_selection)
+        - Modalities to Learn = $(agent.modalities_to_learn)
+        - Factors to Learn = $(agent.factors_to_learn)
         """
         println(settings_summary)
     end
     
-    return aif
+    return agent
 end
 
 ### Struct related functions ###
@@ -477,94 +477,94 @@ end
 
 """ Update the agents's beliefs over states """
 function infer_states!(
-    aif::AIF, 
+    agent::Agent, 
     obs::Vector{Int64}
     )
     
-    if !isempty(aif.action)
-        int_action = round.(Int, aif.action)
-        aif.prior = get_expected_states(
-            aif.qs_current, 
-            aif.B, 
+    if !isempty(agent.action)
+        int_action = round.(Int, agent.action)
+        agent.prior = get_expected_states(
+            agent.qs_current, 
+            agent.B, 
             reshape(int_action, 1, length(int_action)),  # policy
         )[1]
     else
-        aif.prior = aif.D
+        agent.prior = agent.D
     end
 
     # Update posterior over states
-    aif.qs_current = update_posterior_states(
-        aif.A, 
+    agent.qs_current = update_posterior_states(
+        agent.A, 
         obs, 
-        prior=aif.prior, 
-        num_iter=aif.FPI_num_iter, 
-        dF_tol=aif.FPI_dF_tol
+        prior=agent.prior, 
+        num_iter=agent.FPI_num_iter, 
+        dF_tol=agent.FPI_dF_tol
     )
 
     # Adding the obs to the agent struct
-    aif.obs_current = obs
+    agent.obs_current = obs
 
     # Push changes to agent's history
-    push!(aif.states["prior"], aif.prior)
-    push!(aif.states["posterior_states"], aif.qs_current)
+    push!(agent.states["prior"], agent.prior)
+    push!(agent.states["posterior_states"], agent.qs_current)
 
-    return aif.qs_current
+    return agent.qs_current
 end
 
 """ Update the agents's beliefs over policies """
-function infer_policies!(aif::AIF)
+function infer_policies!(agent::Agent)
     # Update posterior over policies and expected free energies of policies
-    q_pi, G, utility, info_gain = update_posterior_policies(aif.qs_current, aif.A, aif.B, aif.C, 
-        aif.policies, aif.use_utility, aif.use_states_info_gain, aif.use_param_info_gain, aif.pA, 
-        aif.pB, aif.E, aif.gamma)
+    q_pi, G, utility, info_gain = update_posterior_policies(agent.qs_current, agent.A, agent.B, agent.C, 
+        agent.policies, agent.use_utility, agent.use_states_info_gain, agent.use_param_info_gain, agent.pA, 
+        agent.pB, agent.E, agent.gamma)
     #@infiltrate; @assert false
-    aif.Q_pi = q_pi
-    aif.G = G  
-    aif.utility = utility
-    aif.info_gain = info_gain
+    agent.Q_pi = q_pi
+    agent.G = G  
+    agent.utility = utility
+    agent.info_gain = info_gain
     
     # Push changes to agent's history
-    push!(aif.states["posterior_policies"], copy(aif.Q_pi))
-    push!(aif.states["expected_free_energies"], copy(aif.G))
+    push!(agent.states["posterior_policies"], copy(agent.Q_pi))
+    push!(agent.states["expected_free_energies"], copy(agent.G))
 
     return q_pi
 end
 
 """ Sample action from the beliefs over policies """
-function sample_action!(aif::AIF)
-    action = sample_action(aif.Q_pi, aif.policies, aif.num_controls; action_selection=aif.action_selection, alpha=aif.alpha)
+function sample_action!(agent::Agent)
+    action = sample_action(agent.Q_pi, agent.policies, agent.num_controls; action_selection=agent.action_selection, alpha=agent.alpha)
 
-    aif.action = action 
+    agent.action = action 
 
     # Push action to agent's history
-    push!(aif.states["action"], copy(aif.action))
+    push!(agent.states["action"], copy(agent.action))
 
 
     return action
 end
 
 """ Update A-matrix """
-function update_A!(aif::AIF)
+function update_A!(agent::Agent)
     @infiltrate; @assert false
-    qA = update_obs_likelihood_dirichlet(aif.pA, aif.A, aif.obs_current, aif.qs_current, lr = aif.lr_pA, fr = aif.fr_pA, modalities = aif.modalities_to_learn)
+    qA = update_obs_likelihood_dirichlet(agent.pA, agent.A, agent.obs_current, agent.qs_current, lr = agent.lr_pA, fr = agent.fr_pA, modalities = agent.modalities_to_learn)
     
-    aif.pA = deepcopy(qA)
-    aif.A = deepcopy(normalize_arrays(qA))
+    agent.pA = deepcopy(qA)
+    agent.A = deepcopy(normalize_arrays(qA))
 
     return qA
 end
 
 """ Update B-matrix """
-function update_B!(aif::AIF)
+function update_B!(agent::Agent)
     @infiltrate; @assert false
-    if length(get_history(aif, "posterior_states")) > 1
+    if length(get_history(agent, "posterior_states")) > 1
 
-        qs_prev = get_history(aif, "posterior_states")[end-1]
+        qs_prev = get_history(agent, "posterior_states")[end-1]
 
-        qB = update_state_likelihood_dirichlet(aif.pB, aif.B, aif.action, aif.qs_current, qs_prev, lr = aif.lr_pB, fr = aif.fr_pB, factors = aif.factors_to_learn)
+        qB = update_state_likelihood_dirichlet(agent.pB, agent.B, agent.action, agent.qs_current, qs_prev, lr = agent.lr_pB, fr = agent.fr_pB, factors = agent.factors_to_learn)
 
-        aif.pB = deepcopy(qB)
-        aif.B = deepcopy(normalize_arrays(qB))
+        agent.pB = deepcopy(qB)
+        agent.B = deepcopy(normalize_arrays(qB))
     else
         qB = nothing
     end
@@ -573,15 +573,15 @@ function update_B!(aif::AIF)
 end
 
 """ Update D-matrix """
-function update_D!(aif::AIF)
+function update_D!(agent::Agent)
     @infiltrate; @assert false
-    if length(get_history(aif, "posterior_states")) == 1
+    if length(get_history(agent, "posterior_states")) == 1
 
-        qs_t1 = get_history(aif, "posterior_states")[end]
-        qD = update_state_prior_dirichlet(aif.pD, qs_t1; lr = aif.lr_pD, fr = aif.fr_pD, factors = aif.factors_to_learn)
+        qs_t1 = get_history(agent, "posterior_states")[end]
+        qD = update_state_prior_dirichlet(agent.pD, qs_t1; lr = agent.lr_pD, fr = agent.fr_pD, factors = agent.factors_to_learn)
 
-        aif.pD = deepcopy(qD)
-        aif.D = deepcopy(normalize_arrays(qD))
+        agent.pD = deepcopy(qD)
+        agent.D = deepcopy(normalize_arrays(qD))
     else
         qD = nothing
     end
@@ -590,18 +590,18 @@ end
 
 """ General Learning Update Function """
 
-function update_parameters!(aif::AIF)
+function update_parameters!(agent::Agent)
 
-    if aif.pA != nothing
-        update_A!(aif)
+    if agent.pA != nothing
+        update_A!(agent)
     end
 
-    if aif.pB != nothing
-        update_B!(aif)
+    if agent.pB != nothing
+        update_B!(agent)
     end
 
-    if aif.pD != nothing
-        update_D!(aif)
+    if agent.pD != nothing
+        update_D!(agent)
     end
     
 end
