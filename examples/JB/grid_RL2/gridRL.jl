@@ -1,23 +1,12 @@
-# using new package: dev /home/john/Dev/ActInf.jl/ActiveInference.jl
-# https://pymdp-rtd.readthedocs.io/en/latest/notebooks/clue_chaining_demo.html
-# Active Inference Demo: Epistemic Chaining
 
-# include("./gridA.jl")
-#show(stdout, "text/plain", x)
-# @infiltrate; @assert false
-
-
-module GridRL2
+module GridRL
 
 
 import Plots
 import Random
-import Distributions
-import DataFrames as DFS
-import CSV
-import Serialization
 import Setfield: @set
 #import StaticArrays as SA
+import Statistics
 
 using Format
 using Infiltrator
@@ -32,50 +21,44 @@ include("./lib/make_plots.jl")
 include("./lib/make_env.jl")
 include("./lib/simulate.jl")
 include("./lib/make_model.jl")
-include("./lib/metrics.jl")
-include("./assessRL.jl")
 
-DF = DFS.DataFrame
 Random.seed!(51233) # Set random seed for reproducibility
 Plots.scalefontsizes()
 Plots.scalefontsizes(0.8)
 
+# @infiltrate; @assert false
 
-# workon thermo_orig (for calling PyInform)
-# Pkg.add("PyCall")
-# julia> Pkg.build("PyCall")
+
 
 ####################################################################################################
 
-
-
-
-
-function run()
+function run_grid_example()
     
-    if !ispath("./dbs")
+   
+
+    
+    if !ispath("./pngs")
         # make folders
-        mkdir("./dbs")
         mkdir("./pngs")
-        mkdir("./gifs")
-        mkdir("./sim_results")
-        mkdir("./summary_results")
+        #mkdir("./gifs")
     end
 
     experiment_id = 1
     #@infiltrate; @assert false
 
-    # all cell location, e.g., (9,3) are  (nY -- column height, nX -- row width) from upper left corner of plot
+    #=
+    All cell location, e.g., (9,3) are:  (nY -- column height, nX -- row width) from upper left 
+    corner of grid.
+    =#
     
     if experiment_id == 1
-        # same as 2, calculate corr coef based on G, with agents B, and SI
         experiment = format("RL{}", experiment_id)
         grid_dims = (3,3)
         grid_size = prod(grid_dims)
         grid = permutedims(reshape(1:grid_size, (grid_dims[2], grid_dims[1])), [2,1])
         cells = [[i, j] for i in 1:grid_dims[1] for j in 1:grid_dims[2]]
         
-        CONFIG = (
+        global CONFIG = (
             # simple 1-D grid, no clues, only one reward
             experiment = experiment,
             grid_dims = grid_dims,
@@ -117,22 +100,24 @@ function run()
             B_true = missing,
             policy_length = 3,
             number_simulation_steps = 400,
-            use_filtering = false,
-            action_selection = "stochastic",  # deterministic or stochastic
             number_simulations = 1,
-
-            
-            sophisticated_inference = true,
-            graph_postprocessing_method = "marginal_EFE_method", # "G_prob_method", "G_prob_qpi_method", or "marginal_EFE_method"
-            gamma = 16.,  #, policy precision
-            verbose = false,
+            use_filtering = false,
         )
     end
 
+    # get_settings and modify as needed
+    settings = AI.get_settings()
+    settings = @set settings.EFE_over = :policies
+    settings = @set settings.graph_postprocessing_method = :G_prob_q_pi
+    settings = @set settings.policy_inference_method = :standard
+    settings = @set settings.graph = :none
 
     model = make_model(CONFIG)
 
-    model = make_policies(model, CONFIG)
+    start_cell = CONFIG.start_cell 
+    env = RLEnv(model, start_cell)
+
+    model = make_policies(model, CONFIG, env)
 
     make_A(model, CONFIG)
     model = make_B(model, CONFIG)
@@ -149,14 +134,10 @@ function run()
     scale_concentration_parameter = 2.0
     pB .*= scale_concentration_parameter
     model = @set model.states.loc.pB = pB
-
-    # could also call AI.get_settings, and modify it as needed
-    settings = AI.get_settings()
-    settings = @set settings.EFE_over = :actions
-    settings = @set settings.graph_postprocessing_method = :G_prob_q_pi
     
+    #@infiltrate; @assert false
     # run
-    if CONFIG.action_selection == "deterministic"
+    if settings.action_selection == "deterministic"
         number_simulations = 1
     else
         # stochastic
@@ -164,13 +145,13 @@ function run()
     end
 
     history = []
-    agent = nothing
+    #agent = nothing
 
     to_label = [(start = CONFIG.start_cell,)]  # for graphing    
     
     #@infiltrate; @assert false
     for simulation_number in 1:number_simulations
-    
+        global CONFIG
         agent = AI.create_agent(
             model,
             settings, 
@@ -178,10 +159,9 @@ function run()
         println("\n\n")
 
         # give env the same A,B etc. model as agent
-        env = RLEnv(
-            model, 
-            CONFIG.start_cell,
-        )
+        #@infiltrate; @assert false
+        start_cell = CONFIG.start_cell 
+        env = RLEnv(model, start_cell)
         
         add_walls(env, CONFIG.walls)
         CONFIG = make_B_true(model, env, CONFIG)
@@ -207,10 +187,10 @@ function run()
     # Experiment RL4, r mean = -0.07849980596469375
 
 
-    Serialization.serialize(format("{}_history.ser", CONFIG.experiment), history)
-    Serialization.serialize(format("{}_B.ser", CONFIG.experiment), model.B_true)
-    Serialization.serialize(format("{}_model.ser", CONFIG.experiment), model)
-    Serialization.serialize(format("{}_config.ser", CONFIG.experiment), CONFIG)
+    #Serialization.serialize(format("{}_history.ser", CONFIG.experiment), history)
+    #Serialization.serialize(format("{}_B.ser", CONFIG.experiment), model.B_true)
+    #Serialization.serialize(format("{}_model.ser", CONFIG.experiment), model)
+    #Serialization.serialize(format("{}_config.ser", CONFIG.experiment), CONFIG)
 
     @infiltrate; @assert false
 
@@ -233,6 +213,7 @@ function run()
         df = DFS.DataFrame(permutedims(hcat(history[simulation_number][:EFE]...)), 
             [:info_gain, :utility, :risk, :ambiguity, :EFE])
         printfmtln("\nEFE, sim {}= \n{}", simulation_number, df)
+        
         CSV.write(format("./sim_results/EFE_{}_sim{}.csv", CONFIG.experiment, simulation_number), df)
         push!(dfs_efe, df)
 
@@ -255,25 +236,10 @@ function run()
     end
 
 
-    if history.size[1] > 1
-        # average over all simulations
-        df = reduce(.+, dfs_efe) ./ length(dfs_efe)
-        printfmtln("\nEFE, summary over simulations= \n{}", df)
-        CSV.write(format("./summary_results/EFE_{}_summary.csv", CONFIG.experiment), df)
-        
-        metrics = Statistics.mean([dfx[:,2] for dfx in dfs_metrics])
-        fields = dfs_metrics[1][:,1]
-        df2 = DFS.DataFrame(Metric=fields, Value=metrics)
-        printfmtln("\nMetrics, summary over simulations= \n{}", df2)
-        CSV.write(format("./summary_results/metrics_{}_summary.csv", CONFIG.experiment), df2)
-    end
-
-
     @infiltrate; @assert false
     
     
 end
 
-end  # -- module
 
-GridRL2.run()
+end  # -- module

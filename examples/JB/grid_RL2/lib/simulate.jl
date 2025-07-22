@@ -11,18 +11,18 @@ import IterTools
 import Plots.Animation as Animation
 #import Distributions
 import Dates
-import SQLite
-import StatsBase
+#import SQLite
+#import StatsBase
 import LogExpFunctions as LEF
 
 
 include("./make_env.jl")
-include("./decompositions.jl")
 
-using Format
-using Infiltrator
-using Revise
-using Statistics
+
+#using Format
+#using Infiltrator
+#using Revise
+#using Statistics
 
 ####################################################################################################
 
@@ -76,21 +76,23 @@ end
    
 
 function simulate(model, agent, env, CONFIG, to_label, sim_i)
-    verbose = true
+    
+    verbose = agent.settings.verbose
+    verbose = true  # for testing
 
     t0 = Dates.time()
 
     printfmtln("\n=============\nSimulation= {}, Experiment {}\n=============", sim_i, CONFIG[:experiment])
     
     
-    db_name = format("./dbs/{}_sim{}.sqlite", CONFIG[:experiment], sim_i)
+    #db_name = format("./dbs/{}_sim{}.sqlite", CONFIG[:experiment], sim_i)
     gif_name = format("./gifs/{}_sim{}.gif", CONFIG[:experiment], sim_i)
     plot_title = format("{}, Sim={}", CONFIG[:experiment], sim_i)
     
-    if isfile(db_name)
-        rm(db_name)  # remove if db exists
-    end
-    db = SQLite.DB(db_name)
+    #if isfile(db_name)
+    #    rm(db_name)  # remove if db exists
+    #end
+    #db = SQLite.DB(db_name)
 
     plots = Vector{Plots.Plot}()
     push!(plots, plot_grid(CONFIG, to_label, plot_title, sim_i, 0, CONFIG[:walls]))
@@ -120,14 +122,16 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
         qs = AI.infer_states!(agent, obs) 
         
         if verbose
-            printfmtln("\n-----------\nt={} qs=\n{}", step_i, vcat(argmax(qs[1]), qs[2:end]))
+            printfmtln("\n-----------\nt={}", step_i)
+            for (k,v) in zip(keys(qs), qs)
+                printfmtln("    {}: argmax= {}", k, argmax(v))
+            end
         else
             if step_i % 100 == 0
                 printfmtln("step_i= {}", step_i)
             end
         end
 
-        pb = agent.pB
         AI.update_parameters!(agent)
         #@infiltrate; @assert false
 

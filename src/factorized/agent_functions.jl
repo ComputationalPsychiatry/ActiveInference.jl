@@ -1,6 +1,11 @@
 # @infiltrate; @assert false
 
+import Setfield: @set
 
+
+#using Format
+#using Infiltrator
+#using Revise
 
 # Create ActiveInference Agent 
 function create_agent(model::NamedTuple, settings::NamedTuple; parameters=missing)
@@ -17,7 +22,7 @@ function create_agent(model::NamedTuple, settings::NamedTuple; parameters=missin
     end
 
     Validate.validate(model, settings, parameters)
-    Validate.complete(model, settings, parameters) 
+    model = Validate.complete(model, settings, parameters) 
 
     state_names = [x.name for x in model.states]
     qss = [x.D for x in model.states]
@@ -38,20 +43,33 @@ function create_agent(model::NamedTuple, settings::NamedTuple; parameters=missin
     risk = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
     ambiguity = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
     
-    # todo: these can be nothing if no parameter learning
-    info_gain_A = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
-    info_gain_B = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
-    info_gain_D = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
+    info_gain_A = nothing
+    info_gain_B = nothing
+    info_gain_D = nothing
 
+    if !all([isnothing(obs.pA) for obs in model.obs]) 
+        info_gain_A = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
+    end
+
+    if !all([isnothing(state.pB) for state in model.states]) 
+        info_gain_B = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
+    end
+
+    if !all([isnothing(state.pD) for state in model.states]) 
+        info_gain_D = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
+    end
+    
     last_action = nothing 
     
     # initialize history NamedTuple
-    history = nothing
+    history = (
+        qs_current = [],
+    )
     if settings.save_history
         history = (
             actions = [],
-            qs = [],
-            prior = [],
+            qs_current = [],
+            qs_prior = [],
             posterior_policies = [],
             EFE = [],
             bayesian_model_averages = [],
@@ -76,6 +94,7 @@ function create_agent(model::NamedTuple, settings::NamedTuple; parameters=missin
                     info_gain_A, 
                     info_gain_B,
                     info_gain_D,
+                    history,
     )
 end
 
@@ -101,8 +120,9 @@ function get_settings()
         graph = [:explicit, :implicit, :none][1],
         EFE_over = [:policies, :actions][1],
         graph_postprocessing_method = [:G_prob, :G_prob_q_pi][1],
-        early_stop = false,  # if true, user must supply earlystop_tests 
-        policy_filtering = false,  # if true, user must supply policy_tests
+        earlystop_tests = false,  # if true, user must supply earlystop_tests 
+        policy_tests = false,  # if true, user must supply policy_tests
+        action_tests = true,
         EFE_reduction = [:sum, :min_max, :custom][1],  # if early_stop=true, missing values might occur. If :Custom, user must supply EFE_reduction function.
         return_EFE_decompositions = true,  # todo: allow for not returning utility, info gain, etc. matrices
         SI_observation_prune_threshold = 1/16,  
@@ -147,6 +167,7 @@ function infer_states!(agent::Agent, obs::NamedTuple{<:Any, <:NTuple{N, Int64} w
     # consistency test
     @assert keys(agent.model.obs) == keys(obs)
 
+    
     if !isnothing(agent.last_action)
         #=
         An action has been taken, and new obs is available, but the agent hasn't processed the obs
@@ -171,14 +192,16 @@ function infer_states!(agent::Agent, obs::NamedTuple{<:Any, <:NTuple{N, Int64} w
     qs_current = Inference.update_posterior_states(agent, obs)  
 
     # @set qs in model
-    @infiltrate; @assert false
+    agent.qs_current = qs_current
     
     # Adding the obs to the agent struct
-    agent.obs_current = obs
+    #agent.obs_current = obs
 
     # Push changes to agent's history
-    push!(agent.states["prior"], agent.prior)
-    push!(agent.states["posterior_states"], agent.qs_current)
+    push!(agent.history.qs_current, deepcopy(agent.qs_current))
+    if agent.settings.save_history
+        push!(agent.history.qs_prior, deepcopy(agent.qs_prior))
+    end
 
     return agent.qs_current
 end
@@ -188,16 +211,13 @@ end
 function infer_policies!(agent::Agent)
     # Update posterior over policies and expected free energies of policies
     
-    @assert agent.graph_postprocessing_method in ["G_prob_method", "G_prob_qpi_method", "marginal_EFE_method"]
-
-    if agent.sophisticated_inference | agent.use_SI_graph_for_standard_inference
-        q_pi, G, utility, info_gain, risk, ambiguity = Sophisticated.update_posterior_policies(agent)
-        info_gain_B  = nothing
+    if agent.settings.policy_inference_method == :sophisticated || agent.settings.graph != :none
+        Sophisticated.update_posterior_policies!(agent)
     else    
-        q_pi, G, utility, info_gain, risk, ambiguity, info_gain_B = update_posterior_policies(agent)
+        Inference.update_posterior_policies!(agent)
     end
 
-    #@infiltrate; @assert false
+    @infiltrate; @assert false
     agent.Q_pi = q_pi
     agent.G = G  
     agent.utility = utility
@@ -235,6 +255,7 @@ function sample_action!(agent::Agent)
     return action
 end
 
+
 """ Update A-matrix """
 function update_A!(agent::Agent)
     @infiltrate; @assert false
@@ -246,32 +267,23 @@ function update_A!(agent::Agent)
     return qA
 end
 
+
 """ Update B-matrix """
 function update_B!(agent::Agent)
-    #@infiltrate; @assert false
-    if length(agent.states["posterior_states"]) > 1
+    
+    if length(agent.history.qs_current) > 1  
 
-        qs_prev = agent.states["posterior_states"][end-1]
-
-        # todo: why not just pass agent for most of these?
-        qB = update_state_likelihood_dirichlet(
-                                agent.pB, 
-                                agent.B, 
-                                agent.action, 
-                                agent.qs_current, 
-                                qs_prev, 
-                                agent.metamodel,
-                                lr = agent.lr_pB, 
-                                fr = agent.fr_pB, 
-                                factors_to_learn = agent.factors_to_learn,  # either "all" or list of symbols?
-                            )
-
+        qs_prev = agent.history.qs_current[end-1]
+        qB = Learning.update_state_likelihood_dirichlet(agent, qs_prev)
+        @infiltrate; @assert false
+        
         agent.pB = deepcopy(qB)
         agent.B = deepcopy(normalize_arrays(qB))
     else
         qB = nothing
     end
 
+    #@infiltrate; @assert false
     return qB
 end
 
@@ -292,25 +304,27 @@ function update_D!(agent::Agent)
     return qD
 end
 
+
 """ General Learning Update Function """
 
 function update_parameters!(agent::Agent)
-
-    if agent.pA != nothing
+    
+    if !isnothing(agent.info_gain_A)
         update_A!(agent)
     end
 
-    if agent.pB != nothing
+    if !isnothing(agent.info_gain_B)
         update_B!(agent)
     end
 
-    if agent.pD != nothing
+    if !isnothing(agent.info_gain_D)
         update_D!(agent)
     end
-    
+
+    #@infiltrate; @assert false
 end
 
-""" Get the history of the agent """
+
 
 
 

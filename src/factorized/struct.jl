@@ -9,7 +9,6 @@
 # @infiltrate; @assert false
 
 
-
 mutable struct Agent
     # todo: make all these types as exact as possible
     
@@ -20,9 +19,9 @@ mutable struct Agent
     
     # belief group
     last_action::Union{Nothing, Tuple} 
-    qs_prior::NamedTuple  # Prior beliefs about states after action, before processing observation
-    qs_current::NamedTuple  # Current beliefs about states, after processing observation
-    qo_current::NamedTuple  # Current observation
+    qs_prior::NamedTuple{<:Any, <:NTuple{N, Vector{Float64}} where {N}}  # Prior beliefs about states after action, before processing observations
+    qs_current::NamedTuple{<:Any, <:NTuple{N, Vector{Float64}} where {N}}  # Current beliefs about states, after processing observations
+    qo_current::NamedTuple{<:Any, <:NTuple{N, Vector{Float64}} where {N}}  # Current beliefs about observations
         
     # policy group
     q_pi::Vector{Union{Missing, T}} where T <:Real # Posterior beliefs over policies
@@ -34,6 +33,7 @@ mutable struct Agent
     info_gain_A::Union{Nothing, Matrix{Union{Missing, Float64}}} 
     info_gain_B::Union{Nothing, Matrix{Union{Missing, Float64}}} 
     info_gain_D::Union{Nothing, Matrix{Union{Missing, Float64}}}   
+    history::NamedTuple
 end
 
 

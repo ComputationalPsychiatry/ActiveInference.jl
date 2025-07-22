@@ -2,10 +2,13 @@
 module Maths
 
 
+
 import OMEinsum as ein
 import LogExpFunctions as LEF
 
-
+#using Format
+#using Infiltrator
+#using Revise
 
 # This utils modeule collects all the math utils functions that JB uses in the factorized version.
 # todo: Perhaps other math utils functions, in other math utils files, are not used anywhere. If so,
@@ -55,4 +58,58 @@ function stable_entropy(x)
 end
 
 
-end  # --- module
+"""
+    capped_log(x::Real)
+
+# Arguments
+- `x::Real`: A real number.
+
+Return the natural logarithm of x, capped at the machine epsilon value of x.
+"""
+function capped_log(x::Real)
+    return log(max(x, eps(x))) 
+end
+
+"""
+    capped_log(array::Array{Float64})
+"""
+function capped_log(array::Array{Float64}) 
+
+    epsilon = oftype(array[1], 1e-16)
+    # Return the log of the array values capped at epsilon
+    array = log.(max.(array, epsilon))
+
+    return array
+end
+
+"""
+    capped_log(array::Array{T}) where T <: Real 
+"""
+function capped_log(array::Array{T}) where T <: Real 
+
+    epsilon = oftype(array[1], 1e-16)
+    # Return the log of the array values capped at epsilon
+    array = log.(max.(array, epsilon))
+
+    return array
+end
+
+"""
+    capped_log(array::Vector{Real})
+"""
+function capped_log(array::Vector{Real})
+    epsilon = oftype(array[1], 1e-16)
+
+    array = log.(max.(array, epsilon))
+    # Return the log of the array values capped at epsilon
+    return array
+end
+
+""" Apply capped_log to array of arrays """
+function capped_log_array(array)
+    
+    return map(capped_log, array)
+end
+
+
+end  # -- module

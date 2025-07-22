@@ -4,7 +4,7 @@ module Sophisticated
 
 using Format
 using Infiltrator
-using Revise
+#using Revise
 
 #import LinearAlgebra as LA
 import OMEinsum as ein
@@ -399,22 +399,6 @@ function calc_expected_utility(qo_pi, C)
     
     #@infiltrate; @assert false
     return expected_utility
-end
-
-
-# --------------------------------------------------------------------------------------------------
-MINVAL = eps(Float64)
-function stable_xlogx(x)
-    zz =  [LEF.xlogy.(z, clamp.(z, MINVAL, Inf)) for z in x]
-    #@infiltrate; @assert false
-    return zz
-end
-
-
-# --------------------------------------------------------------------------------------------------
-function stable_entropy(x)
-    z = stable_xlogx(x)
-    return - sum(vcat(z...))  
 end
 
 

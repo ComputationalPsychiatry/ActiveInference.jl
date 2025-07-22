@@ -9,9 +9,9 @@
 
 import Plots
 
-using Format
-using Infiltrator
-using Revise
+#using Format
+#using Infiltrator
+#using Revise
 
 Plots.scalefontsizes()
 Plots.scalefontsizes(0.8)

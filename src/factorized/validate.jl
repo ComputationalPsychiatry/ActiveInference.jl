@@ -175,6 +175,8 @@ function complete(model, settings, parameters)
         model = @set model.policies.E = ones(Real, model.policies.n_policies) / model.policies.n_policies
     end
 
+    return model
+
 end
 
 

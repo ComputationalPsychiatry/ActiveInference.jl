@@ -5,9 +5,9 @@
 
 include("./structs.jl")
 
-using Format
-using Infiltrator
-using Revise
+#using Format
+#using Infiltrator
+#using Revise
 
 
 # --------------------------------------------------------------------------------------------------
@@ -80,7 +80,7 @@ end
 
 
 # --------------------------------------------------------------------------------------------------
-function make_policies(model, CONFIG)
+function make_policies(model, CONFIG, env)
     
     policy_iterator = make_iterator(model, CONFIG, CONFIG.policy_length)
     @assert isa(policy_iterator, NTuple{N1, NTuple{N2, NTuple{N3, Int64}}} where {N1,N2,N3})
@@ -108,13 +108,14 @@ function make_policies(model, CONFIG)
     end
 
 
-    function action_tests(qs_pi, model)
+    function action_tests(qs_pi, model, env)
         # qs_pi, after some action is considered
+        # this is only good if agent knows its states and knowledge is correct
 
         # could instead test for prob > x of being in a prohibited cell
         new_cell = model.states.loc.labels[argmax(qs_pi.loc)]  
         
-        if any(new_cell .< [1,1]) || any(new_cell .> [env.nY, env.nX])
+        if false && any(new_cell .< [1,1]) || any(new_cell .> [env.nY, env.nX])
             return false
         end
         
@@ -122,6 +123,7 @@ function make_policies(model, CONFIG)
         return true
     end
 
+    action_tests(qs_pi, model) = action_tests(qs_pi, model, env)
 
     model = @set model.policies.action_tests = action_tests
     model = @set model.policies.earlystop_tests = earlystop_tests

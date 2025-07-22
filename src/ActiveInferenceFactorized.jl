@@ -16,6 +16,9 @@ using Infiltrator
 using Revise
 
 
+
+
+
 include("factorized/struct.jl")
 
 include("factorized/validate.jl")
@@ -25,8 +28,12 @@ include("factorized/agent_functions.jl")
 
 include("factorized/sophisticated.jl")
 include("factorized/learning.jl")
+
 include("factorized/utils/utils.jl")
+include("factorized/utils/maths.jl")
+include("factorized/algos.jl")
 include("factorized/inference.jl")
+
 
 include("ActionModelsExtensions/get_states.jl")
 include("ActionModelsExtensions/get_parameters.jl")
@@ -39,7 +46,6 @@ include("ActionModelsExtensions/set_save_history.jl")
 include("factorized/POMDP.jl")
 #include("factorized/utils/helper_functions.jl")
 #include("factorized/utils/create_matrix_templates.jl")
-
 
 # todo  move most of these to the modules where they are used, and make them include(...)
 export # utils/create_matrix_templates.jl
@@ -59,7 +65,7 @@ export # utils/create_matrix_templates.jl
        #get_model_dimensions,
 
        # struct.jl
-       init_agent,
+       create_agent,
        infer_states!,
        infer_policies!,
        sample_action!,

@@ -8,12 +8,12 @@
 
 
 include("./structs.jl")
-include("./get_matrix_dims.jl")
+#include("./get_matrix_dims.jl")
 include("./make_policies.jl")
 
-using Format
-using Infiltrator
-using Revise
+#using Format
+#using Infiltrator
+#using Revise
 
 
 ####################################################################################################
@@ -28,7 +28,7 @@ function make_model(CONFIG)
                 values = 1:grid_size,
                 labels = CONFIG.cells,
                 B = missing,
-                B_dim_names = (:self, :loc, :move_vert, :move_horz),
+                B_dim_names = (:loc, :loc, :move_vert, :move_horz),
                 B_dims = (grid_size, grid_size, 3, 3),
                 D = missing,
                 is_B_learned = true,
@@ -48,7 +48,7 @@ function make_model(CONFIG)
                 values = 1:grid_size,
                 labels = CONFIG.cells,
                 A = missing,
-                A_dim_names = (:self, :loc),
+                A_dim_names = (:loc, :loc),
                 A_dims = (grid_size, grid_size),
                 is_learned = false,
                 pA = nothing,

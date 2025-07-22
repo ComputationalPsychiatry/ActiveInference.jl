@@ -1,6 +1,14 @@
+
+
+module Learning
+
+
+import ActiveInference.ActiveInferenceFactorized as AI 
+#import ActiveInference.ActiveInferenceFactorized.Maths 
+
 using Format
 using Infiltrator
-using Revise
+#using Revise
 
 #show(stdout, "text/plain", x)
 # @infiltrate; @assert false
@@ -42,18 +50,21 @@ function update_obs_likelihood_dirichlet(pA, A, obs, qs; lr = 1.0, fr = 1.0, mod
     return qA
 end
 
+
 """ Update state likelihood matrix """
-function update_state_likelihood_dirichlet(
-                        pB, 
-                        B, 
-                        actions, 
-                        qs::Vector{Vector{T}} where T <: Real, 
-                        qs_prev,
-                        metamodel; 
-                        lr = 1.0, 
-                        fr = 1.0, 
-                        factors_to_learn = "all",  # either "all" or list of states like [:loc, :prize, ...]
-                        )
+function update_state_likelihood_dirichlet(agent::AI.Agent, qs_prev::NamedTuple{<:Any, <:NTuple{N, Vector{Float64}} where {N}})
+
+    #=
+    pB, 
+    B, 
+    actions, 
+    qs::Vector{Vector{T}} where T <: Real, 
+    qs_prev,
+    metamodel; 
+    lr = 1.0, 
+    fr = 1.0, 
+    factors_to_learn = "all", 
+    =#
 
     # We follow the same idea as in get_expected_states() and elsewhere by selecting out actions from 
     # each B matrix. But instead of finishing with a dot(B_new, qs), here we filter out actions from 
@@ -66,15 +77,11 @@ function update_state_likelihood_dirichlet(
     #    fr = ReverseDiff.value(fr)
     #end
 
-    state_names = collect(keys(metamodel.state_deps))
-    if factors_to_learn == "all"   
-        factors_to_learn = state_names
-    end
-    
-    action_names = collect(keys(metamodel.action_deps))
-    Biis_with_action = [ii for ii in 1:length(pB) if length(intersect(metamodel.state_deps[ii], action_names)) > 0]
-    null_actions = [metamodel.policies.action_contexts[action][:null_action] for action in action_names]
-    null_action_ids = [findfirst(x -> x == null_actions[ii], metamodel.action_deps[ii]) for ii in 1:length(action_names)]
+    state_names = [x.name for x in agent.model.states]
+    action_names = [x.name for x in agent.model.actions]
+    null_actions = [x.null_actions for x in agent.model.actions]
+    @infiltrate; @assert false
+    #null_action_ids = [findfirst(x -> x.labels == null_actions[ii], for (ii,action)  metamodel.action_deps[ii]) for ii in 1:length(action_names)]
 
     qB = deepcopy(pB)
     for (Bii, state_name) in enumerate(state_names) 
@@ -162,3 +169,6 @@ function update_state_prior_dirichlet(pD, qs::Vector{Vector{T}} where T <: Real;
     
     return qD
 end
+
+
+end  # -- module
