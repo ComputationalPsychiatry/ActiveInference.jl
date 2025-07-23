@@ -92,6 +92,84 @@ function check_probability_distribution(V::Vector{T}) where T<:Real
 end
 
 
+# --------------------------------------------------------------------------------------------------
+function select_B_actions(state, policy, step_i=nothing, do_pB=false)
+    # select actions out of B matrix, returning the rest
+    # e.g state.B_dim_names = [:self, :loc, :move], with last being an action
+    
+    if do_pB
+        B = copy(state.pB)
+    else
+        B = copy(state.B)
+    end
+
+    idx = nothing
+    if any([f in keys(policy) for f in state.B_dim_names])
+        idx = []
+        for (dep_i, dep) in enumerate(state.B_dim_names)
+            if dep in keys(policy)
+                # this dep is an action
+                if isnothing(step_i)
+                    push!(idx, policy[dep]) 
+                else
+                    push!(idx, policy[dep][step_i]) 
+                end
+            else
+                # this is a state
+                push!(idx, Colon())  # e.g., push!(idx, :)
+            end
+        end
+
+        B = B[idx...]  # select out actions, now only state dependencies left
+    end
+
+    return B, idx
+end
+
+
+# --------------------------------------------------------------------------------------------------
+function collect_dependencies(qs, state::NamedTuple, policy::NamedTuple, step_i::Union{Nothing, Int64}=nothing)
+    
+    # qs should be union of NamedTuple with Vector{NamedTuple{<:Any, NTuple{N, Vector{Float64}} where {N}}} but this does not work
+
+    if !isnothing(step_i)
+        qs = qs[step_i]
+        @assert !(qs isa Vector) 
+    end
+
+    # collect dependencies for state
+    deps = Vector{Vector{Float64}}()
+    
+    # first factor is new state, others are dependencies or actions 
+    for (dep_i, dep) in enumerate(reverse(state.B_dim_names[2:end])) 
+        if dep in keys(policy)
+            continue
+        end
+        push!(deps, qs[dep])
+    end
+    return deps
+end
+
+
+function collect_dependencies(qs, obs::NamedTuple, step_i::Union{Nothing, Int64}=nothing)
+    
+    # todo: only difference here is that no policy sent means obs. It would be better if obs/state had a type to check
+    
+    if !isnothing(step_i)
+        qs = qs[step_i]
+    end
+
+    # collect dependencies for obs
+    deps = Vector{Vector{Float64}}()
+    
+    # first factor is new state, others are dependencies or actions 
+    for (dep_i, dep) in enumerate(reverse(obs.A_dim_names[2:end])) 
+        push!(deps, qs[dep])
+    end
+    return deps
+end
+
+
 #=
 Todo: I comment out all the utils functions that I am not using. If they are no longer needed, we can
 delete them.

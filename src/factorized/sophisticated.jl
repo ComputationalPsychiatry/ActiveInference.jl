@@ -21,10 +21,7 @@ import Statistics
 import Dates
 
 
-include("./struct.jl")
-include("./utils/maths.jl")
-include("./utils/utils.jl")
-include("./algos.jl")
+import ActiveInference.ActiveInferenceFactorized as AI 
 
 #show(stdout, "text/plain", x)
 # @infiltrate; @assert false

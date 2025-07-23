@@ -18,7 +18,7 @@ mutable struct Agent
     settings::NamedTuple
     
     # belief group
-    last_action::Union{Nothing, Tuple} 
+    last_action::Union{Nothing, NamedTuple} 
     qs_prior::NamedTuple{<:Any, <:NTuple{N, Vector{Float64}} where {N}}  # Prior beliefs about states after action, before processing observations
     qs_current::NamedTuple{<:Any, <:NTuple{N, Vector{Float64}} where {N}}  # Current beliefs about states, after processing observations
     qo_current::NamedTuple{<:Any, <:NTuple{N, Vector{Float64}} where {N}}  # Current beliefs about observations

@@ -21,6 +21,46 @@ include("./make_policies.jl")
 function make_model(CONFIG)
     
     grid_size = prod(CONFIG.grid_dims)
+
+    # experiments with one or two actions
+    if CONFIG.n_actions == 2
+        B_dim_names = (:loc, :loc, :move_vert, :move_horz)
+        B_dims = (grid_size, grid_size, 3, 3)
+
+        actions = (
+            move_vert = (
+                name = :move_vert, 
+                values = collect(1:3),
+                labels = [:UP, :DOWN, :STAY],
+                null_action = :STAY,
+                extra = nothing,
+            ),
+            move_horz = (
+                name = :move_horz, 
+                values = collect(1:3),
+                labels = [:LEFT, :RIGHT, :STAY],
+                null_action = :STAY,
+                extra = nothing,
+            ),
+        )
+    
+    else
+        # experiments with one action
+        B_dim_names = (:loc, :loc, :move)
+        B_dims = (grid_size, grid_size, 5)
+
+        actions = (
+            move = (
+                name = :move, 
+                values = collect(1:5),
+                labels = [:UP, :DOWN, :LEFT, :RIGHT, :STAY],
+                null_action = :STAY,
+                extra = nothing,
+            ),
+        )
+    end
+
+
     model = (
         states = (
             loc = (
@@ -28,8 +68,8 @@ function make_model(CONFIG)
                 values = 1:grid_size,
                 labels = CONFIG.cells,
                 B = missing,
-                B_dim_names = (:loc, :loc, :move_vert, :move_horz),
-                B_dims = (grid_size, grid_size, 3, 3),
+                B_dim_names = B_dim_names,
+                B_dims = B_dims,
                 D = missing,
                 is_B_learned = true,
                 pB = missing,
@@ -56,22 +96,7 @@ function make_model(CONFIG)
             ),
         ),
 
-        actions = (
-            move_vert = (
-                name = :move_vert, 
-                values = collect(1:3),
-                labels = [:UP, :DOWN, :STAY],
-                null_action = :STAY,
-                extra = nothing,
-            ),
-            move_horz = (
-                name = :move_horz, 
-                values = collect(1:3),
-                labels = [:LEFT, :RIGHT, :STAY],
-                null_action = :STAY,
-                extra = nothing,
-            ),
-        ),
+        actions = actions,
 
         preferences = (
             loc_pref = (
@@ -92,7 +117,8 @@ function make_model(CONFIG)
             policy_tests = missing,
             action_tests = missing,
             earlystop_tests = missing,
-            EFE_reduction = nothing,  # user-supplied function for EFE reduction that allows missings
+            utility_reduction_fx = nothing,  # user-supplied function for EFE reduction that allows missings
+            info_gain_reduction_fx = nothing,  # user-supplied function for EFE reduction that allows missings
             E = missing,
             extra = nothing,
         )

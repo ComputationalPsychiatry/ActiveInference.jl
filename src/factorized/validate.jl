@@ -7,7 +7,7 @@ using Infiltrator
 using Revise
 
 
-include("./utils/utils.jl")
+import ActiveInference.ActiveInferenceFactorized as AI 
 
 
 
@@ -42,7 +42,7 @@ function validate(model, settings, parameters)
     #@infiltrate; @assert false
     for obs in model.obs
         try
-            if !Utils.check_probability_distribution(obs.A)
+            if !AI.Utils.check_probability_distribution(obs.A)
                 error("The A matrix is not a proper probability distribution.")
             end
         catch e
@@ -54,7 +54,7 @@ function validate(model, settings, parameters)
     # Check B matrix
     for state in model.states
         try
-            if !Utils.check_probability_distribution(state.B)
+            if !AI.Utils.check_probability_distribution(state.B)
                 error("The B matrix is not a proper probability distribution.")
             end
         catch e
@@ -66,7 +66,7 @@ function validate(model, settings, parameters)
     # Check D matrix (if it's not nothing)
     for state in model.states
         try
-            if !isnothing(state.D) && !Utils.check_probability_distribution(state.D)
+            if !isnothing(state.D) && !AI.Utils.check_probability_distribution(state.D)
                 error("The D matrix is not a proper probability distribution.")
             end
         catch e

@@ -9,10 +9,10 @@
 #import LogExpFunctions as LEF
 import IterTools
 import Plots.Animation as Animation
-#import Distributions
+import Distributions
 import Dates
 #import SQLite
-#import StatsBase
+import StatsBase
 import LogExpFunctions as LEF
 
 
@@ -117,8 +117,9 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
     history_of_sq_error = []
     history_of_r = []
 
+    action_names = [x.name for x in model.actions]
     
-    for step_i in 1:CONFIG[:number_simulation_steps]
+    for step_i in 1:CONFIG.number_simulation_steps
         qs = AI.infer_states!(agent, obs) 
         
         if verbose
@@ -165,8 +166,7 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
         end
 
         # custom sample action
-        
-        if agent.action_selection == "deterministic"
+        if agent.settings.action_selection == :deterministic
             if false
                 # use shortest paths, if early stopping
                 iis = findall(x -> isapprox(x, maximum(q_pi)), q_pi)
@@ -177,34 +177,32 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
                 ii = argmax(q_pi)  # any path
             end
         
-        elseif agent.action_selection == "stochastic"
-            mnd = Distributions.Multinomial(1, q_pi)
+        elseif agent.settings.action_selection == :stochastic
+            idx = findall(x -> !ismissing(x), agent.G) 
+            mnd = Distributions.Multinomial(1, Float64.(q_pi[idx]))
             ii = argmax(rand(mnd))
+            ii = idx[ii]
         end
 
-        policy = IterTools.nth(model.policies.policy_iterator, ii)[1]
-        action_id = policy[1]
-        action_names = [model.action_deps[:move][x] for x in policy]
-        action_name = model.action_deps[:move][action_id]
-        #@infiltrate; @assert false
-
-        agent.action = [action_id]
+        policy = IterTools.nth(model.policies.policy_iterator, ii)
+        action_ids = collect(zip(policy...))[1]
+        action = (; zip(action_names, action_ids)...)
+        
+        agent.last_action = action
 
         # Push action to agent's history
-        push!(agent.states["action"], copy(agent.action))
-
-        #actions = AI.sample_action!(agent)
+        push!(agent.history.actions, action)
 
         if verbose
-            printfmtln("\nAction at time {}: {}, ipolicy={}, policy = {}, q_pi= {}, G={}", 
-                step_i, action_name, ii, action_names, q_pi[ii], agent.G[ii]
+            printfmtln("\nAction at time {}: {}, ipolicy={}, q_pi= {}, G={}", 
+                step_i, action, ii, q_pi[ii], agent.G[ii]
             )
             
             printfmtln("\nutility= {}, sum= {}", agent.utility[ii, :], round(sum(skipmissing(agent.utility[ii, :])), digits=4))
 
             printfmtln("\ninfo_gain= {}, sum= {}", agent.info_gain[ii, :], round(sum(skipmissing(agent.info_gain[ii, :])), digits=4))
 
-            if agent.pB !== nothing && !isnothing(agent.info_gain_B)
+            if !isnothing(agent.info_gain_B)
                 printfmtln("\ninfo_gain_B= {}, sum= {}", agent.info_gain_B[ii, :], round(sum(skipmissing(agent.info_gain_B[ii, :])), digits=4))
             end
         end
@@ -220,16 +218,17 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
             sum(agent.ambiguity[ii, :]), 
             sum(agent.info_gain[ii, :]) + sum(agent.utility[ii, :]), 
         ])
-        push!(history_of_actions, action_id)
+        push!(history_of_actions, action)
         
 
-        r, E = calc_empowerment(agent, model, agent.G)
+        #r, E = calc_empowerment(agent, model, agent.G)
+        r = 0
         push!(history_of_r, r)
     
         
-        obs = step_env!(env, action_name)
+        obs = step_env!(env, action)
         cell_obs = model.states.loc.labels[obs.loc_obs]
-        push!(history_of_observations, obs.loc_obs)
+        #push!(history_of_observations, obs.loc_obs)
         push!(history_of_cells, cell_obs)
 
         if verbose
@@ -240,8 +239,9 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
             @infiltrate; @assert false
         end    
 
-        sq_error = Statistics.sum((model.B_true[1] .- agent.B[1]) .^2)
+        sq_error = Statistics.sum((CONFIG.B_true .- agent.model.states.loc.B) .^2)
         push!(history_of_sq_error, sq_error)
+        
         if sq_error == 0
             break
         end
@@ -249,7 +249,7 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
         if false
             push!(plots, plot_grid(CONFIG, to_label, plot_title, sim_i, step_i, CONFIG[:walls], locations=history_of_cells))
         else
-            if step_i % 100 == 0
+            if step_i % max(Int(round(CONFIG.number_simulation_steps/10)), 1) == 0
                 plot_visited(CONFIG, to_label, plot_title, sim_i, step_i, CONFIG[:walls], history_of_cells)
                 plot_sq_error(CONFIG, sim_i, step_i, history_of_sq_error)
             end
@@ -264,7 +264,8 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
     end
 
     printfmtln("\nsimulation time= {}\n", round((Dates.time() - t0) , digits=2))
-    
+    @infiltrate; @assert false
+
     # make animation
     anim = Animation()
     for p in plots
@@ -282,7 +283,7 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
     )
 
     # 1000 steps in 4419 sec = 73.6 minutes
-    #@infiltrate; @assert false
+    @infiltrate; @assert false
 
     return results
 

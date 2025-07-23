@@ -112,4 +112,77 @@ function capped_log_array(array)
 end
 
 
+""" SPM_wnorm """
+function spm_wnorm(A)
+    EPS_VAL = 1e-16
+
+    A .+= EPS_VAL
+    norm = 1.0 ./ sum(A, dims = 1)
+    avg = 1 ./ A
+    wA = norm .- avg
+
+    return wA
+end
+
+
+""" Multi-dimensional outer product """
+function outer_product(x, y=nothing; remove_singleton_dims=true, args...)
+    # If only x is provided and it is a vector of arrays, recursively call outer_product on its elements.
+    if y === nothing && isempty(args)
+        if x isa AbstractVector
+            return reduce((a, b) -> outer_product(a, b), x)
+        elseif typeof(x) <: Number || typeof(x) <: AbstractArray
+            return x
+        else
+            throw(ArgumentError("Invalid input to outer_product (\$x)"))
+        end
+    end
+
+    # If y is provided, perform the cross multiplication.
+    if y !== nothing
+        reshape_dims_x = tuple(size(x)..., ones(Real, ndims(y))...)
+        A = reshape(x, reshape_dims_x)
+
+        reshape_dims_y = tuple(ones(Real, ndims(x))..., size(y)...)
+        B = reshape(y, reshape_dims_y)
+
+        z = A .* B
+
+    else
+        z = x
+    end
+
+    # Recursively call outer_product for additional arguments
+    for arg in args
+        z = outer_product(z, arg; remove_singleton_dims=remove_singleton_dims)
+    end
+
+    # Remove singleton dimensions if true
+    if remove_singleton_dims
+        z = dropdims(z, dims = tuple(findall(size(z) .== 1)...))
+    end
+
+    return z
+end
+
+
+"""Normalizes a Categorical probability distribution"""
+function normalize_distribution(distribution)
+    distribution .= distribution ./ sum(distribution, dims=1)
+    return distribution
+end
+
+
+""" Normalizes multiple arrays """
+function normalize_arrays(array::Vector{<:Array{<:Real}})
+    return map(normalize_distribution, array)
+end
+
+
+""" Normalizes multiple arrays """
+function normalize_arrays(array::Vector{Any})
+    return map(normalize_distribution, array)
+end
+
+
 end  # -- module

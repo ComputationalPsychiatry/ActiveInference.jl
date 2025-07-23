@@ -64,10 +64,10 @@ function create_agent(model::NamedTuple, settings::NamedTuple; parameters=missin
     # initialize history NamedTuple
     history = (
         qs_current = [],
+        actions = [],
     )
     if settings.save_history
         history = (
-            actions = [],
             qs_current = [],
             qs_prior = [],
             posterior_policies = [],
@@ -177,15 +177,11 @@ function infer_states!(agent::Agent, obs::NamedTuple{<:Any, <:NTuple{N, Int64} w
         So here we calculate it again. The prior will be used later, in update_posterior_states, which
         uses the new observation.
         =#  
-        @infiltrate; @assert false
-        
-        int_action = round.(Int, agent.action)
-        agent.prior = Inference.get_expected_states(
+        agent.qs_prior = Inference.get_expected_states(
             agent.qs_current, 
-            agent.B, 
-            reshape(int_action, 1, length(int_action)),  # single policy, e.g., [[3,1,1]]
-            agent.metamodel,
-        )[1]
+            agent.last_action,
+            agent 
+        )[1] 
     end
 
     # Update posterior over states
@@ -217,21 +213,13 @@ function infer_policies!(agent::Agent)
         Inference.update_posterior_policies!(agent)
     end
 
-    @infiltrate; @assert false
-    agent.Q_pi = q_pi
-    agent.G = G  
-    agent.utility = utility
-    agent.info_gain = info_gain
-    agent.risk = risk
-    agent.ambiguity = ambiguity
-    agent.info_gain_B = info_gain_B
-    
-
     # Push changes to agent's history
-    push!(agent.states["posterior_policies"], copy(agent.Q_pi))
-    push!(agent.states["expected_free_energies"], copy(agent.G))
+    if agent.settings.save_history
+        push!(agent.history.posterior_policies, deepcopy(agent.q_pi))
+        push!(agent.history.EFE, deepcopy(agent.EFE))
+    end
 
-    return q_pi
+    return agent.q_pi
 end
 
 
@@ -274,17 +262,10 @@ function update_B!(agent::Agent)
     if length(agent.history.qs_current) > 1  
 
         qs_prev = agent.history.qs_current[end-1]
-        qB = Learning.update_state_likelihood_dirichlet(agent, qs_prev)
-        @infiltrate; @assert false
-        
-        agent.pB = deepcopy(qB)
-        agent.B = deepcopy(normalize_arrays(qB))
-    else
-        qB = nothing
+        Learning.update_state_likelihood_dirichlet!(agent, qs_prev)
     end
-
     #@infiltrate; @assert false
-    return qB
+    
 end
 
 

@@ -29,8 +29,8 @@ include("factorized/agent_functions.jl")
 include("factorized/sophisticated.jl")
 include("factorized/learning.jl")
 
-include("factorized/utils/utils.jl")
-include("factorized/utils/maths.jl")
+include("factorized/utils.jl")
+include("factorized/maths.jl")
 include("factorized/algos.jl")
 include("factorized/inference.jl")
 
@@ -99,7 +99,7 @@ export # utils/create_matrix_templates.jl
     export EpistChainEnv, step!, reset_env!
 
     include("Environments/TMazeEnv.jl")
-    include("factorized/utils/maths.jl")
+    include("factorized/maths.jl")
 
     export TMazeEnv, step_TMaze!, reset_TMaze!, initialize_gp
        

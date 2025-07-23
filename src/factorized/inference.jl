@@ -5,7 +5,7 @@ module Inference
 
 
 
-
+import LogExpFunctions as LEF
 import ActiveInference.ActiveInferenceFactorized as AI  #todo: is this OK?
 
 
@@ -36,8 +36,6 @@ function get_expected_states(
 
    
     n_steps = length(policy[1])  # policy length is the same for all actions, in SI not the same as policy length
-    action_names = keys(policy)
-    state_names = [x.name for x in model.states]
 
     # initializing posterior predictive density as a list of beliefs over time
     qs_pi = [deepcopy(qs) for _ in 1:n_steps+1]
@@ -53,44 +51,24 @@ function get_expected_states(
         end
 
         for (state_ii, state) in enumerate(model.states)
-            factors = state.B_dim_names  # eg: [:loc, :loc, :move], with last being an action
-            B = copy(state.B)
-            
-            if any([f in action_names for f in factors])
-                idx = []
-                for (dep_i, dep) in enumerate(factors)
-                    if dep in action_names
-                        # this dep is an action
-                        push!(idx, policy[dep][step_i]) 
-                    else
-                        # this is a state
-                        push!(idx, 1:B.size[dep_i])  # e.g., push!(idx, (100,100,5)[1]) if idep==1
-                    end
-                end
-
-                B = B[idx...]  # select out actions, now only state dependencies left
-            end
-
-            # collect dependencies to get expected states
-            deps = Vector{Vector{Float64}}()
-            for (dep_i, dep) in enumerate(reverse(factors[2:end])) # first factor is new state, other are dependencies or actions 
-                if dep in action_names
-                    continue
-                end
-                push!(deps, qs_pi[step_i][dep])
-            end
                         
-            B = AI.Maths.dot_product1(B, deps)
+            # select out actions from B matrix
+            B, _ = AI.Utils.select_B_actions(state, policy, step_i)
+            
+            # collect B dependencies
+            deps = AI.Utils.collect_dependencies(qs_pi, state, policy, step_i)
+            
+            #@infiltrate; @assert false
+            qs_new = AI.Maths.dot_product1(B, deps)
 
-            if !isapprox(sum(B), 1.0)
+            if !isapprox(sum(qs_new), 1.0)
                 @infiltrate; @assert false
             end
             
-            #printfmtln("    {}", B) 
-            qs_pi[step_i + 1][state.name][:] = B
+            #printfmtln("    {}", qs_new) 
+            qs_pi[step_i + 1][state.name][:] = qs_new
         end
 
-        # all states are processed
         # action_tests
         if agent.settings.action_tests
             if !model.policies.action_tests(qs_pi[step_i + 1], model)
@@ -105,7 +83,7 @@ function get_expected_states(
             if !model.policies.earlystop_tests(qs_pi[step_i + 1], model)
                 # are all remaining actions a null action, like "stay"
                 for acts in collect(zip(policy...))[step_i+1:end]
-                    if acts != null_acton_ids
+                    if acts != null_action_ids
                         return nothing # entire policy for all B matrices and actions is invalid
                     end
                 end
@@ -143,18 +121,19 @@ end
 function update_posterior_policies!(agent)
     
     model = agent.model
-    qs = agent.qs_current
+    qs_current = agent.qs_current
     n_steps = model.policies.policy_length
     n_policies = model.policies.n_policies
     action_names = [x.name for x in model.actions]
+        
+    agent.G .= missing
+    agent.q_pi .= missing
     
-    
-    G = zeros(n_policies)
-    G_raw = zeros(n_policies)
-    utility = Matrix{Union{Missing, Float64}}(undef, n_policies, n_steps)
-    info_gain = Matrix{Union{Missing, Float64}}(undef, n_policies, n_steps)
-    risk = Matrix{Union{Missing, Float64}}(undef, n_policies, n_steps)
-    ambiguity = Matrix{Union{Missing, Float64}}(undef, n_policies, n_steps)
+    # todo: these can be nothing if they are not used, as per agent
+    agent.utility .= missing
+    agent.info_gain .= missing
+    agent.risk .= missing
+    agent.ambiguity  .= missing
     
     if !isnothing(agent.info_gain_A)
         agent.info_gain_A .= missing
@@ -170,9 +149,9 @@ function update_posterior_policies!(agent)
 
     lnE = AI.Maths.capped_log(model.policies.E)
     
-    for (idx, policy) in enumerate(model.policies.policy_iterator)
+    for (policy_i, policy) in enumerate(model.policies.policy_iterator)
         policy = (; zip(action_names, policy)...)
-        qs_pi = get_expected_states(qs, policy, agent)  
+        qs_pi = get_expected_states(qs_current, policy, agent)  
         
         if isnothing(qs_pi)
             # bad policy, given missing utility and info_gain, and zero EFE
@@ -180,118 +159,169 @@ function update_posterior_policies!(agent)
         end
 
         qo_pi = get_expected_obs(qs_pi, agent)  
-        @infiltrate; @assert false 
-        
-        # note: length of qs_pi and qo_pi will be less than policy length if stop reached early
-
-        if false && idx in [39, 123, 173, 29, 36]
-            printfmtln("\npolicy# {}, {}, qs_pi=", idx, policy)
-            #@infiltrate; @assert false
-            display([[vcat(argmax(qs_pi[iii][1]), map(x2 -> round.(x2, digits=4), qs_pi[iii][2:end]) )] for iii in 1:qs_pi.size[1]])
-            
-            printfmtln("\npolicy# {}, {}, qo_pi=", idx, policy)
-            display([[vcat(argmax(qo_pi[iii][1]), map(x2 -> round.(x2, digits=4), qo_pi[iii][2:end])) ] for iii in 1:qo_pi.size[1]])
-        end
+                
+        # note: length of qs_pi and qo_pi will be less than policy length if early stop
 
         # Calculate expected utility
-        if agent.use_utility
+        if agent.settings.use_utility
             # If ReverseDiff is tracking the expected utility, get the value
-            if ReverseDiff.istracked(calc_expected_utility(qo_pi, agent.C))
-                @infiltrate; @assert false
-                G[idx] += ReverseDiff.value(calc_expected_utility(qo_pi, C))
+            #if ReverseDiff.istracked(calc_expected_utility(qo_pi, agent.C))
+            #    @infiltrate; @assert false
+            #    G[policy_i] += ReverseDiff.value(calc_expected_utility(qo_pi, C))
 
             # Otherwise calculate the expected utility and add it to the G vector
-            else
-                utility_ = calc_expected_utility(qo_pi, agent.C)
-                #G[idx] += utility_
-                if length(utility_) == n_steps
-                    if agent.use_sum_for_calculating_G && !any(ismissing.(utility_))
-                        # use sum  
-                        G[idx] += sum(utility_)  
-                    else
-                        # use extremes; todo: pass in desired function for this
-                        G[idx] += (maximum(utility_) + minimum(utility_)) / 2  # due to missings
-                    end
-                else
-                    # early stop, use extremes; todo: pass in desired function for this
-                    @assert agent.use_sum_for_calculating_G == false  # a utility is short, sum cannot be used for any
-                    G[idx] += (maximum(skipmissing(utility_)) + minimum(skipmissing(utility_))) / 2
-                end
-
-                utility[idx, 1:utility_.size[1]] = utility_
+            utility_ = calc_expected_utility(qo_pi, agent)
+            
+            # initialize this G?
+            if ismissing(agent.G[policy_i])
+                agent.G[policy_i] = 0
             end
+
+            if length(utility_) == n_steps && agent.settings.EFE_reduction == :sum
+                # use sum  
+                agent.G[policy_i] += sum(utility_) 
+            
+            elseif agent.settings.EFE_reduction == :min_max
+                agent.G[policy_i] += (maximum(skipmissing(utility_)) + minimum(skipmissing(utility_))) / 2  # handles missings
+            
+            elseif agent.settings.EFE_reduction == :custom
+                agent.G[policy_i] += agent.model.policies.utility_reduction_fx(utility_)
+            
+            elseif length(utility_) < n_steps && agent.settings.EFE_reduction == :sum
+                try
+                    error("There may be missing values in utility vectors; EFE_reduction = :sum cannot be used.")
+                catch e
+                    # Add context and rethrow the error
+                    error("$(e)")
+                end
+            end
+
+            agent.utility[policy_i, 1:utility_.size[1]] = utility_
+            #@infiltrate; @assert false 
         end
 
         # Calculate expected information gain of states
-        if agent.use_states_info_gain
+        if agent.settings.use_states_info_gain
             # If ReverseDiff is tracking the information gain, get the value
-            if false && ReverseDiff.istracked(calc_states_info_gain(agent.A, qs_pi))  # todo??
-                @infiltrate; @assert false
-                G[idx] += ReverseDiff.value(calc_states_info_gain(A, qs_pi))
+            #if false && ReverseDiff.istracked(calc_states_info_gain(agent.A, qs_pi))  # todo??
+            #    @infiltrate; @assert false
+            #    G[policy_i] += ReverseDiff.value(calc_states_info_gain(A, qs_pi))
 
             # Otherwise calculate it and add it to the G vector
-            else
-                #info_gain_ = calc_states_info_gain(agent.A, qs_pi)
-                info_gain_, ambiguity_ = compute_info_gain(qs_pi, qo_pi, agent.A, agent.metamodel, idx)
-                
-                if length(utility_) == n_steps
-                    if agent.use_sum_for_calculating_G && !any(ismissing.(utility_))
-                        # use sum
-                        G[idx] += sum(info_gain_)  
-                    else
-                        # use extremes; todo: pass in desired function for this
-                        G[idx] += maximum(info_gain_) 
-                    end
-                else
-                    # early stop, use extremes; todo: pass in desired function for this
-                    @assert agent.use_sum_for_calculating_G == false  # a info_gain is short, sum cannot be used for any
-                    G[idx] += maximum(skipmissing(info_gain_)) 
-                end  
-                info_gain[idx,1:info_gain_.size[1]] = info_gain_
-                ambiguity[idx,1:ambiguity_.size[1]] = ambiguity_
-                risk[idx,1:ambiguity_.size[1]] = (
-                    utility[idx, 1:ambiguity_.size[1]]
-                    .+ info_gain_
-                    .- ambiguity_
-                )
-                @assert isapprox(info_gain_ + utility_, risk[idx,1:ambiguity_.size[1]] + ambiguity_)
-                #@infiltrate; @assert false
-
+            
+            info_gain_, ambiguity_ = compute_info_gain(qs_pi, qo_pi, agent)
+            
+            # initialize this G?
+            if ismissing(agent.G[policy_i])
+                agent.G[policy_i] = 0
             end
+
+            if length(info_gain_) == n_steps && agent.settings.EFE_reduction == :sum
+                # use sum  
+                agent.G[policy_i] += sum(info_gain_)  
+            
+            elseif agent.settings.EFE_reduction == :min_max
+                agent.G[policy_i] += maximum(skipmissing(info_gain_))   # handles missings
+            
+            elseif agent.settings.EFE_reduction == :custom
+                agent.G[policy_i] += agent.model.policies.info_gain_reduction_fx(info_gain_)
+            
+            elseif length(info_gain_) < n_steps && agent.settings.EFE_reduction == :sum
+                try
+                    error("There may be missing values in info_gain vectors; EFE_reduction = :sum cannot be used.")
+                catch e
+                    # Add context and rethrow the error
+                    error("$(e)")
+                end
+            end
+            
+            agent.info_gain[policy_i,1:info_gain_.size[1]] = info_gain_
+            agent.ambiguity[policy_i,1:ambiguity_.size[1]] = ambiguity_
+            agent.risk[policy_i,1:ambiguity_.size[1]] = (
+                agent.utility[policy_i, 1:ambiguity_.size[1]]
+                .+ info_gain_
+                .- ambiguity_
+            )
+            @assert isapprox(info_gain_ + utility_, agent.risk[policy_i,1:ambiguity_.size[1]] + ambiguity_)
+            #@infiltrate; @assert false
         end
 
 
-
         # Calculate expected information gain of parameters (learning)
-        if agent.use_param_info_gain
-            if agent.pA !== nothing
-                @infiltrate; @assert false
+        if agent.settings.use_param_info_gain
+            
+            if agent.info_gain_A !== nothing
+                @infiltrate; @assert false  # todo
+
                 # if ReverseDiff is tracking pA information gain, get the value
                 if ReverseDiff.istracked(calc_pA_info_gain(pA, qo_pi, qs_pi))
-                    G[idx] += ReverseDiff.value(calc_pA_info_gain(pA, qo_pi, qs_pi))
+                    agent.G[policy_i] += ReverseDiff.value(calc_pA_info_gain(pA, qo_pi, qs_pi))
                 # Otherwise calculate it and add it to the G vector
                 else
-                    G[idx] += calc_pA_info_gain(agent.pA, qo_pi, qs_pi)
+                    # initialize this G?
+                    if ismissing(agent.G[policy_i])
+                        agent.G[policy_i] = 0
+                    end
+
+                    agent.G[policy_i] += calc_pA_info_gain(agent.pA, qo_pi, qs_pi)
                 end
             end
 
-            if agent.pB !== nothing
-                info_gain_B_ = calc_pB_info_gain(agent.pB, qs_pi, qs, policy, agent.metamodel)
+
+            if agent.info_gain_B !== nothing
+                info_gain_B_ = calc_pB_info_gain(agent, qs_pi, qs_current, policy)
+                # use sum  
+                # initialize this G?
+                if ismissing(agent.G[policy_i])
+                    agent.G[policy_i] = 0
+                end
+                
+                if length(info_gain_B_) == n_steps && agent.settings.EFE_reduction == :sum
+                    agent.G[policy_i] += sum(info_gain_B_)  
+            
+                elseif agent.settings.EFE_reduction == :min_max
+                    agent.G[policy_i] += maximum(skipmissing(info_gain_B_))   # handles missings
+                
+                elseif agent.settings.EFE_reduction == :custom
+                    agent.G[policy_i] += agent.model.policies.info_gain_reduction_fx(info_gain_B_)
+                
+                elseif length(info_gain_B_) < n_steps && agent.settings.EFE_reduction == :sum
+                    try
+                        error("There may be missing values in info_gain_B vectors; EFE_reduction = :sum cannot be used.")
+                    catch e
+                        # Add context and rethrow the error
+                        error("$(e)")
+                    end
+                end
+                
+                agent.info_gain_B[policy_i,1:info_gain_B_.size[1]] = info_gain_B_
+                #@infiltrate; @assert false  # todo
+            end
+
+
+            if agent.info_gain_D !== nothing
+                @infiltrate; @assert false  # todo
+                
+                info_gain_B_ = calc_pD_info_gain(agent.pB, qs_pi, qs, policy, agent.metamodel)
+                # initialize this G?
+                if ismissing(agent.G[policy_i])
+                    agent.G[policy_i] = 0
+                end
                 
                 if length(info_gain_B_) == n_steps
                     if agent.use_sum_for_calculating_G && !any(ismissing.(info_gain_B_))
                         # use sum
-                        G[idx] += sum(info_gain_B_)  
+                        agent.G[policy_i] += sum(info_gain_B_)  
                     else
                         # use extremes; todo: pass in desired function for this
-                        G[idx] += maximum(info_gain_B_) 
+                        agent.G[policy_i] += maximum(info_gain_B_) 
                     end
                 else
                     # early stop, use extremes; todo: pass in desired function for this
                     @assert agent.use_sum_for_calculating_G == false  # a info_gain is short, sum cannot be used for any
-                    G[idx] += maximum(skipmissing(info_gain_B_)) 
+                    agent.G[policy_i] += maximum(skipmissing(info_gain_B_)) 
                 end  
-                info_gain_B[idx,1:info_gain_B_.size[1]] = info_gain_B_
+                info_gain_B[policy_i,1:info_gain_B_.size[1]] = info_gain_B_
 
             end
         end
@@ -299,57 +329,49 @@ function update_posterior_policies!(agent)
     end
 
     # some utility are zero because the policy was rejected. Only use good policies to calc q_pi
-    idx = findall(x -> !isapprox(x, 0.0), G)   
-    q_pi = zeros(utility.size[1])
+    idx = findall(x -> !ismissing(x), agent.G)   
     
-    if sum(G) == 0
-        @infiltrate; @assert false  # All policies failed?
+    if sum(skipmissing(agent.G)) == 0
+        #@infiltrate; @assert false  # All policies failed?
+        @warn format("\nThe sum over G is zero.\n")
     end
-    Eidx = agent.E[idx]
-    lnE = capped_log(Eidx)
-    q_pi[idx] .= softmax(G[idx] * agent.gamma + lnE, dims=1)  
 
-    # note: now G and q_pi are no longer consistent
+    Eidx = model.policies.E[idx]
+    lnE = AI.Maths.capped_log(Eidx)
+    agent.q_pi[idx] .= LEF.softmax(agent.G[idx] * agent.parameters.gamma + lnE, dims=1)  
+
     #@infiltrate; @assert false
     
-    return q_pi, G, utility, info_gain, risk, ambiguity, info_gain_B
+    return 
 end
 
 
 """ Get Expected Observations """
-#function get_expected_obs(qs_pi, agent)
-
 function get_expected_obs(qs_pi, agent)
     
     model = agent.model
-    @infiltrate; @assert false
     n_steps = length(qs_pi)  # this might be equal to or less than policy length, if stop was reached
     
-    qo_pi = [deepcopy(agent.qo_current) for _ in 1:n_steps+1]
+    qo_pi = [deepcopy(agent.qo_current) for _ in 1:n_steps]
 
     printflag = 0
     
-    for t in 1:n_steps
-        for (obs_ii, obs) enumerate(model.obs)
+    for step_i in 1:n_steps
+        for (obs_ii, obs) in enumerate(model.obs)
             
-            # list of the hidden state factor indices that the dynamics of `qs[control_factor]` depend on
-            factors = metamodel.obs_deps[modality][2:end]
-            factor_idx = [findfirst(x -> x == j, keys(metamodel.state_deps)) for j in factors]
-            A = copy(obs.A)
-           
-            deps = Vector{Vector{Float64}}()
-            for idep in reverse(factor_idx)  # first factor is new state, other are dependencies or actions 
-                push!(deps, qs_pi[t][idep])
-            end
-            
-            Am = dot_product1(Am, deps)
-            @assert Am.size == (A_m.size[1], ) 
+            # collect A dependencies
+            deps = AI.Utils.collect_dependencies(qs_pi, obs, step_i)
+            A = deepcopy(obs.A)
+                       
+            qo = AI.Maths.dot_product1(A, deps)
+            @assert qo.size == (A.size[1], ) 
                        
             # todo: make rule to avoid doing dot product twice, and make sure dot product works for all instances in the code
 
-            if !isapprox(sum(Am), 1.0)
-                #printfmtln("\nmodailty= {}, Am={}", modality, Am)
-                                
+            if !isapprox(sum(qo), 1.0)
+                printfmtln("\nmodailty= {}, qo={}", obs.name, qo)
+                @infiltrate; @assert false
+
                 Am = copy(A_m)
                 Am = vcat(Am, zeros(1, Am.size[2:end]...))
                 res = dot_product1(Am, deps)
@@ -364,11 +386,8 @@ function get_expected_obs(qs_pi, agent)
                 Am = res[1:end-1]
             end
 
-            qo_pi[t][modality] = Am
-
+            qo_pi[step_i][obs.name][:] = qo
         end
-
-        
     end
     #@infiltrate; @assert false
 
@@ -377,45 +396,46 @@ end
 
 
 """ Calculate Expected Utility """
-function calc_expected_utility(qo_pi, C)
+function calc_expected_utility(qo_pi, agent)
+    model = agent.model
     n_steps = length(qo_pi)
-    #expected_utility = 0.0
     expected_utility = zeros(n_steps)
-    num_modalities = length(C)
+    
+    #num_modalities = length(C)
 
     # when is C[i] not of dim=1?
-    modalities_to_tile = [modality_i for modality_i in 1:num_modalities if ndims(C[modality_i]) == 1]
-    C_tiled = deepcopy(C)
-    for modality in modalities_to_tile
-        modality_data = reshape(C_tiled[modality], :, 1)
-        C_tiled[modality] = repeat(modality_data, 1, n_steps)
-    end
+    #modalities_to_tile = [modality_i for modality_i in 1:num_modalities if ndims(C[modality_i]) == 1]
+    #C_tiled = deepcopy(C)
+    #for modality in modalities_to_tile
+    #    modality_data = reshape(C_tiled[modality], :, 1)
+    #    C_tiled[modality] = repeat(modality_data, 1, n_steps)
+    #end
     
     #printfmtln("\nC_tiled=")
     #display(C_tiled[1]) 
     
-    C_prob = softmax_array(C_tiled)
+    #C_prob = softmax_array(C_tiled)
     
     #printfmtln("\nC_prob=")
     #display(C_prob[1]) 
     
 
-    # could expand expected_utility to be zeros(n_steps, num_modalities)
-    lnC =[]
-    for t in 1:n_steps
-        for modality in 1:num_modalities
-            lnC = capped_log(C_prob[modality][:, t])
+    # C could be multidimensional and depend on different states
+    for step_i in 1:n_steps
+        
+        for (pref_ii, pref) in enumerate(model.preferences)
+            C_prob = LEF.softmax(pref.C, dims=1)
             
-            #printfmtln("\nlnC=")
-            #display(lnC) 
+            if ndims(C_prob) > 1
+                # todo: select for state dependencies
+                @infiltrate; @assert false
+            end
             
-            #expected_utility += dot(qo_pi[t][modality], lnC) 
-            expected_utility[t] += dot(qo_pi[t][modality], lnC)
+            lnC = AI.Maths.capped_log(C_prob)
+            
+            expected_utility[step_i] += sum(qo_pi[step_i][pref.C_dim_names[1]] .* lnC)  # assumes 1-D pref
 
-            # no log or softmax
-            #expected_utility[t] += dot(qo_pi[t][modality], C_prob[modality][:, t])
-
-            if expected_utility[t] > 0
+            if expected_utility[step_i] > 0
                 @infiltrate; @assert false
             end   
             #@infiltrate; @assert false
@@ -427,58 +447,48 @@ function calc_expected_utility(qo_pi, C)
     return expected_utility
 end
 
-# --------------------------------------------------------------------
 
-
-
-
-function compute_info_gain(qs, qo, A, metamodel, policy_id)
+# --------------------------------------------------------------------------------------------------
+function compute_info_gain(qs, qo, agent)
     """
     New version of expected information gain that takes into account sparse dependencies between observation modalities and hidden state factors.
     qs, qo are over policy steps
     """
+
+    model = agent.model
     #@infiltrate; @assert false
     info_gain_per_step = zeros(qs.size[1])
     ambiguity_per_step = zeros(qs.size[1])
-    for step in 1:qs.size[1]
-        info_gains_per_modality = zeros(A.size[1])
-        ambiguity_per_modality = zeros(A.size[1])
-        qs_step = qs[step]
-        qo_step = qo[step]
-        for (qo_m, A_m, m) in zip(qo_step, A, 1:A.size[1])
+    
+    for step_i in 1:qs.size[1]
+        
+        info_gains_per_modality = zeros(length(model.obs))
+        ambiguity_per_modality = zeros(length(model.obs))
+        qs_step = qs[step_i]
+        qo_step = qo[step_i]
+        
+        for (obs_i, obs) in enumerate(model.obs)
             
-            H_qo = stable_entropy(qo_m)
-            H_A_m = - sum(stable_xlogx(A_m), dims=1)
-            #deps = A_dependencies[m]
-            #relevant_factors = [qs[idx] for idx in deps]
-            factors = metamodel.obs_deps[m][2:end]
-            factor_idx = [findfirst(x -> x == j, keys(metamodel.state_deps)) for j in factors]
+            H_qo = AI.Maths.stable_entropy(qo_step[obs.name])
+            H_A = - sum(AI.Maths.stable_xlogx(obs.A), dims=1)
             
-            HAm = copy(H_A_m)
+            deps = AI.Utils.collect_dependencies(qs_step, obs)
+            H_A = AI.Maths.dot_product1(H_A, deps)
             
-            deps = Vector{Vector{Float64}}()
-            for idep in reverse(factor_idx)  # first factor is new state, other are dependencies or actions 
-                push!(deps, qs_step[idep])
-            end
-            
-            HAm = dot_product1(HAm, deps)
-            
-            if ndims(HAm) > 1
+            if ndims(H_A) > 1
                 @infiltrate; @assert false
             end
-            @assert HAm.size[1] == 1
-            #qs_H_A_m = factor_dot(H_A_m, relevant_factors)
-            info_gains_per_modality[m] = H_qo - HAm[1]
-            ambiguity_per_modality[m] =  HAm[1]
-            #@infiltrate; @assert false
+            @assert H_A.size[1] == 1
             
+            info_gains_per_modality[obs_i] = H_qo - H_A[1]
+            ambiguity_per_modality[obs_i] =  H_A[1]
+            #@infiltrate; @assert false
         end
-        #printfmtln("\nstep={}, info_gains_per_modality:", step)
-        #display(info_gains_per_modality)
-        info_gain_per_step[step] = sum(info_gains_per_modality)
-        ambiguity_per_step[step] = sum(ambiguity_per_modality)
-        #@infiltrate; @assert false
-        if info_gain_per_step[step] < 0
+        
+        info_gain_per_step[step_i] = sum(info_gains_per_modality)
+        ambiguity_per_step[step_i] = sum(ambiguity_per_modality)
+        
+        if info_gain_per_step[step_i] < 0
             @infiltrate; @assert false
         end 
 
@@ -488,8 +498,11 @@ function compute_info_gain(qs, qo, A, metamodel, policy_id)
 end
 
 
+
 """ Calculate States Information Gain """
 function calc_states_info_gain(A, qs_pi)
+    @infiltrate; @assert false  # not yet implemented
+
     n_steps = length(qs_pi)
     #states_surprise = 0.0
     states_surprise = zeros(n_steps)
@@ -528,104 +541,47 @@ end
 
 
 """ Calculate state to state info Gain """
-function calc_pB_info_gain(pB, qs_pi, qs_prev, policy, metamodel)
-    # this is the factorized version
-    # policity eg: ((1, 1, 1),) --- one action, three steps
+function calc_pB_info_gain(agent, qs_pi, qs_prev, policy)
     
-    # We follow the same idea as in get_expected_states() by selecting out actions from each B matrix.
-    # But instead of finishing with a dot(B_new, qs), here we filter out actions from a wB matrix of
-    # the same shape as B[ii].
+    model = agent.model
     
     n_steps = length(qs_pi)  # this might be less than the policy length, if there was early stopping
     if n_steps != length(policy[1])
         @infiltrate; @assert false  # todo: validate that all of the following work for early stopping
     end
     
-    action_names = keys(metamodel.action_deps)
-    Biis_with_action = [ii for ii in 1:length(pB) if length(intersect(metamodel.state_deps[ii], action_names)) > 0]
-    null_actions = [metamodel.policies.action_contexts[action][:null_action] for action in action_names]
-    null_action_ids = [findfirst(x -> x == null_actions[ii], metamodel.action_deps[ii]) for ii in 1:length(action_names)]
-
     info_gain_per_step = zeros(n_steps)
-    for t in 1:n_steps
-        for Bii in 1:length(pB) 
+    for step_i in 1:n_steps
+        
+        for (state_ii, state) in enumerate(model.states)
+                        
+            # select out actions from B matrix
+            pB, idx = AI.Utils.select_B_actions(state, policy, step_i, true)
 
-            # list of the hidden state factor indices that the dynamics of `qs[Bii]` depend on
-            # potentially more than one action per B matrix
-            factors = metamodel.state_deps[Bii]  # eg: [:loc, :loc, :move], with last being an action
-            # potentially, factors for this B matrix could have more than one action
-            
-            factor_idx = [findfirst(x -> x == j, keys(metamodel.state_deps)) for j in factors]
-            # eg., [1,1,nothing), where nothing is for an action
-
-            # wB takes the role of Bc in get_expected_states()
-            wB = spm_wnorm(pB[Bii])  # W := .5 (1 ./ a - 1 ./ a_sum) 
-            selections = nothing
-            idx = nothing
-
-            # select out action dimensions
-            if Bii in Biis_with_action
-
-                # here we handle potentially more than one action for this B matrix; 
-                # e.g. policy = ((1,2), (4,5)) for action_names = (:move, :jump)
-                # Then, selections[1] might equal 
-                # (action_name = :move, action_option_id = 1, action_option_name = :UP, null_action_id = 5)
-                
-                selections = [
-                    NamedTuple{(:action_name, :action_option_id, :action_option_name, :null_action_id)}(
-                        (name, pol[t], metamodel.action_deps[name][pol[t]], null_action_id))
-                    for (name, pol, null_action_id) in zip(action_names, policy, null_action_ids)
-                ]
-                #printfmtln("\nstep={}, Bii={}, selections= {}", t, Bii, selections)
-                
-                idx = []  # index of dims of this B matrix, states always come before actions in depencency lists
-                iaction = 1
-                for (idep, dep) in enumerate(factors) 
-                    if dep in keys(metamodel.action_deps)
-                        # this dim is an action
-                        push!(idx, selections[iaction].action_option_id)
-                        iaction += 1
-                    else
-                        # this is a state
-                        push!(idx, 1:wB.size[idep])  # e.g., push!(idx, (100,100,5)[1]) if idep==1
-                    end
-                end
-                pBc = pB[Bii][idx...]
-                wB = wB[idx...]  # select out actions, now only state dependencies left
-            else
-                pBc = pB[Bii]  # no actions for this B matrix
-                idx = [1:B[Bii].size[i] for i in 1:ndims(B[Bii])]  
-            end
+            wB = AI.Maths.spm_wnorm(state.pB)  # W := .5 (1 ./ a - 1 ./ a_sum) 
+            wB = wB[idx...]  # select out actions, now only state dependencies left
 
             # the 'past posterior' used for the information gain about pB here is the posterior
             # over expected states at the timestep previous to the one under consideration
             # if we're on the first timestep, we just use the latest posterior in the
             # entire action-perception cycle as the previous posterior
-            if t == 1
+            if step_i == 1
                 previous_qs = qs_prev
             # otherwise, we use the expected states for the timestep previous to the timestep under consideration
             else
-                previous_qs = qs_pi[t - 1]
+                previous_qs = qs_pi[step_i - 1]
             end
 
-            # get expected states
-            deps = Vector{Vector{Float64}}()
-            for idep in reverse(factor_idx[2:end])  # first factor is new state, other are dependencies or actions 
-                if isnothing(idep)
-                    # this dependency is an action
-                    continue
-                end
-                push!(deps, previous_qs[idep])
-            end
+            # collect B dependencies
+            deps = AI.Utils.collect_dependencies(previous_qs, state, policy)
             
-            wB .*= Float64.(pBc .> 0)  # only consider wB if pB > 0
-            Wqs = dot_product1(wB, deps)
-            info_gain_per_step[t] -= dot(qs_pi[t][Bii], Wqs)
-
-            #@infiltrate; @assert false
+            wB .*= Float64.(pB .> 0)  # only consider wB if pB > 0
+            Wqs = AI.Maths.dot_product1(wB, deps)
+            info_gain_per_step[step_i] -= sum(qs_pi[step_i][state.name] .* Wqs)
         end
     end
 
+    #@infiltrate; @assert false
     return info_gain_per_step
 end
 
