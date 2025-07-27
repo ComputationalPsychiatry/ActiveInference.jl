@@ -22,7 +22,7 @@ mutable struct Agent
     qs_prior::NamedTuple{<:Any, <:NTuple{N, Vector{Float64}} where {N}}  # Prior beliefs about states after action, before processing observations
     qs_current::NamedTuple{<:Any, <:NTuple{N, Vector{Float64}} where {N}}  # Current beliefs about states, after processing observations
     qo_current::NamedTuple{<:Any, <:NTuple{N, Vector{Float64}} where {N}}  # Current beliefs about observations
-        
+            
     # policy group
     q_pi::Vector{Union{Missing, T}} where T <:Real # Posterior beliefs over policies
     G::Vector{Union{Missing, T}} where T <:Real  # Expected free energy of policies
@@ -41,7 +41,7 @@ end
 # graph structures
 
 mutable struct ObsNode
-    qs_next::Union{Nothing, Vector{Vector{Float64}}}
+    qs_next::NamedTuple{<:Any, <:NTuple{N, Vector{Float64}} where {N}}
     utility_updated::Union{Missing, Nothing, Float64}
     info_gain_updated::Union{Missing, Nothing, Float64}
     ambiguity_updated::Union{Missing, Nothing, Float64}
@@ -52,22 +52,22 @@ mutable struct ObsNode
     prob::Union{Missing, Nothing, Float64}
     prob_updated::Union{Missing, Nothing, Float64}
     
-    subpolicy::Union{Missing, Nothing, Tuple}
-    observation::Union{Missing, Nothing, Tuple}
+    #subpolicy::Union{Missing, Nothing, Tuple}
+    observation::NamedTuple{<:Any, <:NTuple{N, T} where {N, T}}
     level::Int64
-    ith_observation::Int64
+    policy::Union{Nothing, NamedTuple{<:Any, <:NTuple{N, T} where {N, T}}}
 end
 
 
 mutable struct ActionNode
     # qs size = number of state variables [number of categories per variable]
-    qs::Union{Nothing, Vector{Vector{Float64}}} 
+    qs::Union{Nothing, NamedTuple{<:Any, <:NTuple{N, Vector{Float64}} where {N}}} 
 
     # qs_pi size = number of actions (=1) [number of state variables [ number of categories per variable]]
-    qs_pi::Union{Nothing, Vector{Vector{Vector{Float64}}}}  
+    qs_pi::Union{Nothing, NamedTuple{<:Any, <:NTuple{N, Vector{Float64}} where {N}}}  
 
     # qo_pi size  = number of actions (=1) [number of observation variables [ number of categories per variable]]
-    qo_pi::Union{Nothing, Vector{Vector{Vector{Float64}}}}  
+    qo_pi::Union{Nothing, NamedTuple{<:Any, <:NTuple{N, Vector{Float64}} where {N}}}  
     
     utility::Union{Missing, Nothing, Float64}
     info_gain::Union{Missing, Nothing, Float64}
@@ -85,10 +85,9 @@ mutable struct ActionNode
     G_updated::Union{Missing, Nothing, Float64}
     q_pi_updated::Union{Missing, Nothing, Float64}
     
-    action::Union{Missing, Nothing, NTuple{N, Int64} where N}
-    subpolicy::Union{Missing, Nothing, Tuple}
-    observation::Union{Missing, Nothing, Tuple}
+    observation::NamedTuple{<:Any, <:NTuple{N, T} where {N, T}}
     level::Int64
+    policy::NamedTuple{<:Any, <:NTuple{N, T} where {N, T}}
 end
 
 

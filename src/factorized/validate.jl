@@ -172,7 +172,12 @@ function complete(model, settings, parameters)
     # if E-vector is not provided
     if ismissing(model.policies.E)
         # use uninformative prior on policies
-        model = @set model.policies.E = ones(Real, model.policies.n_policies) / model.policies.n_policies
+        if settings.EFE_over == :policies
+            model = @set model.policies.E = ones(Real, model.policies.n_policies) / model.policies.n_policies
+        elseif settings.EFE_over == :actions
+            n_actions = length(collect(model.policies.action_iterator))
+            model = @set model.policies.E = ones(Real, n_actions) / n_actions
+        end
     end
 
     return model

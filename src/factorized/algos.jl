@@ -58,29 +58,7 @@ function all_marginal_log_likelihood(qs, LL, ii, jj, agent)
     end
 
     return A
-
-    #=
-    kk = findfirst(x-> x == state, obs_dep) - 1  
-    
-    # ii=state, jj=observation, kk=location of state in observation dependencies  
-
-    for (ii, state_dep) in enumerate(metamodel.state_deps)
-        @infiltrate; @assert false
-        
-        Aii = copy(A[ii])
-        deps = [findfirst(x->x==sn, keys(metamodel.state_deps)) for sn in meta_obs[2:end]]
-        for (jj, dep) in enumerate(deps)  # one for each state dependency of A[ii]
-            dims = repeat([1], ndims(Aii))
-            prior_jj = prior[dep] 
-            dims[jj+1] = prior_jj.size[1]
-            prior_jj = reshape(prior_jj, dims...)
-            Aii = Aii .* prior_jj
-        end
-        marginal_ll = sum(Aii, dims=1)
-        push!(log_likelihoods, capped_log(dropdims(marginal_ll, dims=1)))  # log of squeezed matrix
-    
-    end
-    =#    
+   
 
 end
 

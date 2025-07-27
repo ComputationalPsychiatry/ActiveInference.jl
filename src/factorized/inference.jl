@@ -32,6 +32,12 @@ function get_expected_states(
     agent::AI.Agent
     )
     
+    # earlystop_tests for current location
+    if agent.settings.earlystop_tests && !model.policies.earlystop_tests(qs, model)
+        # agent already believes it is at an early stop, before action
+        return missing  # missing is code for early stop
+    end
+    
     model = agent.model
 
    
@@ -209,7 +215,7 @@ function update_posterior_policies!(agent)
 
             # Otherwise calculate it and add it to the G vector
             
-            info_gain_, ambiguity_ = compute_info_gain(qs_pi, qo_pi, agent)
+            info_gain_, ambiguity_ = calc_info_gain(qs_pi, qo_pi, agent)
             
             # initialize this G?
             if ismissing(agent.G[policy_i])
@@ -235,6 +241,7 @@ function update_posterior_policies!(agent)
                 end
             end
             
+            # todo: should risk and ambiguity include info_gain_A, etc?
             agent.info_gain[policy_i,1:info_gain_.size[1]] = info_gain_
             agent.ambiguity[policy_i,1:ambiguity_.size[1]] = ambiguity_
             agent.risk[policy_i,1:ambiguity_.size[1]] = (
@@ -328,7 +335,7 @@ function update_posterior_policies!(agent)
 
     end
 
-    # some utility are zero because the policy was rejected. Only use good policies to calc q_pi
+    # some utility can be missing. Only use good policies to calc q_pi
     idx = findall(x -> !ismissing(x), agent.G)   
     
     if sum(skipmissing(agent.G)) == 0
@@ -449,7 +456,7 @@ end
 
 
 # --------------------------------------------------------------------------------------------------
-function compute_info_gain(qs, qo, agent)
+function calc_info_gain(qs, qo, agent)
     """
     New version of expected information gain that takes into account sparse dependencies between observation modalities and hidden state factors.
     qs, qo are over policy steps
@@ -542,7 +549,8 @@ end
 
 """ Calculate state to state info Gain """
 function calc_pB_info_gain(agent, qs_pi, qs_prev, policy)
-    
+    # todo: we could calculate info_gain per step and per state. Here we sum over all states.
+
     model = agent.model
     
     n_steps = length(qs_pi)  # this might be less than the policy length, if there was early stopping
@@ -554,7 +562,11 @@ function calc_pB_info_gain(agent, qs_pi, qs_prev, policy)
     for step_i in 1:n_steps
         
         for (state_ii, state) in enumerate(model.states)
-                        
+            
+            if isnothing(state.pB) || ismissing(state.pB)
+                continue
+            end
+
             # select out actions from B matrix
             pB, idx = AI.Utils.select_B_actions(state, policy, step_i, true)
 

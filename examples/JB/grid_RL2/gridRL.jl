@@ -165,10 +165,11 @@ function run_grid_example()
     
     # get_settings and modify as needed
     settings = AI.get_settings()
-    settings = @set settings.EFE_over = :policies
+    settings = @set settings.EFE_over = :actions  #:policies
     settings = @set settings.graph_postprocessing_method = :G_prob_q_pi
-    settings = @set settings.policy_inference_method = :standard
+    settings = @set settings.policy_inference_method = :sophisticated  #:standard #:sophisticated  
     settings = @set settings.graph = :none
+    settings = @set settings.use_param_info_gain = false
 
     model = make_model(CONFIG)
 
@@ -188,11 +189,12 @@ function run_grid_example()
     model = @set model.states.loc.D = D
     
     ### Initialize agent
-    pB = deepcopy(model.states.loc.B)
-    scale_concentration_parameter = 2.0
-    pB .*= scale_concentration_parameter
-    model = @set model.states.loc.pB = pB
-    
+    if true
+        pB = deepcopy(model.states.loc.B)
+        scale_concentration_parameter = 2.0
+        pB .*= scale_concentration_parameter
+        model = @set model.states.loc.pB = pB
+    end
     #@infiltrate; @assert false
     # run
     if settings.action_selection == "deterministic"

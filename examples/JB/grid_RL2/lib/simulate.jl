@@ -136,11 +136,13 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
         AI.update_parameters!(agent)
         #@infiltrate; @assert false
 
-        q_pi = AI.infer_policies!(agent)
+        q_pi = AI.infer_policies!(agent, obs)
+        
         if verbose    
             printfmtln("\ncounts of q_pi values = \n{}", StatsBase.countmap(round.(q_pi, digits=6)))
         end
-        idxs = findall(x -> isapprox(x, maximum(q_pi)), q_pi)
+        
+        idxs = findall(x -> !ismissing(x) && isapprox(x, maximum(skipmissing(q_pi))), q_pi)
         if verbose && idxs.size[1] <= 10
             printfmtln("\nmax q_pi at indexes= {}", idxs)
             printfmtln("\npolicies at max q_pi= \n{}",  

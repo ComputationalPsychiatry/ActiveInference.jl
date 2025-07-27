@@ -33,30 +33,61 @@ function create_agent(model::NamedTuple, settings::NamedTuple; parameters=missin
     qos = [zeros(x.A_dims[1]) for x in model.obs]
     qo_current = (; zip(obs_names, qos)...)
     
-    q_pi = zeros(Union{Missing, Float64}, model.policies.n_policies) 
-    G = zeros(Union{Missing, Float64}, model.policies.n_policies)
-    EFE = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
+    if settings.EFE_over == :policies
+        q_pi = zeros(Union{Missing, Float64}, model.policies.n_policies) 
+        G = zeros(Union{Missing, Float64}, model.policies.n_policies)
+        EFE = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
+        
+        # todo: we don't need to record utility etc. in matrices internally if setting.return_EFE_decompositions=false
+        utility = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
+        info_gain = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
+        risk = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
+        ambiguity = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
+        
+        info_gain_A = nothing
+        info_gain_B = nothing
+        info_gain_D = nothing
+
+        if !all([isnothing(obs.pA) for obs in model.obs]) 
+            info_gain_A = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
+        end
+
+        if !all([isnothing(state.pB) for state in model.states]) 
+            info_gain_B = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
+        end
+
+        if !all([isnothing(state.pD) for state in model.states]) 
+            info_gain_D = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
+        end
     
-    # todo: we don't need to record utility etc. in matrices internally if setting.return_EFE_decompositions=false
-    utility = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
-    info_gain = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
-    risk = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
-    ambiguity = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
-    
-    info_gain_A = nothing
-    info_gain_B = nothing
-    info_gain_D = nothing
+    elseif settings.EFE_over == :actions
+        n_actions = length(collect(model.policies.action_iterator))
+        
+        q_pi = zeros(Union{Missing, Float64}, n_actions) 
+        G = zeros(Union{Missing, Float64}, n_actions)
+        EFE = zeros(Union{Missing, Float64}, n_actions)
+        
+        # todo: we don't need to record utility etc. in matrices internally if setting.return_EFE_decompositions=false
+        utility = zeros(Union{Missing, Float64}, (n_actions, 1))
+        info_gain = zeros(Union{Missing, Float64}, (n_actions, 1))
+        risk = zeros(Union{Missing, Float64}, (n_actions, 1))
+        ambiguity = zeros(Union{Missing, Float64}, (n_actions, 1))
+        
+        info_gain_A = nothing
+        info_gain_B = nothing
+        info_gain_D = nothing
 
-    if !all([isnothing(obs.pA) for obs in model.obs]) 
-        info_gain_A = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
-    end
+        if !all([isnothing(obs.pA) for obs in model.obs]) 
+            info_gain_A = zeros(Union{Missing, Float64}, (n_actions, 1))
+        end
 
-    if !all([isnothing(state.pB) for state in model.states]) 
-        info_gain_B = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
-    end
+        if !all([isnothing(state.pB) for state in model.states]) 
+            info_gain_B = zeros(Union{Missing, Float64}, (n_actions, 1))
+        end
 
-    if !all([isnothing(state.pD) for state in model.states]) 
-        info_gain_D = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
+        if !all([isnothing(state.pD) for state in model.states]) 
+            info_gain_D = zeros(Union{Missing, Float64}, (n_actions, 1))
+        end
     end
     
     last_action = nothing 
@@ -111,7 +142,7 @@ function get_settings()
         # EFE calculation group
         use_utility = true,    
         use_states_info_gain = true,
-        use_param_info_gain = true,  # for parameter learning
+        use_param_info_gain = false,  # for parameter learning
         FPI_num_iter = 10,
         FPI_dF_tol = 0.001,
         
@@ -204,11 +235,11 @@ end
 
 
 """ Update the agents's beliefs over policies """
-function infer_policies!(agent::Agent)
+function infer_policies!(agent::Agent, obs_current::NamedTuple{<:Any, <:NTuple{N, T} where {N, T}})
     # Update posterior over policies and expected free energies of policies
     
     if agent.settings.policy_inference_method == :sophisticated || agent.settings.graph != :none
-        Sophisticated.update_posterior_policies!(agent)
+        Sophisticated.update_posterior_policies!(agent, obs_current)
     else    
         Inference.update_posterior_policies!(agent)
     end

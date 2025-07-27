@@ -98,6 +98,7 @@ function select_B_actions(state, policy, step_i=nothing, do_pB=false)
     # e.g state.B_dim_names = [:self, :loc, :move], with last being an action
     
     if do_pB
+        @assert !ismissing(state.pB) && !isnothing(state.pB)
         B = copy(state.pB)
     else
         B = copy(state.B)

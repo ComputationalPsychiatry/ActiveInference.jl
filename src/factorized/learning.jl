@@ -59,7 +59,7 @@ function update_state_likelihood_dirichlet!(agent::AI.Agent, qs_prev::NamedTuple
     
     for (state_i, state) in enumerate(model.states)
             
-        if isnothing(state.pB)
+        if isnothing(state.pB) || ismissing(state.pB)
             continue
         end
 
@@ -76,11 +76,11 @@ function update_state_likelihood_dirichlet!(agent::AI.Agent, qs_prev::NamedTuple
         state.pB[idx...] = state.pB[idx...] * agent.parameters.fr_pB .+ (agent.parameters.lr_pB .* dfdb)
         state.B[:] = deepcopy(AI.Maths.normalize_distribution(state.pB))
 
-        printfmtln("\ntest pB: {}, qs = {}, >.4= {} \n",  
-            round(sum(state.pB), digits=3), 
-            isapprox(agent.qs_current[state_i], qs_prev[state_i]),
-            length(findall(x -> x > .5, state.B))
-        )
+        #printfmtln("\ntest pB: {}, qs = {}, >.4= {} \n",  
+        #    round(sum(state.pB), digits=3), 
+        #    isapprox(agent.qs_current[state_i], qs_prev[state_i]),
+        #    length(findall(x -> x > .5, state.B))
+        #)
         
         if false && !isapprox(agent.qs_current[state_i], qs_prev[state_i])
             @infiltrate; @assert false 
