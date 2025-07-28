@@ -96,6 +96,9 @@ function make_policies(model, CONFIG, env)
     model = @set model.policies.n_policies = number_policies
 
 
+    #=
+    # the following provides an example of earlystop and action tests. 
+
     # policy functions
     function earlystop_tests(qs, model)
         loc = model.states.loc.labels[argmax(qs.loc)]  
@@ -127,6 +130,8 @@ function make_policies(model, CONFIG, env)
 
     model = @set model.policies.action_tests = action_tests
     model = @set model.policies.earlystop_tests = earlystop_tests
+    =#
+
 
     #@infiltrate; @assert false
     return model

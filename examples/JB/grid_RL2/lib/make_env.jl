@@ -88,7 +88,9 @@ function add_walls(env::RLEnv, walls)
 end
 
 
-function step_env!(env::RLEnv, action::NamedTuple{<:Any, <:NTuple{N, Int64} where {N}})
+function step_env!(env::RLEnv, action::Union{Nothing, NamedTuple{<:Any, <:NTuple{N, Int64} where {N}}})
+    # use nothing as a null action if null actions are not otherwise specified in model
+    
     loc = env.current_loc  # e.g., (loc_obs=7,)
     loc_id = values(loc)[1]
 

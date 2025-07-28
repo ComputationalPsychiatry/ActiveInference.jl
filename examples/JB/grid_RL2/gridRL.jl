@@ -32,7 +32,7 @@ Plots.scalefontsizes(0.8)
 
 ####################################################################################################
 
-function run_grid_example()
+function run_example()
     
    
 
@@ -166,7 +166,7 @@ function run_grid_example()
     # get_settings and modify as needed
     settings = AI.get_settings()
     settings = @set settings.EFE_over = :actions  #:policies
-    settings = @set settings.graph_postprocessing_method = :G_prob_q_pi
+    settings = @set settings.graph_postprocessing_method = :G_prob  #:G_prob_q_pi  #:sum
     settings = @set settings.policy_inference_method = :sophisticated  #:standard #:sophisticated  
     settings = @set settings.graph = :none
     settings = @set settings.use_param_info_gain = false
@@ -233,71 +233,8 @@ function run_grid_example()
         push!(history, results)
     end
     
-    #=
-    # for plotting corr coef when calculating r for RL2 etc.
-    locations = [model.cells[idx] for idx in history[1][:loc_id]]
-    plot_visited(CONFIG, to_label, nothing, 1, 400, CONFIG[:walls], locations)
-    Plots.plot(history[1][:r], title=format("{}, Corr Coef, Emp Over Policies vs. G", CONFIG[:experiment]), ylabel="Corr Coef", xlabel="Iteration", label=nothing)
-    Plots.savefig(format("./pngs/{}_corr_coef.png", CONFIG[:experiment]))
-    Plots.histogram(history[1][:r], title=format("{}, Corr Coef, Emp Over Policies vs. G", CONFIG[:experiment]), xlabel="Corr Coef", ylabel="Count", label=nothing)
-    Plots.savefig(format("./pngs/{}_corr_coef_hist.png", CONFIG[:experiment]))
-    printfmtln("\nExperiment {}, r mean = {}\n", CONFIG[:experiment], Statistics.mean(history[1][:r]))
-    =#
-    # Experiment RL3, r mean = 0.021582477108425802
-    # Experiment RL4, r mean = -0.07849980596469375
-
-
-    #Serialization.serialize(format("{}_history.ser", CONFIG.experiment), history)
-    #Serialization.serialize(format("{}_B.ser", CONFIG.experiment), model.B_true)
-    #Serialization.serialize(format("{}_model.ser", CONFIG.experiment), model)
-    #Serialization.serialize(format("{}_config.ser", CONFIG.experiment), CONFIG)
-
     @infiltrate; @assert false
 
-    Assess.assess_results(CONFIG, agent, model)
-    @infiltrate; @assert false
-    
-    
-    
-    @infiltrate; @assert false
-
-    # save history
-    dfs_efe = []
-    dfs_metrics = []
-    for simulation_number in 1:CONFIG.number_simulations
-        
-        @infiltrate; @assert false
-        results = Metrics.calc_metrics(history[simulation_number], model)
-        
-        # record EFE and decomposition products over simulation steps, based on chosen actions
-        df = DFS.DataFrame(permutedims(hcat(history[simulation_number][:EFE]...)), 
-            [:info_gain, :utility, :risk, :ambiguity, :EFE])
-        printfmtln("\nEFE, sim {}= \n{}", simulation_number, df)
-        
-        CSV.write(format("./sim_results/EFE_{}_sim{}.csv", CONFIG.experiment, simulation_number), df)
-        push!(dfs_efe, df)
-
-        # summarize metrics over a simulation
-        metrics = Union{Missing, Float64}[]
-        push!(metrics, vcat(sum.(eachcol(df)), model.policies.number_policies, CONFIG.gamma)...)
-        fields = vcat(names(df), ["n_policies", "gamma"])
-        
-        for obsID in 1:length(results)
-            obs_name = fieldnames(Observations)[obsID]
-            labels = [x * String(obs_name)[1:end-4] for x in ["TE_", "TE_reverse_", "empowerment_"]]
-            push!(metrics, results[obsID]...)
-            push!(fields, labels...)
-        end
-        
-        df2 = DFS.DataFrame(Metric=fields, Value=metrics)
-        printfmtln("\nMetrics, sim {}= \n{}", simulation_number, df2)
-        CSV.write(format("./sim_results/metrics_{}_sim{}.csv", CONFIG.experiment, simulation_number), df2)
-        push!(dfs_metrics, df2)
-    end
-
-
-    @infiltrate; @assert false
-    
     
 end
 

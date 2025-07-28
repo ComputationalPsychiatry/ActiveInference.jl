@@ -8,15 +8,10 @@
 
 #import LogExpFunctions as LEF
 import IterTools
-import Plots.Animation as Animation
 import Distributions
 import Dates
-#import SQLite
 import StatsBase
 import LogExpFunctions as LEF
-
-
-include("./make_env.jl")
 
 
 #using Format
@@ -36,41 +31,20 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
 
     printfmtln("\n=============\nSimulation= {}, Experiment {}\n=============", sim_i, CONFIG[:experiment])
     
-    
-    #db_name = format("./dbs/{}_sim{}.sqlite", CONFIG[:experiment], sim_i)
-    gif_name = format("./gifs/{}_sim{}.gif", CONFIG[:experiment], sim_i)
-    plot_title = format("{}, Sim={}", CONFIG[:experiment], sim_i)
-    
-    #if isfile(db_name)
-    #    rm(db_name)  # remove if db exists
-    #end
-    #db = SQLite.DB(db_name)
-
-    plots = Vector{Plots.Plot}()
-    push!(plots, plot_grid(CONFIG, to_label, plot_title, sim_i, 0, CONFIG[:walls]))
-    
-    current_loc = reset_env!(env)
-    
     # use named tuple of named tuples for actions
 
-    if length(model.actions[1].labels) == 1
-        obs = step_env!(env, (move=(5),))
-    else
-        # two actions
-        #@infiltrate; @assert false
-        obs = step_env!(env, (move_vert=3, move_horz=3))  # e.g., (loc_obs=7,)
-    end
+    obs = step_env!(env, nothing)  # e.g., (loc_obs=7, wall_obs=1, safe_obs=1)
+    #observation = [18, 1, 2]
 
     cell_obs = model.states.loc.labels[obs.loc_obs]
     history_of_locs = [obs.loc_obs]
     history_of_cells = [cell_obs]
     history_of_EFE = []
     history_of_actions = []
-    history_of_sq_error = []
-    history_of_r = []
-
-    action_names = [x.name for x in model.actions]
     
+    action_names = [x.name for x in model.actions]
+    #zip([x.name for x in env.model.obs], [pos_index, 1, valence])...)
+
     for step_i in 1:CONFIG.number_simulation_steps
         qs = AI.infer_states!(agent, obs) 
         
@@ -188,28 +162,6 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
             @infiltrate; @assert false
         end    
 
-        sq_error = Statistics.sum((CONFIG.B_true .- agent.model.states.loc.B) .^2)
-        push!(history_of_sq_error, sq_error)
-        
-        if sq_error == 0
-            break
-        end
-            
-        if false
-            push!(plots, plot_grid(CONFIG, to_label, plot_title, sim_i, step_i, CONFIG[:walls], locations=history_of_cells))
-        else
-            if step_i % max(Int(round(CONFIG.number_simulation_steps/10)), 1) == 0
-                plot_visited(CONFIG, to_label, plot_title, sim_i, step_i, CONFIG[:walls], history_of_cells)
-                plot_sq_error(CONFIG, sim_i, step_i, history_of_sq_error)
-                #@infiltrate; @assert false
-            end
-        end
-        
-        #print(f'Reward at time {t}: {reward_obs}')
-
-        #if t == 2
-        #    @infiltrate; @assert false
-        #end   
         #@infiltrate; @assert false
     end
 
@@ -228,6 +180,7 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
         :EFE => history_of_EFE,
         :actions => history_of_actions,
         :sq_error => history_of_sq_error,
+        :r => history_of_r,
         :cells => history_of_cells
     )
 

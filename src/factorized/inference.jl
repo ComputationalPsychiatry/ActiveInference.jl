@@ -32,15 +32,14 @@ function get_expected_states(
     agent::AI.Agent
     )
     
+    model = agent.model
+
     # earlystop_tests for current location
-    if agent.settings.earlystop_tests && !model.policies.earlystop_tests(qs, model)
+    if !model.policies.earlystop_tests(qs, model)
         # agent already believes it is at an early stop, before action
         return missing  # missing is code for early stop
     end
     
-    model = agent.model
-
-   
     n_steps = length(policy[1])  # policy length is the same for all actions, in SI not the same as policy length
 
     # initializing posterior predictive density as a list of beliefs over time
@@ -76,16 +75,15 @@ function get_expected_states(
         end
 
         # action_tests
-        if agent.settings.action_tests
-            if !model.policies.action_tests(qs_pi[step_i + 1], model)
-                return nothing # entire policy for all B matrices and actions is invalid
-            end
+        
+        if !model.policies.action_tests(qs_pi[step_i + 1], model)
+            return nothing # entire policy for all B matrices and actions is invalid
         end
-
+    
         # todo: perform policy_tests 
         
         # earlystop_tests
-        if step_i < n_steps && agent.settings.earlystop_tests
+        if step_i < n_steps 
             if !model.policies.earlystop_tests(qs_pi[step_i + 1], model)
                 # are all remaining actions a null action, like "stay"
                 for acts in collect(zip(policy...))[step_i+1:end]

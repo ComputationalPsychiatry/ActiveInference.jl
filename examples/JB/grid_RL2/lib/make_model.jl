@@ -71,9 +71,7 @@ function make_model(CONFIG)
                 B_dim_names = B_dim_names,
                 B_dims = B_dims,
                 D = missing,
-                is_B_learned = true,
                 pB = missing,
-                is_D_learned = false,
                 pD = nothing,
                 extra = (
                     grid_dims = CONFIG.grid_dims,
@@ -90,7 +88,6 @@ function make_model(CONFIG)
                 A = missing,
                 A_dim_names = (:loc, :loc),
                 A_dims = (grid_size, grid_size),
-                is_learned = false,
                 pA = nothing,
                 extra = nothing,
             ),
@@ -101,7 +98,6 @@ function make_model(CONFIG)
         preferences = (
             loc_pref = (
                 name = :loc_pref,
-                state_dependencies = nothing,
                 C = missing,
                 C_dim_names = (:loc_obs,),
                 C_dims = (grid_size,),
@@ -114,9 +110,9 @@ function make_model(CONFIG)
             action_iterator = missing,
             policy_length = CONFIG.policy_length,
             n_policies = missing,
-            policy_tests = missing,
-            action_tests = missing,
-            earlystop_tests = missing,
+            policy_tests = (policy, model) -> true,  # unused for now
+            action_tests = (qs_pi, model) -> true,
+            earlystop_tests = (qs, model) -> true,
             utility_reduction_fx = nothing,  # user-supplied function for EFE reduction that allows missings
             info_gain_reduction_fx = nothing,  # user-supplied function for EFE reduction that allows missings
             E = missing,

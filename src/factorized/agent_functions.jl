@@ -60,6 +60,10 @@ function create_agent(model::NamedTuple, settings::NamedTuple; parameters=missin
             info_gain_D = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
         end
     
+    elseif settings.EFE_over == :actions && settings.policy_inference_method == :standard
+        @assert false "not yet implemented"  # todo: implement :actions and :standard - maybe just sum over actions at end of infer policies?
+        
+        
     elseif settings.EFE_over == :actions
         n_actions = length(collect(model.policies.action_iterator))
         
@@ -151,9 +155,9 @@ function get_settings()
         graph = [:explicit, :implicit, :none][1],
         EFE_over = [:policies, :actions][1],
         graph_postprocessing_method = [:G_prob, :G_prob_q_pi][1],
-        earlystop_tests = false,  # if true, user must supply earlystop_tests 
-        policy_tests = false,  # if true, user must supply policy_tests
-        action_tests = true,
+        #earlystop_tests = false,  # if true, user must supply earlystop_tests 
+        #policy_tests = false,  # if true, user must supply policy_tests
+        #action_tests = true,
         EFE_reduction = [:sum, :min_max, :custom][1],  # if early_stop=true, missing values might occur. If :Custom, user must supply EFE_reduction function.
         return_EFE_decompositions = true,  # todo: allow for not returning utility, info gain, etc. matrices
         SI_observation_prune_threshold = 1/16,  
@@ -161,7 +165,7 @@ function get_settings()
         SI_prune_penalty = 512,
 
         # action group
-        action_selection = :stochastic,
+        action_selection = [:stochastic, :deterministic][1],
         
         # stdout group
         verbose = false,
