@@ -285,10 +285,14 @@ function update_posterior_policies!(agent::AI.Agent, obs_current::NamedTuple{<:A
     =#
     leaves = Dict{NamedTuple, Vector}()  # todo: make the type exact.  todo: preinitialize each vector to some large size, for memory management
     max_level = 0
+    cnt_action_nodes = 0
     for ii in Graphs.vertices(siGraph)
         
         # todo: this try-catch is for testing, take it out
         node_label = MGN.label_for(siGraph, ii)
+        if isa(siGraph[node_label], AI.ActionNode)
+            cnt_action_nodes += 1
+        end
         if ii > 1
             try
                 @assert Graphs.indegree(siGraph, ii) == 1
@@ -317,7 +321,9 @@ function update_posterior_policies!(agent::AI.Agent, obs_current::NamedTuple{<:A
         @infiltrate; @assert false    
     end 
 
-    printfmtln("\nget leaves list time= {}\n", round((Dates.time() - t0) , digits=2))
+    printfmtln("\nget leaves list time= {}, final action nodes={}\n", 
+        round((Dates.time() - t0) , digits=2), cnt_action_nodes
+    )
     t0 = Dates.time()
 
     if max_level < n_steps
