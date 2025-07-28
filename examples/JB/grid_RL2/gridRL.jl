@@ -165,10 +165,10 @@ function run_example()
     
     # get_settings and modify as needed
     settings = AI.get_settings()
-    settings = @set settings.EFE_over = :actions  #:policies
+    settings = @set settings.EFE_over = :policies  #:actions  #:policies
     settings = @set settings.graph_postprocessing_method = :G_prob  #:G_prob_q_pi  #:sum
-    settings = @set settings.policy_inference_method = :sophisticated  #:standard #:sophisticated  
-    settings = @set settings.graph = :none
+    settings = @set settings.policy_inference_method = :standard  #:sophisticated  #:standard #:sophisticated  
+    settings = @set settings.graph = :explicit
     settings = @set settings.use_param_info_gain = false
 
     model = make_model(CONFIG)

@@ -70,6 +70,14 @@ function run_example()
     settings = @set settings.graph = :explicit  #:none
     settings = @set settings.use_param_info_gain = false
 
+    # to run standard inference with an explicit graph, use:
+    #settings = @set settings.policy_inference_method = :standard 
+    #settings = @set settings.graph = :explicit
+
+    # SI thresholds can be set here
+    #settings = @set settings.SI_observation_prune_threshold = 1/16
+    #settings = @set settings.SI_policy_prune_threshold = 1/16
+    
     # get_parameters and modify as needed
     parameters = AI.get_parameters()
     parameters = @set parameters.gamma = 1.0

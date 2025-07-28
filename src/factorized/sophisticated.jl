@@ -677,9 +677,9 @@ function recurse(siGraph::MGN.MetaGraph, agent::AI.Agent, ObsLabel::Base.UUID,
     # todo: set flags so that SI is the same here as in pymdp
 
     model = agent.model
-    observation_prune_threshold = .03  #1/16  #1/100  #1/16
-    policy_prune_threshold = 1/16
-    prune_penalty = 512
+    observation_prune_threshold = agent.settings.SI_observation_prune_threshold
+    policy_prune_threshold = agent.settings.SI_policy_prune_threshold
+    prune_penalty = agent.settings.SI_prune_penalty
 
     level = siGraph[ObsLabel].level
        
@@ -900,23 +900,17 @@ function recurse(siGraph::MGN.MetaGraph, agent::AI.Agent, ObsLabel::Base.UUID,
         qo_next = siGraph[ActionLabel].qo_pi
         skip_observations = true
         
-        #=
         # do standard inference?
         if agent.settings.policy_inference_method == :standard
-            # use this for non-sophisticated (standard) inference
+            # use this for :standard inference with :explicit graph
             
-            @infiltrate; @assert false
-
-            # make Obs node and link to parent, overwrite ObsLabel, make only a single Obs node
-            @infiltrate; @assert false
+            # make only a single Obs node
             ObsLabel = UUIDs.uuid1(rng) 
                         
             # do not call update_posterior_states to get qs_next, use original
             qs_next = siGraph[ActionLabel].qs_pi 
             prob = 1.0
-            cnt = 1
-            observation = nothing  # this is a dummy ObsNode
-
+            obs = obs = (; zip(obs_names, zeros(length(obs_names)))...)  # dummy obs
             siGraph[ObsLabel] = AI.ObsNode(
                 qs_next,
                 nothing,  # utility_updated
@@ -927,26 +921,23 @@ function recurse(siGraph::MGN.MetaGraph, agent::AI.Agent, ObsLabel::Base.UUID,
                 nothing,  # q_pi_updated
                 prob,
                 nothing,  # prob_updated
-                observation,
-                level,
-                policy
+                obs,  # dummy node
+                level +1 ,
+                siGraph[ActionLabel].policy,
             )
-            
-            if isnothing(siGraph[ObsLabel].policy)
-                @infiltrate; @assert false
-            end
 
             siGraph[ActionLabel, ObsLabel] = AI.GraphEdge()
             
-            if agent.verbose
+            if agent.settings.verbose
                 printfmtln("\n        level= {}, calling sophisticated", level)
             end
+            
             #@infiltrate; @assert false
-            recurse(siGraph, agent, level+1, ObsLabel)
+            recurse(siGraph, agent, ObsLabel, action_names, rng)
             
             continue
         end
-        =#
+        
 
         # do regular SI
         cnt = 0
@@ -958,7 +949,7 @@ function recurse(siGraph::MGN.MetaGraph, agent::AI.Agent, ObsLabel::Base.UUID,
             end
             prob  = prod(vcat(1.0, probs))
             
-            # ignore low probability states in the search tree
+            # ignore low probability observations in the search tree
             if prob < observation_prune_threshold
                 #    printfmtln("        level= {}, observation= {}, probs= {}, prob= {}", 
                 #    level, observation, round.(probs, sigdigits=3), round(prob, sigdigits=3)

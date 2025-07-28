@@ -162,7 +162,7 @@ function get_settings()
         return_EFE_decompositions = true,  # todo: allow for not returning utility, info gain, etc. matrices
         SI_observation_prune_threshold = 1/16,  
         SI_policy_prune_threshold = 1/16,
-        SI_prune_penalty = 512,
+        SI_prune_penalty = 512,  # todo: unused for now
 
         # action group
         action_selection = [:stochastic, :deterministic][1],
@@ -189,6 +189,7 @@ function get_parameters()
         fr_pB = 1.0,
         lr_pD = 1.0,
         fr_pD = 1.0,  
+        
     )
 
     return parameters
@@ -242,7 +243,7 @@ end
 function infer_policies!(agent::Agent, obs_current::NamedTuple{<:Any, <:NTuple{N, T} where {N, T}})
     # Update posterior over policies and expected free energies of policies
     
-    if agent.settings.policy_inference_method == :sophisticated || agent.settings.graph != :none
+    if agent.settings.policy_inference_method == :sophisticated || agent.settings.graph == :explicit
         Sophisticated.update_posterior_policies!(agent, obs_current)
     else    
         Inference.update_posterior_policies!(agent)
