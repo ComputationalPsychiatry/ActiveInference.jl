@@ -32,12 +32,25 @@ function create_agent(model::NamedTuple, settings::NamedTuple; parameters=missin
     obs_names = [x.name for x in model.obs]
     qos = [zeros(x.A_dims[1]) for x in model.obs]
     qo_current = (; zip(obs_names, qos)...)
+
+    G_actions = nothing
     
-    if settings.EFE_over == :policies
-        q_pi = zeros(Union{Missing, Float64}, model.policies.n_policies) 
-        G = zeros(Union{Missing, Float64}, model.policies.n_policies)
-        EFE = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
+    if (settings.EFE_over == :policies 
+        ||
+        # for standard inference and no graph, base G_marginal and q_pi on full utility etc. matrix
+        settings.EFE_over == :actions && settings.policy_inference_method == :standard && settings.graph == :none
+        )
         
+        G = zeros(Union{Missing, Float64}, model.policies.n_policies)
+
+        if settings.EFE_over == :actions && settings.policy_inference_method == :standard && settings.graph == :none
+            n_actions = length(collect(model.policies.action_iterator))
+            q_pi = zeros(Union{Missing, Float64}, n_actions) 
+            G_actions = zeros(Union{Missing, Float64}, n_actions)
+        else
+            q_pi = zeros(Union{Missing, Float64}, model.policies.n_policies) 
+        end
+
         # todo: we don't need to record utility etc. in matrices internally if setting.return_EFE_decompositions=false
         utility = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
         info_gain = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
@@ -60,10 +73,6 @@ function create_agent(model::NamedTuple, settings::NamedTuple; parameters=missin
             info_gain_D = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
         end
     
-    elseif settings.EFE_over == :actions && settings.policy_inference_method == :standard
-        @assert false "not yet implemented"  # todo: implement :actions and :standard - maybe just sum over actions at end of infer policies?
-        
-        
     elseif settings.EFE_over == :actions
         n_actions = length(collect(model.policies.action_iterator))
         
@@ -122,6 +131,7 @@ function create_agent(model::NamedTuple, settings::NamedTuple; parameters=missin
                     qo_current,
                     q_pi,
                     G,
+                    G_actions,
                     utility,
                     info_gain, 
                     risk,
@@ -241,7 +251,7 @@ function infer_states!(agent::Agent, obs::NamedTuple{<:Any, <:NTuple{N, Int64} w
         push!(agent.history.qs_prior, deepcopy(agent.qs_prior))
     end
 
-    return agent.qs_current
+    return 
 end
 
 
@@ -261,7 +271,7 @@ function infer_policies!(agent::Agent, obs_current::NamedTuple{<:Any, <:NTuple{N
         push!(agent.history.EFE, deepcopy(agent.EFE))
     end
 
-    return agent.q_pi
+    return 
 end
 
 
@@ -280,9 +290,7 @@ function sample_action!(agent::Agent)
 
     # Push action to agent's history
     push!(agent.states["action"], copy(agent.action))
-
-
-    return action
+    return 
 end
 
 
@@ -293,8 +301,7 @@ function update_A!(agent::Agent)
     
     agent.pA = deepcopy(qA)
     agent.A = deepcopy(normalize_arrays(qA))
-
-    return qA
+    return 
 end
 
 
@@ -307,7 +314,7 @@ function update_B!(agent::Agent)
         Learning.update_state_likelihood_dirichlet!(agent, qs_prev)
     end
     #@infiltrate; @assert false
-    
+    return
 end
 
 
@@ -321,10 +328,8 @@ function update_D!(agent::Agent)
 
         agent.pD = deepcopy(qD)
         agent.D = deepcopy(normalize_arrays(qD))
-    else
-        qD = nothing
     end
-    return qD
+    return 
 end
 
 

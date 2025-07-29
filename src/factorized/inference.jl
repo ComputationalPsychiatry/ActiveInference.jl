@@ -333,17 +333,45 @@ function update_posterior_policies!(agent)
 
     end
 
-    # some utility can be missing. Only use good policies to calc q_pi
-    idx = findall(x -> !ismissing(x), agent.G)   
-    
     if sum(skipmissing(agent.G)) == 0
         #@infiltrate; @assert false  # All policies failed?
         @warn format("\nThe sum over G is zero.\n")
     end
+    
+    # some utility can be missing. Only use good policies to calc q_pi
+    idx = findall(x -> !ismissing(x), agent.G)
+    
+    if agent.settings.EFE_over == :actions 
+        
+        agent.G_actions .= missing
+        agent.q_pi .= missing
+        # marginalize G over actions
+        for (policy_i, policy) in enumerate(model.policies.policy_iterator)  
+            if !(policy_i in idx)
+                continue
+            end 
+            policy = (; zip(action_names, policy)...) 
+            first_action = first.(values(policy))
+            idx2 = findfirst(x -> x == first_action, agent.model.policies.action_iterator)
+            
+            if ismissing(agent.G_actions[idx2])
+                agent.G_actions[idx2] = 0
+            end
+            
+            agent.G_actions[idx2] += agent.G[policy_i] 
+        end
+        
+        idx3 = findall(x -> !ismissing(x), agent.G_actions) 
+        # note (and todo?): no LnE over actions?
+        #@infiltrate; @assert false
+        agent.q_pi[idx3] = LEF.softmax(Float64.(agent.G_actions[idx3]) * agent.parameters.gamma, dims=1)  
+        return
+    end
 
+    # calculate q_pi over policies   
     Eidx = model.policies.E[idx]
     lnE = AI.Maths.capped_log(Eidx)
-    agent.q_pi[idx] .= LEF.softmax(agent.G[idx] * agent.parameters.gamma + lnE, dims=1)  
+    agent.q_pi[idx] .= LEF.softmax(Float64.(agent.G[idx]) * agent.parameters.gamma + lnE, dims=1)  
 
     #@infiltrate; @assert false
     

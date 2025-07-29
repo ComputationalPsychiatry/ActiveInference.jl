@@ -108,7 +108,15 @@ function validate(model, settings, parameters)
         error(s)
     end
     
-    
+
+    if settings.EFE_over == :actions && settings.policy_inference_method == :standard && settings.graph == :none
+        #@assert false "not yet implemented"  # todo: implement :actions and :standard - maybe just sum over actions at end of infer policies?
+    end
+
+    if settings.policy_inference_method == :inductive
+        @assert false "not yet implemented"  # todo: implement inductive inference
+    end
+
     #=
     todo:  all these tests needs to be cleaned up, added to, and reorganized
 

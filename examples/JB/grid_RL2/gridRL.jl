@@ -168,7 +168,7 @@ function run_example()
     settings = @set settings.EFE_over = [:policies,  :actions][2]
     settings = @set settings.graph_postprocessing_method = [:G_prob,  :G_prob_q_pi][2] 
     settings = @set settings.policy_inference_method = [:standard,  :sophisticated][2]
-    settings = @set settings.graph = :explicit
+    settings = @set settings.graph = [:none, :explicit][2]
     settings = @set settings.use_param_info_gain = false
     settings = @set settings.SI_observation_prune_threshold = 1/16  
     settings = @set settings.SI_policy_prune_threshold = 1/16

@@ -72,11 +72,11 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
     action_names = [x.name for x in model.actions]
     
     for step_i in 1:CONFIG.number_simulation_steps
-        qs = AI.infer_states!(agent, obs) 
+        AI.infer_states!(agent, obs) 
         
         if verbose
             printfmtln("\n-----------\nt={}", step_i)
-            for (k,v) in zip(keys(qs), qs)
+            for (k,v) in zip(keys(agent.qs_current), agent.qs_current)
                 printfmtln("    {}: argmax= {}", k, argmax(v))
             end
         else
@@ -88,22 +88,40 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
         AI.update_parameters!(agent)
         #@infiltrate; @assert false
 
-        q_pi = AI.infer_policies!(agent, obs)
+        AI.infer_policies!(agent, obs)
         
         if verbose    
-            printfmtln("\ncounts of q_pi values = \n{}", StatsBase.countmap(round.(q_pi, digits=6)))
+            printfmtln("\ncounts of q_pi values = \n{}", StatsBase.countmap(round.(agent.q_pi, digits=6)))
         end
+
+        #=
+        If policy inference is over actions, then use agent.q_pi and agent.G_actions, both over 
+        actions. If inference is over policies, then use agent.q_pi and agent.G, both over policies.
+        =#
+
+        if !isnothing(agent.G_actions)
+            q_pi = agent.q_pi
+            G = agent.G_actions
+            policies = model.policies.action_iterator
+            println("\nInference is over actions.\n")
+        else
+            q_pi = agent.q_pi
+            G = agent.G
+            policies = model.policies.policy_iterator
+            println("\nInference is over policies.\n")
+        end
+
         
         idxs = findall(x -> !ismissing(x) && isapprox(x, maximum(skipmissing(q_pi))), q_pi)
         if verbose && idxs.size[1] <= 10
             printfmtln("\nmax q_pi at indexes= {}", idxs)
             printfmtln("\npolicies at max q_pi= \n{}",  
-                [IterTools.nth(model.policies.policy_iterator, ii)[1] for ii in idxs]
+                [IterTools.nth(policies, ii)[1] for ii in idxs]
             )
         elseif verbose
             printfmtln("\nmax q_pi at {} indexes", idxs.size[1])
             printfmtln("\nexample policies at max q_pi= \n{}",  
-                [IterTools.nth(model.policies.policy_iterator, ii)[1] for ii in idxs[1:min(10, idxs.size[1])]]
+                [IterTools.nth(policies, ii)[1] for ii in idxs[1:min(10, idxs.size[1])]]
             )
         end
 
@@ -119,26 +137,19 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
             #todo: save info_gain_B
         end
 
+        
+        # selection of policy ii
         # custom sample action
         if agent.settings.action_selection == :deterministic
-            if false
-                # use shortest paths, if early stopping
-                iis = findall(x -> isapprox(x, maximum(q_pi)), q_pi)
-                missings = [sum(ismissing.(agent.utility[j,:])) for j in iis] 
-                ij = findfirst(missings .== maximum(missings))  # maximum missings are the shortest paths
-                ii = iis[ij]     
-            else
-                ii = argmax(q_pi)  # any path
-            end
-        
+            ii = argmax(q_pi)  # any path
         elseif agent.settings.action_selection == :stochastic
-            idx = findall(x -> !ismissing(x), agent.G) 
+            idx = findall(x -> !ismissing(x), G) 
             mnd = Distributions.Multinomial(1, Float64.(q_pi[idx]))
             ii = argmax(rand(mnd))
             ii = idx[ii]
         end
 
-        policy = IterTools.nth(model.policies.policy_iterator, ii)
+        policy = IterTools.nth(policies, ii)
         action_ids = collect(zip(policy...))[1]
         action = (; zip(action_names, action_ids)...)
         
@@ -149,15 +160,17 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
 
         if verbose
             printfmtln("\nAction at time {}: {}, ipolicy={}, q_pi= {}, G={}", 
-                step_i, action, ii, q_pi[ii], agent.G[ii]
+                step_i, action, ii, q_pi[ii], G[ii]
             )
             
-            printfmtln("\nutility= {}, sum= {}", agent.utility[ii, :], round(sum(skipmissing(agent.utility[ii, :])), digits=4))
+            if isnothing(agent.G_actions)
+                printfmtln("\nutility= {}, sum= {}", agent.utility[ii, :], round(sum(skipmissing(agent.utility[ii, :])), digits=4))
 
-            printfmtln("\ninfo_gain= {}, sum= {}", agent.info_gain[ii, :], round(sum(skipmissing(agent.info_gain[ii, :])), digits=4))
+                printfmtln("\ninfo_gain= {}, sum= {}", agent.info_gain[ii, :], round(sum(skipmissing(agent.info_gain[ii, :])), digits=4))
 
-            if !isnothing(agent.info_gain_B)
-                printfmtln("\ninfo_gain_B= {}, sum= {}", agent.info_gain_B[ii, :], round(sum(skipmissing(agent.info_gain_B[ii, :])), digits=4))
+                if !isnothing(agent.info_gain_B)
+                    printfmtln("\ninfo_gain_B= {}, sum= {}", agent.info_gain_B[ii, :], round(sum(skipmissing(agent.info_gain_B[ii, :])), digits=4))
+                end
             end
         end
 
@@ -165,15 +178,16 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
         #@infiltrate; @assert false
 
         # record EFE choice
-        push!(history_of_EFE, [
-            sum(agent.info_gain[ii, :]), 
-            sum(agent.utility[ii, :]), 
-            sum(agent.risk[ii, :]), 
-            sum(agent.ambiguity[ii, :]), 
-            sum(agent.info_gain[ii, :]) + sum(agent.utility[ii, :]), 
-        ])
+        if isnothing(agent.G_actions)
+            push!(history_of_EFE, [
+                sum(agent.info_gain[ii, :]), 
+                sum(agent.utility[ii, :]), 
+                sum(agent.risk[ii, :]), 
+                sum(agent.ambiguity[ii, :]), 
+                sum(agent.info_gain[ii, :]) + sum(agent.utility[ii, :]), 
+            ])
+        end
         push!(history_of_actions, action)
-        
 
         obs = step_env!(env, action)
         cell_obs = model.states.loc.labels[obs.loc_obs]
@@ -183,10 +197,6 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
         if verbose
             printfmtln("Grid location at time {}, after action: {}", step_i, obs)
         end
-
-        if isnan(agent.G[ii])
-            @infiltrate; @assert false
-        end    
 
         sq_error = Statistics.sum((CONFIG.B_true .- agent.model.states.loc.B) .^2)
         push!(history_of_sq_error, sq_error)

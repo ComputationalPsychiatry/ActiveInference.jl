@@ -287,6 +287,7 @@ function update_posterior_policies!(agent::AI.Agent, obs_current::NamedTuple{<:A
     =#
     leaves = Dict{NamedTuple, Vector}()  # todo: make the type exact.  todo: preinitialize each vector to some large size, for memory management
     max_level = 0
+    min_level = n_steps + 1
     cnt_action_nodes = 0
     for ii in Graphs.vertices(siGraph)
         
@@ -316,6 +317,7 @@ function update_posterior_policies!(agent::AI.Agent, obs_current::NamedTuple{<:A
                 leaves[policy] = [node_label]
             end
             max_level = max(max_level, length(policy[1]))
+            min_level = min(min_level, length(policy[1]))
         end
     end
     
@@ -323,8 +325,8 @@ function update_posterior_policies!(agent::AI.Agent, obs_current::NamedTuple{<:A
         @infiltrate; @assert false    
     end 
 
-    printfmtln("\nget leaves list time= {}, final action nodes={}\n", 
-        round((Dates.time() - t0) , digits=2), cnt_action_nodes
+    printfmtln("\nget leaves list time= {}, final action nodes={}, min_level= {}, max_level= {}\n", 
+        round((Dates.time() - t0) , digits=2), cnt_action_nodes, min_level, max_level
     )
     t0 = Dates.time()
 
@@ -648,7 +650,7 @@ function do_EFE_over_actions(siGraph, agent, leaves)
                 "Error: {}. If this fails, no valid instances of an action exist. Try reducing prunning thresholds.",
                 e))
         end
-        
+
         @assert !isnothing(idx)
         push!(idx_done, idx)
 
