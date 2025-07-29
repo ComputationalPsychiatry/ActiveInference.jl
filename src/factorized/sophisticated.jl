@@ -67,7 +67,7 @@ function update_posterior_policies!(agent::AI.Agent, obs_current::NamedTuple{<:A
     #@infiltrate; @assert false
     
     model = agent.model
-    qs_current = agent.qs_current
+    qs_current = agent.qs
     n_steps = model.policies.policy_length
     n_policies = model.policies.n_policies
     action_names = [x.name for x in model.actions]

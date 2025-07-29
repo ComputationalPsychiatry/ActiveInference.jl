@@ -20,8 +20,8 @@ mutable struct Agent
     # belief group
     last_action::Union{Nothing, NamedTuple} 
     qs_prior::NamedTuple{<:Any, <:NTuple{N, Vector{Float64}} where {N}}  # Prior beliefs about states after action, before processing observations
-    qs_current::NamedTuple{<:Any, <:NTuple{N, Vector{Float64}} where {N}}  # Current beliefs about states, after processing observations
-    qo_current::NamedTuple{<:Any, <:NTuple{N, Vector{Float64}} where {N}}  # Current beliefs about observations
+    qs::NamedTuple{<:Any, <:NTuple{N, Vector{Float64}} where {N}}  # Current beliefs about states, after processing observations
+    qo::NamedTuple{<:Any, <:NTuple{N, Vector{Float64}} where {N}}  # Current beliefs about observations
             
     # policy group
     q_pi_policies::Union{Nothing, Vector{Union{Missing, T}} where T <:Real} # Posterior beliefs over policies/actions  

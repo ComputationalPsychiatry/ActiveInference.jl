@@ -71,18 +71,18 @@ function update_state_likelihood_dirichlet!(agent::AI.Agent, qs_prev::NamedTuple
         end
 
         # todo: get element type, rather than use Float64 below
-        dfdb = AI.Maths.outer_product(agent.qs_current[state_i], qs_prev[state_i])
+        dfdb = AI.Maths.outer_product(agent.qs[state_i], qs_prev[state_i])
         dfdb .*= Float64.(B .> 0)  # only update cells where B[ii] > 0, with action selected out
         state.pB[idx...] = state.pB[idx...] * agent.parameters.fr_pB .+ (agent.parameters.lr_pB .* dfdb)
         state.B[:] = deepcopy(AI.Maths.normalize_distribution(state.pB))
 
         #printfmtln("\ntest pB: {}, qs = {}, >.4= {} \n",  
         #    round(sum(state.pB), digits=3), 
-        #    isapprox(agent.qs_current[state_i], qs_prev[state_i]),
+        #    isapprox(agent.qs[state_i], qs_prev[state_i]),
         #    length(findall(x -> x > .5, state.B))
         #)
         
-        if false && !isapprox(agent.qs_current[state_i], qs_prev[state_i])
+        if false && !isapprox(agent.qs[state_i], qs_prev[state_i])
             @infiltrate; @assert false 
         end
     end

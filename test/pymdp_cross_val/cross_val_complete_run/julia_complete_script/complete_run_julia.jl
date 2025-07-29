@@ -115,7 +115,7 @@ for t in 1:T
     end
 
     if t == 1
-        qs_t1 = cross_agent.qs_current
+        qs_t1 = cross_agent.qs
         update_D!(cross_agent, qs_t1)
     end
 
@@ -156,6 +156,6 @@ h5write(file_path_results, "julia_D_cross_2", cross_agent.D[2])
 h5write(file_path_results, "julia_D_cross_3", cross_agent.D[3])
 
 # Storing the posterior states
-h5write(file_path_results, "julia_qs_1", Float64.(cross_agent.qs_current[1]))
-h5write(file_path_results, "julia_qs_2", Float64.(cross_agent.qs_current[2]))
-h5write(file_path_results, "julia_qs_3", Float64.(cross_agent.qs_current[3]))
+h5write(file_path_results, "julia_qs_1", Float64.(cross_agent.qs[1]))
+h5write(file_path_results, "julia_qs_2", Float64.(cross_agent.qs[2]))
+h5write(file_path_results, "julia_qs_3", Float64.(cross_agent.qs[3]))

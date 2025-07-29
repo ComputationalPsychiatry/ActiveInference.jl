@@ -98,7 +98,7 @@ function run_factorized_fpi(agent::AI.Agent, new_obs::NamedTuple{<:Any, <:NTuple
         prior[:] = AI.Maths.capped_log(prior)
     end
 
-    qs_current = deepcopy(agent.qs_current)
+    qs_current = deepcopy(agent.qs)
     for qs in qs_current
         qs[:] = ones(length(qs)) / length(qs)
     end

@@ -64,10 +64,10 @@ function run_example()
 
     # get_settings and modify as needed
     settings = AI.get_settings()
-    settings = @set settings.EFE_over = [:policies, :actions][1]
+    settings = @set settings.EFE_over = [:policies, :actions][2]
     settings = @set settings.graph_postprocessing_method = [:G_prob, :G_prob_q_pi][1]
     settings = @set settings.EFE_reduction = :sum
-    settings = @set settings.policy_inference_method = [:sophisticated  :standard][2]  
+    settings = @set settings.policy_inference_method = [:sophisticated  :standard][1]  
     settings = @set settings.graph = [:explicit  :none][1]
     settings = @set settings.use_param_info_gain = false
     settings = @set settings.SI_use_pymdp_methods = false

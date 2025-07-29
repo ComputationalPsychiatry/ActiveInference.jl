@@ -50,7 +50,7 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
         
         if verbose
             printfmtln("\n-----------\nt={}", step_i)
-            for (k,v) in zip(keys(agent.qs_current), agent.qs_current)
+            for (k,v) in zip(keys(agent.qs), agent.qs)
                 printfmtln("    {}: argmax= {}", k, argmax(v))
             end
         else

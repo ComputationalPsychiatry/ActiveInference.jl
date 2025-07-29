@@ -9,7 +9,7 @@ using ActionModels
 
 function ActionModels.reset!(agent::Agent)
     # Reset the agent's state fields to initial conditions
-    agent.qs_current = create_matrix_templates([size(agent.B[f], 1) for f in eachindex(agent.B)])
+    agent.qs = create_matrix_templates([size(agent.B[f], 1) for f in eachindex(agent.B)])
     agent.prior = agent.D
     agent.Q_pi = ones(length(agent.policies)) / length(agent.policies)
     agent.G = zeros(length(agent.policies))

@@ -484,7 +484,7 @@ function infer_states!(
     if !isempty(agent.action)
         int_action = round.(Int, agent.action)
         agent.prior = get_expected_states(
-            agent.qs_current, 
+            agent.qs, 
             agent.B, 
             reshape(int_action, 1, length(int_action)),  # policy
         )[1]
@@ -493,7 +493,7 @@ function infer_states!(
     end
 
     # Update posterior over states
-    agent.qs_current = update_posterior_states(
+    agent.qs = update_posterior_states(
         agent.A, 
         obs, 
         prior=agent.prior, 
@@ -506,15 +506,15 @@ function infer_states!(
 
     # Push changes to agent's history
     push!(agent.states["prior"], agent.prior)
-    push!(agent.states["posterior_states"], agent.qs_current)
+    push!(agent.states["posterior_states"], agent.qs)
 
-    return agent.qs_current
+    return agent.qs
 end
 
 """ Update the agents's beliefs over policies """
 function infer_policies!(agent::Agent)
     # Update posterior over policies and expected free energies of policies
-    q_pi, G, utility, info_gain = update_posterior_policies(agent.qs_current, agent.A, agent.B, agent.C, 
+    q_pi, G, utility, info_gain = update_posterior_policies(agent.qs, agent.A, agent.B, agent.C, 
         agent.policies, agent.use_utility, agent.use_states_info_gain, agent.use_param_info_gain, agent.pA, 
         agent.pB, agent.E, agent.gamma)
     #@infiltrate; @assert false
@@ -546,7 +546,7 @@ end
 """ Update A-matrix """
 function update_A!(agent::Agent)
     @infiltrate; @assert false
-    qA = update_obs_likelihood_dirichlet(agent.pA, agent.A, agent.obs_current, agent.qs_current, lr = agent.lr_pA, fr = agent.fr_pA, modalities = agent.modalities_to_learn)
+    qA = update_obs_likelihood_dirichlet(agent.pA, agent.A, agent.obs_current, agent.qs, lr = agent.lr_pA, fr = agent.fr_pA, modalities = agent.modalities_to_learn)
     
     agent.pA = deepcopy(qA)
     agent.A = deepcopy(normalize_arrays(qA))
@@ -561,7 +561,7 @@ function update_B!(agent::Agent)
 
         qs_prev = get_history(agent, "posterior_states")[end-1]
 
-        qB = update_state_likelihood_dirichlet(agent.pB, agent.B, agent.action, agent.qs_current, qs_prev, lr = agent.lr_pB, fr = agent.fr_pB, factors = agent.factors_to_learn)
+        qB = update_state_likelihood_dirichlet(agent.pB, agent.B, agent.action, agent.qs, qs_prev, lr = agent.lr_pB, fr = agent.fr_pB, factors = agent.factors_to_learn)
 
         agent.pB = deepcopy(qB)
         agent.B = deepcopy(normalize_arrays(qB))

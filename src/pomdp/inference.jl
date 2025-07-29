@@ -565,7 +565,7 @@ end
 """ Calculate State-Action Prediction Error """
 function calculate_SAPE(agent::Agent)
 
-    qs_pi_all = get_expected_states(agent.qs_current, agent.B, agent.policies)
+    qs_pi_all = get_expected_states(agent.qs, agent.B, agent.policies)
     qs_bma = bayesian_model_average(qs_pi_all, agent.Q_pi)
 
     if length(agent.states["bayesian_model_averages"]) != 0

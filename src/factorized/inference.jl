@@ -125,7 +125,7 @@ end
 function update_posterior_policies!(agent)
     
     model = agent.model
-    qs_current = agent.qs_current
+    qs_current = agent.qs
     n_steps = model.policies.policy_length
     n_policies = model.policies.n_policies
     action_names = [x.name for x in model.actions]
@@ -396,7 +396,7 @@ function get_expected_obs(qs_pi, agent)
     model = agent.model
     n_steps = length(qs_pi)  # this might be equal to or less than policy length, if stop was reached
     
-    qo_pi = [deepcopy(agent.qo_current) for _ in 1:n_steps]
+    qo_pi = [deepcopy(agent.qo) for _ in 1:n_steps]
 
     printflag = 0
     
@@ -705,7 +705,7 @@ function calculate_SAPE(agent::AI.Agent)
 
     # todo: is this function used anywhere?
     @assert false
-    qs_pi_all = get_expected_states(agent.qs_current, agent.B, agent.policies)
+    qs_pi_all = get_expected_states(agent.qs, agent.B, agent.policies)
     qs_bma = bayesian_model_average(qs_pi_all, agent.Q_pi)
 
     if length(agent.states["bayesian_model_averages"]) != 0

@@ -26,12 +26,12 @@ function create_agent(model::NamedTuple, settings::NamedTuple; parameters=missin
 
     state_names = [x.name for x in model.states]
     qss = [x.D for x in model.states]
-    qs_current = (; zip(state_names, qss)...)
-    qs_prior = deepcopy(qs_current)
+    qs = (; zip(state_names, qss)...)
+    qs_prior = deepcopy(qs)
 
     obs_names = [x.name for x in model.obs]
     qos = [zeros(x.A_dims[1]) for x in model.obs]
-    qo_current = (; zip(obs_names, qos)...)
+    qo = (; zip(obs_names, qos)...)
 
     G_actions = nothing
     G_policies = nothing
@@ -109,12 +109,12 @@ function create_agent(model::NamedTuple, settings::NamedTuple; parameters=missin
     
     # initialize history NamedTuple
     history = (
-        qs_current = [],
+        qs = [],
         actions = [],
     )
     if settings.save_history
         history = (
-            qs_current = [],
+            qs = [],
             qs_prior = [],
             posterior_policies = [],
             EFE = [],
@@ -129,8 +129,8 @@ function create_agent(model::NamedTuple, settings::NamedTuple; parameters=missin
                     settings,
                     last_action,
                     qs_prior,
-                    qs_current,
-                    qo_current,
+                    qs,
+                    qo,
                     q_pi_policies,
                     q_pi_actions,
                     G_policies,
@@ -233,7 +233,7 @@ function infer_states!(agent::Agent, obs::NamedTuple{<:Any, <:NTuple{N, Int64} w
         uses the new observation.
         =#  
         agent.qs_prior = Inference.get_expected_states(
-            agent.qs_current, 
+            agent.qs, 
             agent.last_action,
             agent 
         )[1] 
@@ -243,13 +243,13 @@ function infer_states!(agent::Agent, obs::NamedTuple{<:Any, <:NTuple{N, Int64} w
     qs_current = Inference.update_posterior_states(agent, obs)  
 
     # @set qs in model
-    agent.qs_current = qs_current
+    agent.qs = qs_current
     
     # Adding the obs to the agent struct
     #agent.obs_current = obs
 
     # Push changes to agent's history
-    push!(agent.history.qs_current, deepcopy(agent.qs_current))
+    push!(agent.history.qs, deepcopy(agent.qs))
     if agent.settings.save_history
         push!(agent.history.qs_prior, deepcopy(agent.qs_prior))
     end
@@ -300,7 +300,7 @@ end
 """ Update A-matrix """
 function update_A!(agent::Agent)
     @infiltrate; @assert false
-    qA = update_obs_likelihood_dirichlet(agent.pA, agent.A, agent.obs_current, agent.qs_current, lr = agent.lr_pA, fr = agent.fr_pA, modalities = agent.modalities_to_learn)
+    qA = update_obs_likelihood_dirichlet(agent.pA, agent.A, agent.obs_current, agent.qs, lr = agent.lr_pA, fr = agent.fr_pA, modalities = agent.modalities_to_learn)
     
     agent.pA = deepcopy(qA)
     agent.A = deepcopy(normalize_arrays(qA))
@@ -311,9 +311,9 @@ end
 """ Update B-matrix """
 function update_B!(agent::Agent)
     
-    if length(agent.history.qs_current) > 1  
+    if length(agent.history.qs) > 1  
 
-        qs_prev = agent.history.qs_current[end-1]
+        qs_prev = agent.history.qs[end-1]
         Learning.update_state_likelihood_dirichlet!(agent, qs_prev)
     end
     #@infiltrate; @assert false
