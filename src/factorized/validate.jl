@@ -93,6 +93,22 @@ function validate(model, settings, parameters)
         error("The user must supply an action_iterator")
     end
 
+    try
+        if settings.SI_use_pymdp_methods
+            # these are the settings that will approx replicate SI in pymdp
+            @assert settings.policy_inference_method == :sophisticated
+            @assert settings.graph == :explicit
+            @assert settings.EFE_over == :actions
+            @assert settings.graph_postprocessing_method == :G_prob_q_pi
+            @assert settings.EFE_reduction == :sum
+        end
+    catch e
+        s = "To appox replicate pymdp methods, user must choose settings :sophisticated, :explicit "
+        s *= format(":actions, :G_prob_q_pi, and :sum. Error is: {}", e)
+        error(s)
+    end
+    
+    
     #=
     todo:  all these tests needs to be cleaned up, added to, and reorganized
 

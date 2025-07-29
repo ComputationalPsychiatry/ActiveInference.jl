@@ -155,14 +155,12 @@ function get_settings()
         graph = [:explicit, :implicit, :none][1],
         EFE_over = [:policies, :actions][1],
         graph_postprocessing_method = [:G_prob, :G_prob_q_pi][1],
-        #earlystop_tests = false,  # if true, user must supply earlystop_tests 
-        #policy_tests = false,  # if true, user must supply policy_tests
-        #action_tests = true,
         EFE_reduction = [:sum, :min_max, :custom][1],  # if early_stop=true, missing values might occur. If :Custom, user must supply EFE_reduction function.
         return_EFE_decompositions = true,  # todo: allow for not returning utility, info gain, etc. matrices
         SI_observation_prune_threshold = 1/16,  
         SI_policy_prune_threshold = 1/16,
         SI_prune_penalty = 512,  # todo: unused for now
+        SI_use_pymdp_methods = false,  # flag to calculate EFE as per pymdp
 
         # action group
         action_selection = [:stochastic, :deterministic][1],
@@ -172,6 +170,14 @@ function get_settings()
         warnings = false,
         #logging = false,  #todo: not yet implemented, and need filename  
     )
+
+    #=
+    SI_use_pymdp_methods:
+        - do not prune last layer of graph
+        - do not remove upstream nodes of pruned node
+        - use only one round of pruning
+        - user must still choose :sophisticated, :actions, :G_prob_q_pi for SI to resemble pymdp.jax explicit graph methods
+    =#
 
     return settings
 end

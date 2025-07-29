@@ -56,7 +56,7 @@ function run_example()
             grid = grid,
             cells = cells,
             start_cell = [9,2], 
-            policy_length = 2,
+            policy_length = 3,
             number_simulation_steps = 10,
             number_simulations = 1,
         )
@@ -64,11 +64,14 @@ function run_example()
 
     # get_settings and modify as needed
     settings = AI.get_settings()
-    settings = @set settings.EFE_over = :policies #:actions
-    settings = @set settings.graph_postprocessing_method = :G_prob_q_pi
-    settings = @set settings.policy_inference_method = :standard  #:sophisticated  #:standard   
-    settings = @set settings.graph = :explicit  #:none
+    settings = @set settings.EFE_over = [:policies, :actions][1]
+    settings = @set settings.graph_postprocessing_method = [:G_prob, :G_prob_q_pi][2]
+    settings = @set settings.EFE_reduction = :sum
+    settings = @set settings.policy_inference_method = [:sophisticated  :standard][1]  
+    settings = @set settings.graph = [:explicit  :none][1]
     settings = @set settings.use_param_info_gain = false
+    settings = @set settings.SI_use_pymdp_methods = false
+    settings = @set settings.verbose = true
 
     # to run standard inference with an explicit graph, use:
     #settings = @set settings.policy_inference_method = :standard 
