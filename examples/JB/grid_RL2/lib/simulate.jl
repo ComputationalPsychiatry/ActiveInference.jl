@@ -90,28 +90,27 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
 
         AI.infer_policies!(agent, obs)
         
-        if verbose    
-            printfmtln("\ncounts of q_pi values = \n{}", StatsBase.countmap(round.(agent.q_pi, digits=6)))
-        end
-
         #=
         If policy inference is over actions, then use agent.q_pi and agent.G_actions, both over 
         actions. If inference is over policies, then use agent.q_pi and agent.G, both over policies.
         =#
 
         if !isnothing(agent.G_actions)
-            q_pi = agent.q_pi
+            q_pi = agent.q_pi_actions
             G = agent.G_actions
             policies = model.policies.action_iterator
             println("\nInference is over actions.\n")
         else
-            q_pi = agent.q_pi
-            G = agent.G
+            q_pi = agent.q_pi_policies
+            G = agent.G_policies
             policies = model.policies.policy_iterator
             println("\nInference is over policies.\n")
         end
 
-        
+        if verbose    
+            printfmtln("\ncounts of q_pi values = \n{}", StatsBase.countmap(round.(q_pi, digits=6)))
+        end
+
         idxs = findall(x -> !ismissing(x) && isapprox(x, maximum(skipmissing(q_pi))), q_pi)
         if verbose && idxs.size[1] <= 10
             printfmtln("\nmax q_pi at indexes= {}", idxs)

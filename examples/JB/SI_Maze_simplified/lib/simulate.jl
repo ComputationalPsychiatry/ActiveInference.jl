@@ -69,13 +69,13 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
         =#
 
         if !isnothing(agent.G_actions)
-            q_pi = agent.q_pi
+            q_pi = agent.q_pi_actions
             G = agent.G_actions
             policies = model.policies.action_iterator
             println("\nInference is over actions.\n")
         else
-            q_pi = agent.q_pi
-            G = agent.G
+            q_pi = agent.q_pi_policies
+            G = agent.G_policies
             policies = model.policies.policy_iterator
             println("\nInference is over policies.\n")
         end
@@ -131,7 +131,7 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
 
         if verbose
             printfmtln("\nAction at time {}: {}, ipolicy={}, q_pi= {}, G={}", 
-                step_i, action, ii, q_pi[ii], agent.G[ii]
+                step_i, action, ii, q_pi[ii], G[ii]
             )
             
             if isnothing(agent.G_actions)

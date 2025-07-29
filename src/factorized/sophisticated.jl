@@ -72,8 +72,22 @@ function update_posterior_policies!(agent::AI.Agent, obs_current::NamedTuple{<:A
     n_policies = model.policies.n_policies
     action_names = [x.name for x in model.actions]
         
-    agent.G .= missing
-    agent.q_pi .= missing
+    if !isnothing(agent.G_policies)
+        agent.G_policies .= missing
+    end
+    
+    if !isnothing(agent.G_actions)
+        agent.G_actions .= missing
+    end
+    
+    if !isnothing(agent.q_pi_policies)
+        agent.q_pi_policies .= missing
+    end
+    
+    if !isnothing(agent.q_pi_actions)
+        agent.q_pi_actions .= missing
+    end
+    
     
     # todo: these can be nothing if they are not used, as per agent
     agent.utility .= missing
@@ -533,7 +547,7 @@ function do_EFE_over_policies(siGraph, agent, leaves)
             @assert false
         end
 
-        agent.G[idx] = (
+        agent.G_policies[idx] = (
             fx_info_gain.(skipmissing.(eachrow(agent.info_gain[idx,:])))
             +
             fx_utility.(skipmissing.(eachrow(agent.utility[idx,:])))
@@ -545,7 +559,7 @@ function do_EFE_over_policies(siGraph, agent, leaves)
             printfmtln("\n!!! Warning: Info gain or utility has missing elements, ignoring :sum for EFE reduction. Using :min_max.\n")
         end
         try
-            agent.G[idx] = (
+            agent.G_policies[idx] = (
                 Statistics.maximum.(skipmissing.(eachrow(agent.info_gain[idx,:])))
                 +
                 (
@@ -559,7 +573,7 @@ function do_EFE_over_policies(siGraph, agent, leaves)
         end
     else
         # use sum, as in pymdp
-        agent.G[idx] = (
+        agent.G_policies[idx] = (
             Statistics.sum.(eachrow(agent.info_gain[idx,:])) 
             + 
             Statistics.sum.(eachrow(agent.utility[idx,:]))
@@ -567,16 +581,16 @@ function do_EFE_over_policies(siGraph, agent, leaves)
     end
 
     # some utility can be missing. Only use good policies to calc q_pi
-    idx = findall(x -> !ismissing(x), agent.G)   
+    idx = findall(x -> !ismissing(x), agent.G_policies)   
     
-    if sum(skipmissing(agent.G)) == 0
+    if sum(skipmissing(agent.G_policies)) == 0
         #@infiltrate; @assert false  # All policies failed?
         @warn format("\nThe sum over G is zero.\n")
     end
 
     Eidx = agent.model.policies.E[idx]
     lnE = AI.Maths.capped_log(Eidx)
-    agent.q_pi[idx] .= LEF.softmax(agent.G[idx] * agent.parameters.gamma + lnE, dims=1)  
+    agent.q_pi_policies[idx] .= LEF.softmax(agent.G_policies[idx] * agent.parameters.gamma + lnE, dims=1)  
 
     #@infiltrate; @assert false    
     
@@ -655,10 +669,10 @@ function do_EFE_over_actions(siGraph, agent, leaves)
         push!(idx_done, idx)
 
         # initialize to zero if first time seen
-        if ismissing(agent.G[idx])
+        if ismissing(agent.G_actions[idx])
             # assume for marginal EFE that there is a G for each action
-            agent.G[idx] = 0
-            agent.q_pi[idx] = 0
+            agent.G_actions[idx] = 0
+            agent.q_pi_actions[idx] = 0
             
             # todo: these can be nothing if they are not used, as per agent
             agent.utility[idx,1] = 0
@@ -667,7 +681,7 @@ function do_EFE_over_actions(siGraph, agent, leaves)
             agent.ambiguity[idx,1] = 0
         end
 
-        agent.G[idx] += siGraph[node_label].G_updated
+        agent.G_actions[idx] += siGraph[node_label].G_updated
         agent.utility[idx,1] += siGraph[node_label].utility_updated
         agent.info_gain[idx,1] += siGraph[node_label].info_gain_updated
         agent.risk[idx,1] += siGraph[node_label].risk_updated
@@ -675,19 +689,17 @@ function do_EFE_over_actions(siGraph, agent, leaves)
     
     end
 
-    #@assert !(any(ismissing.(agent.G)))  # assume for marginal EFE that there is a G for each action
-
     # some actions can have missing G etc. Only use good actions to calc q_pi
-    idx = findall(x -> !ismissing(x), agent.G)   
+    idx = findall(x -> !ismissing(x), agent.G_actions)   
     
-    if sum(skipmissing(agent.G)) == 0
+    if sum(skipmissing(agent.G_actions)) == 0
         #@infiltrate; @assert false  # All policies failed?
         @warn format("\nThe sum over G is zero.\n")
     end
 
     Eidx = agent.model.policies.E[idx]
     lnE = AI.Maths.capped_log(Eidx)
-    agent.q_pi[idx] .= LEF.softmax(agent.G[idx] * agent.parameters.gamma + lnE, dims=1)  
+    agent.q_pi_actions[idx] .= LEF.softmax(agent.G_actions[idx] * agent.parameters.gamma + lnE, dims=1)  
 
     #@infiltrate; @assert false
     return 

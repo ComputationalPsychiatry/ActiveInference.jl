@@ -130,8 +130,21 @@ function update_posterior_policies!(agent)
     n_policies = model.policies.n_policies
     action_names = [x.name for x in model.actions]
         
-    agent.G .= missing
-    agent.q_pi .= missing
+    if !isnothing(agent.G_policies)
+        agent.G_policies .= missing
+    end
+    
+    if !isnothing(agent.G_actions)
+        agent.G_actions .= missing
+    end
+    
+    if !isnothing(agent.q_pi_policies)
+        agent.q_pi_policies .= missing
+    end
+    
+    if !isnothing(agent.q_pi_actions)
+        agent.q_pi_actions .= missing
+    end
     
     # todo: these can be nothing if they are not used, as per agent
     agent.utility .= missing
@@ -177,19 +190,19 @@ function update_posterior_policies!(agent)
             utility_ = calc_expected_utility(qo_pi, agent)
             
             # initialize this G?
-            if ismissing(agent.G[policy_i])
-                agent.G[policy_i] = 0
+            if ismissing(agent.G_policies[policy_i])
+                agent.G_policies[policy_i] = 0
             end
 
             if length(utility_) == n_steps && agent.settings.EFE_reduction == :sum
                 # use sum  
-                agent.G[policy_i] += sum(utility_) 
+                agent.G_policies[policy_i] += sum(utility_) 
             
             elseif agent.settings.EFE_reduction == :min_max
-                agent.G[policy_i] += (maximum(skipmissing(utility_)) + minimum(skipmissing(utility_))) / 2  # handles missings
+                agent.G_policies[policy_i] += (maximum(skipmissing(utility_)) + minimum(skipmissing(utility_))) / 2  # handles missings
             
             elseif agent.settings.EFE_reduction == :custom
-                agent.G[policy_i] += agent.model.policies.utility_reduction_fx(utility_)
+                agent.G_policies[policy_i] += agent.model.policies.utility_reduction_fx(utility_)
             
             elseif length(utility_) < n_steps && agent.settings.EFE_reduction == :sum
                 try
@@ -216,19 +229,19 @@ function update_posterior_policies!(agent)
             info_gain_, ambiguity_ = calc_info_gain(qs_pi, qo_pi, agent)
             
             # initialize this G?
-            if ismissing(agent.G[policy_i])
-                agent.G[policy_i] = 0
+            if ismissing(agent.G_policies[policy_i])
+                agent.G_policies[policy_i] = 0
             end
 
             if length(info_gain_) == n_steps && agent.settings.EFE_reduction == :sum
                 # use sum  
-                agent.G[policy_i] += sum(info_gain_)  
+                agent.G_policies[policy_i] += sum(info_gain_)  
             
             elseif agent.settings.EFE_reduction == :min_max
-                agent.G[policy_i] += maximum(skipmissing(info_gain_))   # handles missings
+                agent.G_policies[policy_i] += maximum(skipmissing(info_gain_))   # handles missings
             
             elseif agent.settings.EFE_reduction == :custom
-                agent.G[policy_i] += agent.model.policies.info_gain_reduction_fx(info_gain_)
+                agent.G_policies[policy_i] += agent.model.policies.info_gain_reduction_fx(info_gain_)
             
             elseif length(info_gain_) < n_steps && agent.settings.EFE_reduction == :sum
                 try
@@ -260,15 +273,15 @@ function update_posterior_policies!(agent)
 
                 # if ReverseDiff is tracking pA information gain, get the value
                 if ReverseDiff.istracked(calc_pA_info_gain(pA, qo_pi, qs_pi))
-                    agent.G[policy_i] += ReverseDiff.value(calc_pA_info_gain(pA, qo_pi, qs_pi))
+                    agent.G_policies[policy_i] += ReverseDiff.value(calc_pA_info_gain(pA, qo_pi, qs_pi))
                 # Otherwise calculate it and add it to the G vector
                 else
                     # initialize this G?
-                    if ismissing(agent.G[policy_i])
-                        agent.G[policy_i] = 0
+                    if ismissing(agent.G_policies[policy_i])
+                        agent.G_policies[policy_i] = 0
                     end
 
-                    agent.G[policy_i] += calc_pA_info_gain(agent.pA, qo_pi, qs_pi)
+                    agent.G_policies[policy_i] += calc_pA_info_gain(agent.pA, qo_pi, qs_pi)
                 end
             end
 
@@ -277,18 +290,18 @@ function update_posterior_policies!(agent)
                 info_gain_B_ = calc_pB_info_gain(agent, qs_pi, qs_current, policy)
                 # use sum  
                 # initialize this G?
-                if ismissing(agent.G[policy_i])
-                    agent.G[policy_i] = 0
+                if ismissing(agent.G_policies[policy_i])
+                    agent.G_policies[policy_i] = 0
                 end
                 
                 if length(info_gain_B_) == n_steps && agent.settings.EFE_reduction == :sum
-                    agent.G[policy_i] += sum(info_gain_B_)  
+                    agent.G_policies[policy_i] += sum(info_gain_B_)  
             
                 elseif agent.settings.EFE_reduction == :min_max
-                    agent.G[policy_i] += maximum(skipmissing(info_gain_B_))   # handles missings
+                    agent.G_policies[policy_i] += maximum(skipmissing(info_gain_B_))   # handles missings
                 
                 elseif agent.settings.EFE_reduction == :custom
-                    agent.G[policy_i] += agent.model.policies.info_gain_reduction_fx(info_gain_B_)
+                    agent.G_policies[policy_i] += agent.model.policies.info_gain_reduction_fx(info_gain_B_)
                 
                 elseif length(info_gain_B_) < n_steps && agent.settings.EFE_reduction == :sum
                     try
@@ -309,22 +322,22 @@ function update_posterior_policies!(agent)
                 
                 info_gain_B_ = calc_pD_info_gain(agent.pB, qs_pi, qs, policy, agent.metamodel)
                 # initialize this G?
-                if ismissing(agent.G[policy_i])
-                    agent.G[policy_i] = 0
+                if ismissing(agent.G_policies[policy_i])
+                    agent.G_policies[policy_i] = 0
                 end
                 
                 if length(info_gain_B_) == n_steps
                     if agent.use_sum_for_calculating_G && !any(ismissing.(info_gain_B_))
                         # use sum
-                        agent.G[policy_i] += sum(info_gain_B_)  
+                        agent.G_policies[policy_i] += sum(info_gain_B_)  
                     else
                         # use extremes; todo: pass in desired function for this
-                        agent.G[policy_i] += maximum(info_gain_B_) 
+                        agent.G_policies[policy_i] += maximum(info_gain_B_) 
                     end
                 else
                     # early stop, use extremes; todo: pass in desired function for this
                     @assert agent.use_sum_for_calculating_G == false  # a info_gain is short, sum cannot be used for any
-                    agent.G[policy_i] += maximum(skipmissing(info_gain_B_)) 
+                    agent.G_policies[policy_i] += maximum(skipmissing(info_gain_B_)) 
                 end  
                 info_gain_B[policy_i,1:info_gain_B_.size[1]] = info_gain_B_
 
@@ -333,18 +346,16 @@ function update_posterior_policies!(agent)
 
     end
 
-    if sum(skipmissing(agent.G)) == 0
+    if sum(skipmissing(agent.G_policies)) == 0
         #@infiltrate; @assert false  # All policies failed?
         @warn format("\nThe sum over G is zero.\n")
     end
     
     # some utility can be missing. Only use good policies to calc q_pi
-    idx = findall(x -> !ismissing(x), agent.G)
+    idx = findall(x -> !ismissing(x), agent.G_policies)
     
     if agent.settings.EFE_over == :actions 
         
-        agent.G_actions .= missing
-        agent.q_pi .= missing
         # marginalize G over actions
         for (policy_i, policy) in enumerate(model.policies.policy_iterator)  
             if !(policy_i in idx)
@@ -358,20 +369,20 @@ function update_posterior_policies!(agent)
                 agent.G_actions[idx2] = 0
             end
             
-            agent.G_actions[idx2] += agent.G[policy_i] 
+            agent.G_actions[idx2] += agent.G_policies[policy_i] 
         end
         
         idx3 = findall(x -> !ismissing(x), agent.G_actions) 
         # note (and todo?): no LnE over actions?
         #@infiltrate; @assert false
-        agent.q_pi[idx3] = LEF.softmax(Float64.(agent.G_actions[idx3]) * agent.parameters.gamma, dims=1)  
+        agent.q_pi_actions[idx3] = LEF.softmax(Float64.(agent.G_actions[idx3]) * agent.parameters.gamma, dims=1)  
         return
     end
 
     # calculate q_pi over policies   
     Eidx = model.policies.E[idx]
     lnE = AI.Maths.capped_log(Eidx)
-    agent.q_pi[idx] .= LEF.softmax(Float64.(agent.G[idx]) * agent.parameters.gamma + lnE, dims=1)  
+    agent.q_pi_policies[idx] .= LEF.softmax(Float64.(agent.G_policies[idx]) * agent.parameters.gamma + lnE, dims=1)  
 
     #@infiltrate; @assert false
     

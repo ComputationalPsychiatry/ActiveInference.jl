@@ -24,8 +24,9 @@ mutable struct Agent
     qo_current::NamedTuple{<:Any, <:NTuple{N, Vector{Float64}} where {N}}  # Current beliefs about observations
             
     # policy group
-    q_pi::Vector{Union{Missing, T}} where T <:Real # Posterior beliefs over policies/actions  # for G and G_marginal
-    G::Vector{Union{Missing, T}} where T <:Real  # Expected free energy of policies
+    q_pi_policies::Union{Nothing, Vector{Union{Missing, T}} where T <:Real} # Posterior beliefs over policies/actions  
+    q_pi_actions::Union{Nothing, Vector{Union{Missing, T}} where T <:Real} # Posterior beliefs over policies/actions  
+    G_policies::Union{Nothing, Vector{Union{Missing, T}} where T <:Real}  # Expected free energy of policies
     G_actions::Union{Nothing, Vector{Union{Missing, T}} where T <:Real}  # Expected free energy of actions
     utility::Union{Nothing, Matrix{Union{Missing, Float64}}} 
     info_gain::Union{Nothing, Matrix{Union{Missing, Float64}}} 

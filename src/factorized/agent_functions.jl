@@ -34,6 +34,9 @@ function create_agent(model::NamedTuple, settings::NamedTuple; parameters=missin
     qo_current = (; zip(obs_names, qos)...)
 
     G_actions = nothing
+    G_policies = nothing
+    q_pi_actions = nothing
+    q_pi_policies = nothing
     
     if (settings.EFE_over == :policies 
         ||
@@ -41,14 +44,14 @@ function create_agent(model::NamedTuple, settings::NamedTuple; parameters=missin
         settings.EFE_over == :actions && settings.policy_inference_method == :standard && settings.graph == :none
         )
         
-        G = zeros(Union{Missing, Float64}, model.policies.n_policies)
+        G_policies = zeros(Union{Missing, Float64}, model.policies.n_policies)
 
         if settings.EFE_over == :actions && settings.policy_inference_method == :standard && settings.graph == :none
             n_actions = length(collect(model.policies.action_iterator))
-            q_pi = zeros(Union{Missing, Float64}, n_actions) 
+            q_pi_actions = zeros(Union{Missing, Float64}, n_actions) 
             G_actions = zeros(Union{Missing, Float64}, n_actions)
         else
-            q_pi = zeros(Union{Missing, Float64}, model.policies.n_policies) 
+            q_pi_policies = zeros(Union{Missing, Float64}, model.policies.n_policies) 
         end
 
         # todo: we don't need to record utility etc. in matrices internally if setting.return_EFE_decompositions=false
@@ -76,10 +79,9 @@ function create_agent(model::NamedTuple, settings::NamedTuple; parameters=missin
     elseif settings.EFE_over == :actions
         n_actions = length(collect(model.policies.action_iterator))
         
-        q_pi = zeros(Union{Missing, Float64}, n_actions) 
-        G = zeros(Union{Missing, Float64}, n_actions)
-        EFE = zeros(Union{Missing, Float64}, n_actions)
-        
+        q_pi_actions = zeros(Union{Missing, Float64}, n_actions) 
+        G_actions = zeros(Union{Missing, Float64}, n_actions)
+                
         # todo: we don't need to record utility etc. in matrices internally if setting.return_EFE_decompositions=false
         utility = zeros(Union{Missing, Float64}, (n_actions, 1))
         info_gain = zeros(Union{Missing, Float64}, (n_actions, 1))
@@ -129,8 +131,9 @@ function create_agent(model::NamedTuple, settings::NamedTuple; parameters=missin
                     qs_prior,
                     qs_current,
                     qo_current,
-                    q_pi,
-                    G,
+                    q_pi_policies,
+                    q_pi_actions,
+                    G_policies,
                     G_actions,
                     utility,
                     info_gain, 
