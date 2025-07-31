@@ -1,16 +1,13 @@
-""" Constructor for the AIFAgent in the DiscretePOMDP module."""
-function AIFAgent(;
+""" Constructor for the AIFModel in the DiscretePOMDP module."""
+function ActiveInferenceCore.AIFModel(;
     generative_model::GenerativeModel,
     perceptual_process::PerceptualProcess,
-    perception::Function = perception,
-    prediction::Function = predict_states_observations,
-    action::Function = action_distribution,
-    action_process::AbstractActionProcess
+    action_process::ActionProcess
 )
     
     fill_missing_parameters(generative_model, perceptual_process, action_process)
 
-    return AIFAgent(generative_model, perceptual_process, perception, prediction, action, action_process)
+    return AIFModel(generative_model, perceptual_process, action_process)
 end
 
 

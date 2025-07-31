@@ -1,5 +1,5 @@
 """ Update the agent's beliefs over states and observations """
-function update_parameters(agent::AIFAgent)
+function update_parameters(agent::AIFModel)
 
     if agent.perceptual_process.info.A_learning_enabled == true
         update_A(agent)
@@ -101,7 +101,7 @@ function update_state_prior_dirichlet(pD, qs::Vector{Vector{T}} where T <: Real,
 end
 
 """ Update A-matrix """
-function update_A(agent::AIFAgent)
+function update_A(agent::AIFModel)
 
     qA = update_obs_likelihood_dirichlet(
         agent.perceptual_process.A_learning.prior, 
@@ -119,7 +119,7 @@ function update_A(agent::AIFAgent)
 end
 
 """ Update B-matrix """
-function update_B(agent::AIFAgent)
+function update_B(agent::AIFModel)
 
     # only update B if a previous posterior state exists or is not nothing
     if !isnothing(agent.perceptual_process.previous_posterior_states)
@@ -143,7 +143,7 @@ function update_B(agent::AIFAgent)
 end
 
 """ Update D-matrix """
-function update_D(agent::AIFAgent)
+function update_D(agent::AIFModel)
 
     # only update D if a previous posterior state does not exists and is nothing
     if isnothing(agent.perceptual_process.previous_posterior_states)

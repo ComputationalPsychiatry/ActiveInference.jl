@@ -2,7 +2,7 @@
 In this script, we define a the action_process process for the DiscretePOMDP.
 """
 
-using ..ActiveInferenceCore: AbstractActionProcess, AIFAgent
+using ..ActiveInferenceCore: AbstractActionProcess, AIFModel
 
 # Struct for containing the action process
 mutable struct ActionProcess <: AbstractActionProcess
@@ -91,7 +91,7 @@ mutable struct ActionProcess <: AbstractActionProcess
     end
 end
 
-function predict_states_observations(agent::AIFAgent)
+function predict_states_observations(agent::AIFModel)
 
     all_predicted_states = get_expected_states(agent.perceptual_process.posterior_states, agent.generative_model.B, agent.action_process.policies)
     all_predicted_observations = get_expected_obs(all_predicted_states, agent.generative_model.A)
@@ -101,7 +101,7 @@ function predict_states_observations(agent::AIFAgent)
 
 end
 
-function action_distribution(agent::AIFAgent; act::Bool = false)
+function action_distribution(agent::AIFModel; act::Bool = false)
 
     # Get posterior over policies and expected free energies
     q_pi, G = update_posterior_policies(

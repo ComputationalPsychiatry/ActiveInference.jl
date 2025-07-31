@@ -1,7 +1,7 @@
 module ActiveInferenceCore
 
-include("CoreUtils/struct.jl")
+include("CoreUtils/CoreStruct.jl")
 
-export AIFAgent, active_inference, active_inference_action
+export AIFModel, active_inference, active_inference_action
 
 end

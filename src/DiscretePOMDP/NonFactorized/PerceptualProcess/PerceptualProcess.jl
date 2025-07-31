@@ -2,11 +2,11 @@
 In this script, we define a the perceptual inference process for the DiscretePOMDP.
 """
 
-using ..ActiveInferenceCore: AbstractPerceptualProcess, AIFAgent, AbstractOptimEngine
+using ..ActiveInferenceCore: AbstractPerceptualProcess, AIFModel, AbstractOptimEngine
 
 
 #Struct for containing current beliefs and optimization engine
-mutable struct PerceptualProcess <: AbstractPerceptualProcess
+mutable struct PerceptualProcess{T<:AbstractOptimEngine} <: AbstractPerceptualProcess{T}
 
     # beliefs about states, prior and observation
     posterior_states::Union{Vector{Vector{Float64}}, Nothing}
@@ -23,7 +23,7 @@ mutable struct PerceptualProcess <: AbstractPerceptualProcess
     info::PerceptualProcessInfo
 
     # Optimization engine for state inference
-    optim_engine::AbstractOptimEngine
+    optim_engine::T
 
     function PerceptualProcess(;
         A_learning::Union{Nothing, Learn_A} = nothing,
@@ -41,12 +41,12 @@ mutable struct PerceptualProcess <: AbstractPerceptualProcess
         # Show process information if verbose
         show_info(info_struct; verbose=verbose)
 
-        new(nothing, nothing, nothing, nothing, A_learning, B_learning, D_learning, info_struct, optim_engine)
+        new{typeof(optim_engine)}(nothing, nothing, nothing, nothing, A_learning, B_learning, D_learning, info_struct, optim_engine)
     end
 end
 
 function perception(
-    agent::AIFAgent,
+    agent::AIFModel,
     observation::Vector{Int}
 )
     # Set the current observation in the perceptual process

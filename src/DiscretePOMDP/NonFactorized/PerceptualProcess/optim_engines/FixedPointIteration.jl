@@ -7,7 +7,7 @@
 end
 
 """ Update the agents's beliefs over states """
-function infer_states(agent::AIFAgent, optim_engine::FixedPointIteration)
+function infer_states(agent::AIFModel, optim_engine::FixedPointIteration)
 
     if agent.action_process.previous_action !== nothing
         int_action = round.(Int, agent.action_process.previous_action)

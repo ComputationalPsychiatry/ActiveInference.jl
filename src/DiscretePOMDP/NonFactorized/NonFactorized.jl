@@ -5,13 +5,14 @@ NonFactorized submodule for DiscretePOMDP containing non-factorized implementati
 module NonFactorized
 
 # Import necessary packages
-using ...ActiveInference: ReverseDiff, LogExpFunctions, LinearAlgebra
+using ...ActiveInference: ReverseDiff
 using ...ActiveInference.LogExpFunctions: softmax
 using ...ActiveInference.LinearAlgebra: dot
 using ...ActiveInference.Distributions: Multinomial
 
 # Import from parent modules
-using ...ActiveInferenceCore: AbstractGenerativeModel, AbstractPerceptualProcess, AbstractActionProcess, AbstractOptimEngine, DiscreteActions, DiscreteObservations, DiscreteStates, AIFAgent
+using ...ActiveInferenceCore
+import ...ActiveInferenceCore: AbstractGenerativeModel, AbstractPerceptualProcess, AbstractActionProcess, AbstractOptimEngine, DiscreteActions, DiscreteObservations, DiscreteStates, AIFModel
 
 
 # Include generative model type and files
