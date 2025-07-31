@@ -91,11 +91,10 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
         AI.infer_policies!(agent, obs)
         
         #=
-        If policy inference is over actions, then use agent.q_pi and agent.G_actions, both over 
-        actions. If inference is over policies, then use agent.q_pi and agent.G, both over policies.
+        Note that if an explicit graph is used and EFE is over policies, G and q_pi over actions are
+        also available and can be queried. 
         =#
-
-        if !isnothing(agent.G_actions)
+        if agent.settings.EFE_over == :actions
             q_pi = agent.q_pi_actions
             G = agent.G_actions
             policies = model.policies.action_iterator

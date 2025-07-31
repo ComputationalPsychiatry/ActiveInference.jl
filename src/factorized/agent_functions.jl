@@ -38,10 +38,41 @@ function create_agent(model::NamedTuple, settings::NamedTuple; parameters=missin
     q_pi_actions = nothing
     q_pi_policies = nothing
     
+    
+    if settings.EFE_over == :actions || settings.graph != :none
+        # if using a graph, always return G_actions and q_pi_actions
+        n_actions = length(collect(model.policies.action_iterator))
+        
+        q_pi_actions = zeros(Union{Missing, Float64}, n_actions) 
+        G_actions = zeros(Union{Missing, Float64}, n_actions)
+                
+        # todo: we don't need to record utility etc. in matrices internally if setting.return_EFE_decompositions=false
+        utility = zeros(Union{Missing, Float64}, (n_actions, 1))
+        info_gain = zeros(Union{Missing, Float64}, (n_actions, 1))
+        risk = zeros(Union{Missing, Float64}, (n_actions, 1))
+        ambiguity = zeros(Union{Missing, Float64}, (n_actions, 1))
+        
+        info_gain_A = nothing
+        info_gain_B = nothing
+        info_gain_D = nothing
+
+        if !all([isnothing(obs.pA) for obs in model.obs]) 
+            info_gain_A = zeros(Union{Missing, Float64}, (n_actions, 1))
+        end
+
+        if !all([isnothing(state.pB) for state in model.states]) 
+            info_gain_B = zeros(Union{Missing, Float64}, (n_actions, 1))
+        end
+
+        if !all([isnothing(state.pD) for state in model.states]) 
+            info_gain_D = zeros(Union{Missing, Float64}, (n_actions, 1))
+        end
+    end
+
+
     if (settings.EFE_over == :policies 
-        ||
         # for standard inference and no graph, base G_marginal and q_pi on full utility etc. matrix
-        settings.EFE_over == :actions && settings.policy_inference_method == :standard && settings.graph == :none
+        || settings.EFE_over == :actions && settings.policy_inference_method == :standard && settings.graph == :none
         )
         
         G_policies = zeros(Union{Missing, Float64}, model.policies.n_policies)
@@ -76,33 +107,6 @@ function create_agent(model::NamedTuple, settings::NamedTuple; parameters=missin
             info_gain_D = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
         end
     
-    elseif settings.EFE_over == :actions
-        n_actions = length(collect(model.policies.action_iterator))
-        
-        q_pi_actions = zeros(Union{Missing, Float64}, n_actions) 
-        G_actions = zeros(Union{Missing, Float64}, n_actions)
-                
-        # todo: we don't need to record utility etc. in matrices internally if setting.return_EFE_decompositions=false
-        utility = zeros(Union{Missing, Float64}, (n_actions, 1))
-        info_gain = zeros(Union{Missing, Float64}, (n_actions, 1))
-        risk = zeros(Union{Missing, Float64}, (n_actions, 1))
-        ambiguity = zeros(Union{Missing, Float64}, (n_actions, 1))
-        
-        info_gain_A = nothing
-        info_gain_B = nothing
-        info_gain_D = nothing
-
-        if !all([isnothing(obs.pA) for obs in model.obs]) 
-            info_gain_A = zeros(Union{Missing, Float64}, (n_actions, 1))
-        end
-
-        if !all([isnothing(state.pB) for state in model.states]) 
-            info_gain_B = zeros(Union{Missing, Float64}, (n_actions, 1))
-        end
-
-        if !all([isnothing(state.pD) for state in model.states]) 
-            info_gain_D = zeros(Union{Missing, Float64}, (n_actions, 1))
-        end
     end
     
     last_action = nothing 
@@ -167,13 +171,15 @@ function get_settings()
         policy_inference_method = [:standard, :sophisticated, :inductive][2],
         graph = [:explicit, :implicit, :none][1],
         EFE_over = [:policies, :actions][1],
-        graph_postprocessing_method = [:G_prob, :G_prob_q_pi][1],
+        policy_postprocessing_method = [:G_prob, :G_prob_q_pi][1],
         EFE_reduction = [:sum, :min_max, :custom][1],  # if early_stop=true, missing values might occur. If :Custom, user must supply EFE_reduction function.
+        
         return_EFE_decompositions = true,  # todo: allow for not returning utility, info gain, etc. matrices
         SI_observation_prune_threshold = 1/16,  
         SI_policy_prune_threshold = 1/16,
         SI_prune_penalty = 512,  # todo: unused for now
         SI_use_pymdp_methods = false,  # flag to calculate EFE as per pymdp
+        random_seed = nothing,  # accept nothing or integer
 
         # action group
         action_selection = [:stochastic, :deterministic][1],
@@ -260,11 +266,12 @@ end
 
 """ Update the agents's beliefs over policies """
 function infer_policies!(agent::Agent, obs_current::NamedTuple{<:Any, <:NTuple{N, T} where {N, T}})
-    # Update posterior over policies and expected free energies of policies
+    # Update posterior over policies and expected free energies of policies or actions
     
-    if agent.settings.policy_inference_method == :sophisticated || agent.settings.graph == :explicit
-        Sophisticated.update_posterior_policies!(agent, obs_current)
+    if agent.settings.policy_inference_method == :sophisticated || agent.settings.graph != :none
+        Sophisticated.update_posterior_policies!(agent, obs_current)    
     else    
+        # standard inference, no graph
         Inference.update_posterior_policies!(agent)
     end
 
@@ -312,7 +319,6 @@ end
 function update_B!(agent::Agent)
     
     if length(agent.history.qs) > 1  
-
         qs_prev = agent.history.qs[end-1]
         Learning.update_state_likelihood_dirichlet!(agent, qs_prev)
     end

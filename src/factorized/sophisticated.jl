@@ -10,7 +10,6 @@ import Statistics: maximum, minimum, sum
 import Dates
 import Random
 import UUIDs
-import Statistics
 
 import ActiveInference.ActiveInferenceFactorized as AI 
 
@@ -29,20 +28,20 @@ using Infiltrator
 
 # --------------------------------------------------------------------------------------------------
 function recurse_parents(node_label::Base.UUID, Graph, path::Vector{Base.UUID})
-        # find all parents from leaf to root in tree graph, starting at leaf
-        # returns list of node_labels
-        push!(path, node_label)
-        parents = collect(MGN.inneighbor_labels(Graph, node_label))
-        if parents.size[1] == 1
-            # should only be one parent
-            #printfmtln("node_label= \n{}\n", node_label[1])
-            recurse_parents(parents[1], Graph, path)
-        elseif parents.size[1] == 0
-            return path
-        else
-            @infiltrate; @assert false
-        end
+    # find all parents from leaf to root in tree graph, starting at leaf
+    # returns list of node_labels
+    push!(path, node_label)
+    parents = collect(MGN.inneighbor_labels(Graph, node_label))
+    if parents.size[1] == 1
+        # should only be one parent
+        #printfmtln("node_label= \n{}\n", node_label[1])
+        recurse_parents(parents[1], Graph, path)
+    elseif parents.size[1] == 0
+        return path
+    else
+        @infiltrate; @assert false
     end
+end
 
 
 #=
@@ -63,7 +62,7 @@ to that have one or zero out edges.
 #### Policy Inference #### 
 """ Update Posterior over Policies """
 function update_posterior_policies!(agent::AI.Agent, obs_current::NamedTuple{<:Any, <:NTuple{N, T} where {N, T}})
-    #test_deletions()
+    
     #@infiltrate; @assert false
     
     model = agent.model
@@ -111,21 +110,13 @@ function update_posterior_policies!(agent::AI.Agent, obs_current::NamedTuple{<:A
     
     t0 = Dates.time()
 
-    siGraph = MGN.MetaGraph(
-        Graphs.DiGraph();  # underlying graph structure
-        label_type = Base.UUID,  # partial or complete policy tuple
-        vertex_data_type = Union{AI.ObsNode, AI.ActionNode, AI.EarlyStop, AI.BadPath}, 
-        edge_data_type = AI.GraphEdge,  
-        graph_data = "sophisticated inference graph",  # tag for the whole graph
-    )
-    
-    seed = 123  # todo set seed in params
-    rng = Random.Xoshiro(seed)  # carefull if distributed computing is used
-    
-    #@infiltrate; @assert false
-    ObsLabel = UUIDs.uuid1(rng) 
-    
-    siGraph[ObsLabel] = AI.ObsNode(
+    if !isnothing(agent.settings.random_seed)
+        rng = Random.Xoshiro(agent.settings.random_seed) 
+    else
+        rng = Random.Xoshiro()  
+    end
+
+    ObsParent = AI.ObsNode(
         deepcopy(qs_current), 
         repeat([nothing], 6)..., 
         1.0, 
@@ -134,11 +125,36 @@ function update_posterior_policies!(agent::AI.Agent, obs_current::NamedTuple{<:A
         1,
         nothing,
     )
+
+    if agent.settings.graph == :explicit
+        siGraph = MGN.MetaGraph(
+            Graphs.DiGraph();  # underlying graph structure
+            label_type = Base.UUID,  # partial or complete policy tuple
+            vertex_data_type = Union{AI.ObsNode, AI.ActionNode, AI.EarlyStop, AI.BadPath}, 
+            edge_data_type = AI.GraphEdge,  
+            graph_data = "sophisticated inference graph",  # tag for the whole graph
+        )
+        ObsLabel = UUIDs.uuid1(rng) 
+        siGraph[ObsLabel] = ObsParent
+    else
+        siGraph = nothing
+        ObsLabel = nothing
+    end
     
-    recurse(siGraph, agent, ObsLabel, action_names, rng)
+    #@infiltrate; @assert false
+    G_grandchildren, q_pi_grandchildren = recurse(siGraph, ObsParent, agent, ObsLabel, action_names, rng)
     
     printfmtln("\nmake graph  time= {}\n", round((Dates.time() - t0) , digits=2))
     t0 = Dates.time()
+
+    if agent.settings.graph == :implicit
+        # there is no graph and EFE is over actions
+        agent.q_pi_actions[:] = q_pi_grandchildren
+        agent.G_actions[:] = G_grandchildren
+        return
+    end
+
+
 
     #@infiltrate; @assert false
     nv = Graphs.nv(siGraph) 
@@ -278,6 +294,10 @@ function update_posterior_policies!(agent::AI.Agent, obs_current::NamedTuple{<:A
         end
 
         # delete all unwanted nodes in path 
+        if length(bad_node_labels) > 0
+            printfmtln("\nlen bad node labels pruned = {}\n", length(bad_node_labels))
+            #@infiltrate; @assert false  
+        end
         for node_label in bad_node_labels
             delete!(siGraph, node_label)  # also deletes a node's 'to' edges
         end
@@ -351,7 +371,8 @@ function update_posterior_policies!(agent::AI.Agent, obs_current::NamedTuple{<:A
     # choose a postprocessing method
     if agent.settings.EFE_over == :actions
         # marginal EFE
-        do_EFE_over_actions(siGraph, agent, leaves)
+        agent.q_pi_actions[:] = q_pi_grandchildren
+        agent.G_actions[:] = G_grandchildren
     else
         do_EFE_over_policies(siGraph, agent, leaves)
     end
@@ -391,9 +412,9 @@ function do_EFE_over_policies(siGraph, agent, leaves)
         try
             @assert !isnothing(policy_i) 
         catch e
-            error(format(
-                "Error: {}. If this fails, no valid instances of a policy exist. Try reducing prunning thresholds.",
-                e))
+            s = format("Error: {}. If this fails, no valid instances of a policy exist. Try ", e) 
+            s *= "reducing prunning thresholds or set :SI_use_pymdp_methods to false."
+            error(s)
         end
         #=
         todo: either fail the above assert as is or add null actions to fill up a subpolicy to make
@@ -467,7 +488,7 @@ function do_EFE_over_policies(siGraph, agent, leaves)
         # Now we make updates for the nodes in each path, level by level, starting with the leaf.
         for level in reverse(1: length(policy[1]))
             
-            for path in paths  # path is leaft first, root last
+            for path in paths  # path is leaf first, root last
                 #todo: selecting current obs and action would be faster without using reverse
                 obs_node = reverse(path)[level*2-1]  
                 action_node = reverse(path)[level*2]
@@ -484,14 +505,14 @@ function do_EFE_over_policies(siGraph, agent, leaves)
                     @infiltrate; @assert false 
                 end
                 
-                if agent.settings.graph_postprocessing_method == :G_prob
+                if agent.settings.policy_postprocessing_method == :G_prob
                     siGraph[obs_node].G_updated = prob * siGraph[action_node].G  
                     siGraph[obs_node].utility_updated = prob * siGraph[action_node].utility
                     siGraph[obs_node].info_gain_updated = prob * siGraph[action_node].info_gain
                     siGraph[obs_node].risk_updated = prob * siGraph[action_node].risk
                     siGraph[obs_node].ambiguity_updated = prob * siGraph[action_node].ambiguity
                     
-                elseif agent.settings.graph_postprocessing_method == :G_prob_q_pi
+                elseif agent.settings.policy_postprocessing_method == :G_prob_q_pi
                     # unlike pymdp, which only sums over G, here we also keep track of utility, etc.
                     # so we also multiply utility etc. by q_pi_children
                     qpi = siGraph[action_node].q_pi_children
@@ -560,12 +581,12 @@ function do_EFE_over_policies(siGraph, agent, leaves)
         end
         try
             agent.G_policies[idx] = (
-                Statistics.maximum.(skipmissing.(eachrow(agent.info_gain[idx,:])))
+                maximum.(skipmissing.(eachrow(agent.info_gain[idx,:])))
                 +
                 (
-                    Statistics.minimum.(skipmissing.(eachrow(agent.utility[idx,:])))
+                    minimum.(skipmissing.(eachrow(agent.utility[idx,:])))
                     +
-                    Statistics.maximum.(skipmissing.(eachrow(agent.utility[idx,:])))
+                    maximum.(skipmissing.(eachrow(agent.utility[idx,:])))
                 ) ./ 2.
             )
         catch e
@@ -574,9 +595,9 @@ function do_EFE_over_policies(siGraph, agent, leaves)
     else
         # use sum, as in pymdp
         agent.G_policies[idx] = (
-            Statistics.sum.(eachrow(agent.info_gain[idx,:])) 
+            sum.(eachrow(agent.info_gain[idx,:])) 
             + 
-            Statistics.sum.(eachrow(agent.utility[idx,:]))
+            sum.(eachrow(agent.utility[idx,:]))
         )
     end
 
@@ -599,138 +620,27 @@ end
 
 
 # --------------------------------------------------------------------------------------------------
-function do_EFE_over_actions(siGraph, agent, leaves)
-    #=
-    This is the G * prob * qpi marginal EFE method (as per pymdp).
-    
-    iterate over nodes:
-        examine all siblings of an action node
-        calculate G*q_pi*prob for each action
-        record siblings as processed
-    
-    iterate over each action:
-        find all ActionNodes with that action
-        add their G values, etc. together
-    =#
-    
-    leaves_keys = keys(leaves)
-    action_names = [x.name for x in agent.model.actions]
-
-    if agent.settings.verbose
-        println("\nEnumerate policies, do_EFE_over_actions ----")
-    end
-
-    # iterate over all nodes in graph
-    processed = Set()
-    for node_label in MGN.labels(siGraph)
-        if isa(siGraph[node_label], AI.ActionNode) && !(node_label in processed)
-            parent_node_label = collect(MGN.inneighbor_labels(siGraph, node_label))
-            @assert length(parent_node_label) == 1
-            parent_node_label = parent_node_label[1]
-            @assert isa(siGraph[parent_node_label], AI.ObsNode)
-
-            prob = siGraph[parent_node_label].prob
-
-            siblings = collect(MGN.outneighbor_labels(siGraph, parent_node_label))
-            push!(processed, siblings...)
-
-            for sibling in siblings
-                qpi = siGraph[sibling].q_pi_children
-                siGraph[sibling].G_updated = prob * siGraph[sibling].G * qpi  
-                siGraph[sibling].utility_updated = prob * siGraph[sibling].utility * qpi
-                siGraph[sibling].info_gain_updated = prob * siGraph[sibling].info_gain * qpi
-                siGraph[sibling].risk_updated = prob * siGraph[sibling].risk * qpi
-                siGraph[sibling].ambiguity_updated = prob * siGraph[sibling].ambiguity * qpi
-
-                if isapprox(siGraph[sibling].info_gain_updated, 0, atol = 1e-6)
-                    @infiltrate; @assert false
-                end
-            end
-        end
-    end
-
-    idx_done = Set()
-    for node_label in MGN.labels(siGraph)
-        if !isa(siGraph[node_label], AI.ActionNode)
-            continue
-        end
-
-        first_action = first.(values(siGraph[node_label].policy))
-        idx = findfirst(x -> x == first_action, agent.model.policies.action_iterator)
-        try
-            @assert !isnothing(idx)
-        catch e
-            error(format(
-                "Error: {}. If this fails, no valid instances of an action exist. Try reducing prunning thresholds.",
-                e))
-        end
-
-        @assert !isnothing(idx)
-        push!(idx_done, idx)
-
-        # initialize to zero if first time seen
-        if ismissing(agent.G_actions[idx])
-            # assume for marginal EFE that there is a G for each action
-            agent.G_actions[idx] = 0
-            agent.q_pi_actions[idx] = 0
-            
-            # todo: these can be nothing if they are not used, as per agent
-            agent.utility[idx,1] = 0
-            agent.info_gain[idx,1] = 0
-            agent.risk[idx,1] = 0
-            agent.ambiguity[idx,1] = 0
-        end
-
-        agent.G_actions[idx] += siGraph[node_label].G_updated
-        agent.utility[idx,1] += siGraph[node_label].utility_updated
-        agent.info_gain[idx,1] += siGraph[node_label].info_gain_updated
-        agent.risk[idx,1] += siGraph[node_label].risk_updated
-        agent.ambiguity[idx,1] += siGraph[node_label].ambiguity_updated
-    
-    end
-
-    # some actions can have missing G etc. Only use good actions to calc q_pi
-    idx = findall(x -> !ismissing(x), agent.G_actions)   
-    
-    if sum(skipmissing(agent.G_actions)) == 0
-        #@infiltrate; @assert false  # All policies failed?
-        @warn format("\nThe sum over G is zero.\n")
-    end
-
-    Eidx = agent.model.policies.E[idx]
-    lnE = AI.Maths.capped_log(Eidx)
-    agent.q_pi_actions[idx] .= LEF.softmax(agent.G_actions[idx] * agent.parameters.gamma + lnE, dims=1)  
-
-    #@infiltrate; @assert false
-    return 
-
-end
-
-
-
-# --------------------------------------------------------------------------------------------------
-function recurse(siGraph::MGN.MetaGraph, agent::AI.Agent, ObsLabel::Base.UUID, 
-    action_names::Vector{Symbol}, rng::Random.Xoshiro)
+function recurse(siGraph::Union{Nothing, MGN.MetaGraph}, ObsParent::AI.ObsNode, agent::AI.Agent, 
+        ObsLabel::Union{Nothing, Base.UUID}, action_names::Vector{Symbol}, rng::Random.Xoshiro)
     
     # todo: induction, info_gain_A, info_gain_B, info_gain_D are not yet handled
-    # todo: set flags so that SI is the same here as in pymdp
 
     model = agent.model
     observation_prune_threshold = agent.settings.SI_observation_prune_threshold
     policy_prune_threshold = agent.settings.SI_policy_prune_threshold
     prune_penalty = agent.settings.SI_prune_penalty
 
-    level = siGraph[ObsLabel].level
+    level = ObsParent.level
        
-    qs = siGraph[ObsLabel].qs_next
-    observation = siGraph[ObsLabel].observation
+    qs = ObsParent.qs_next
+    observation = ObsParent.observation
 
     if agent.settings.verbose
         #@infiltrate; @assert false
         printfmtln("\n------\nlevel={}, observation={} \nprob= {} \nmax qs= {}\n", 
             level, 
             observation, 
-            siGraph[ObsLabel].prob,
+            ObsParent.prob,
             [argmax(q) for q in qs]
         )
     end
@@ -739,44 +649,54 @@ function recurse(siGraph::MGN.MetaGraph, agent::AI.Agent, ObsLabel::Base.UUID,
         @infiltrate; @assert false
     end
 
-    # to keep simple, use only one action here, todo: allow multiple actions
     children = []
-    
+        
     for (idx, action) in enumerate(model.policies.action_iterator)  
         # action is a tuple of integers
         policy1 = (; zip(action_names, Tuple.(action))...)  # a policy of length 1
         
         # make policy
-        if isnothing(siGraph[ObsLabel].policy)
+        if isnothing(ObsParent.policy)
             policy = policy1
         else
-            policy = siGraph[ObsLabel].policy
+            policy = ObsParent.policy
             policy = (; zip(keys(policy), Tuple.([vcat(policy[ii]..., act) for (ii,act) in enumerate(action)]))...)
         end
         
-        ActionLabel = UUIDs.uuid1(rng) 
-
-        if ActionLabel in collect(MGN.labels(siGraph))
-            # the label should not exist yet
-            @infiltrate; @assert false
-        end
-        
         qs_pi = AI.Inference.get_expected_states(qs, policy1, agent)  # use a policy of one action
-        
-        if isnothing(qs_pi) 
-            # bad policy for given states
-            siGraph[ActionLabel] = AI.BadPath("BadPath")
-            siGraph[ObsLabel, ActionLabel] = AI.GraphEdge()
-            #@infiltrate; @assert false
-            continue
-        end
 
-        if ismissing(qs_pi)
-            # early stop, will be true for all actions
-            siGraph[ActionLabel] = AI.EarlyStop("EarlyStop")
-            siGraph[ObsLabel, ActionLabel] = AI.GraphEdge()
-            #@infiltrate; @assert false  
-            continue  
+        if !isnothing(siGraph)
+            
+            if isnothing(qs_pi) 
+                # bad policy for given states
+                ActionLabel = UUIDs.uuid1(rng) 
+                siGraph[ActionLabel] = AI.BadPath("BadPath")
+                siGraph[ObsLabel, ActionLabel] = AI.GraphEdge()
+                #@infiltrate; @assert false
+                continue
+            end
+
+            if ismissing(qs_pi)
+                # early stop, will be true for all actions
+                ActionLabel = UUIDs.uuid1(rng) 
+                siGraph[ActionLabel] = AI.EarlyStop("EarlyStop")
+                siGraph[ObsLabel, ActionLabel] = AI.GraphEdge()
+                #@infiltrate; @assert false  
+                continue  
+            end
+        else
+            # for an implicit graph there should be no early stops or bad paths
+            if isnothing(qs_pi) 
+                # bad policy for given states
+                @infiltrate; @assert false
+                continue
+            end
+
+            if ismissing(qs_pi)
+                # early stop, will be true for all actions
+                @infiltrate; @assert false  
+                continue  
+            end
         end
 
         qo_pi = AI.Inference.get_expected_obs(qs_pi, agent)  
@@ -805,7 +725,7 @@ function recurse(siGraph::MGN.MetaGraph, agent::AI.Agent, ObsLabel::Base.UUID,
         
         # add to graph 
         #@infiltrate; @assert false
-        siGraph[ActionLabel] = AI.ActionNode(
+        ActionChild = AI.ActionNode(
             qs,  # size number of state variables [number of categories per variable]
             qs_pi[1], # size number of actions (=1) [number of state variables [ number of categories per variable]]
             qo_pi[1], # size number of actions (=1) [number of observation variables [ number of categories per variable]]
@@ -829,31 +749,24 @@ function recurse(siGraph::MGN.MetaGraph, agent::AI.Agent, ObsLabel::Base.UUID,
             policy,
         )
         
-        #printfmtln("level= {}, policy= {}", siGraph[ActionLabel].level, siGraph[ActionLabel].policy)
-        if length(policy[1]) != level
-            @infiltrate; @assert false
-        end
-
-        
+        #printfmtln("level= {}, policy= {}", ActionChild.level, ActionChild.policy)
         @assert length(policy[1]) == level
 
-        if isnothing(siGraph[ActionLabel].policy)
-            @infiltrate; @assert false
-        end
-
-        # edge will always be unique
-        siGraph[ObsLabel, ActionLabel] = AI.GraphEdge()
-        push!(children, ActionLabel)  # an action might not result in a child
-        #@infiltrate; @assert false
+        push!(children, ActionChild)  # children are ActionNodes
+        
     end 
     
+    if isnothing(siGraph)
+        # should be no bad paths, early stops, etc. for implicit graph
+        @assert length(children) == length(model.policies.action_iterator)
+    end  
+    
     if length(children) == 0
-        #e.g., loc=9, stay move indicates early stop
         #@infiltrate; @assert false
-        return  # no change to graph
+        return  (G_children=[], q_pi_children=[])  # no children, no change to graph
     end
 
-        
+
     #=
     We need a qs_pi vector across actions to potentially filter out unlikely actions, but some 
     actions might have been skipped for BadPath or EarlyStop. For convienience, we base qs_pi only 
@@ -865,111 +778,118 @@ function recurse(siGraph::MGN.MetaGraph, agent::AI.Agent, ObsLabel::Base.UUID,
     child_1, it is deleted, q_pi is recalculated, and now child_2 is below the threshold.
     =#
     
-    orig_children = deepcopy(children)
-    for prune_round in 1:length(orig_children)
+    for prune_round in 1:length(children)
 
         if agent.settings.SI_use_pymdp_methods && level == model.policies.policy_length 
             # do not do any pruning on the last level of the graph
             break
         end
         
-        G_children = [siGraph[child].G for child in children]
-        
-        if any(ismissing.(G_children)) || any(isnothing.(G_children))
-            @infiltrate; @assert false
-        end
+        G_children = [child.G for child in children]
         
         # todo: add inducive cost to G (record inductive cost)
 
-        q_pi_children = LEF.softmax(G_children * agent.parameters.gamma)  # this is qs_pi over all viable children of ObsNode 
+        q_pi_children = LEF.softmax(G_children * agent.parameters.gamma)  
         
         # prune out low q_pi_children
-        good_children = []
+        pruned = false
         for (ii, child) in enumerate(children)
-            
+            if child.pruned 
+                continue
+            end
+                        
             if q_pi_children[ii] < policy_prune_threshold
-                siGraph[child].pruned = true  # record that child is pruned 
+                pruned = true
+                child.pruned = true  # record that child is pruned 
+                child.G -= prune_penalty
 
-                if agent.settings.SI_use_pymdp_methods
-                    # use prune_penalty
-                    siGraph[child].G -= prune_penalty
-                end
-                
                 if agent.settings.verbose
                     printfmtln("---- prune round= {}: q_pi= {}, child policy= {}, label= {} \n", 
                         prune_round,    
                         q_pi_children[ii],
-                        siGraph[child].policy,
+                        child.policy,
                         child
                     )
                 end
                 #@infiltrate; @assert false
-            else
-                push!(good_children, child)
             end
         end
 
-        if length(good_children) == 0
+        if all(G_children .<= -prune_penalty/2)
             @infiltrate; @assert false
         end
-
-        if length(good_children) == length(children)
-            # all children are good, no more pruning needed
-            break
-        end
-
-        children = good_children
 
         if agent.settings.SI_use_pymdp_methods
             # use only one prune round
             break
         end
+        
+        if !pruned
+            # all children are good, no more pruning needed
+            break
+        end
     end
 
     # record results for q_pi on viable ActionNodes
-    G_children = [siGraph[child].G for child in children]  # This is G over all viable children of ObsNode
+    G_children = [child.G for child in children]  # This is G over all viable children of ObsNode
     q_pi_children = LEF.softmax(G_children * agent.parameters.gamma)  # this is qs_pi over all viable children of ObsNode 
     for (ii, child) in enumerate(children)
-        siGraph[child].q_pi_children = q_pi_children[ii]
-        @assert !isnothing(siGraph[child].q_pi_children)
+        child.q_pi_children = q_pi_children[ii]
     end
     #@infiltrate; @assert false
     
     
+    # there are no more changes to children, so we can store good children in graph if :explicit
+    if !isnothing(siGraph)
+        action_labels = []
+        for child in children
+            ActionLabel = UUIDs.uuid1(rng) 
+            push!(action_labels, ActionLabel)  # keep record of node labels
+            siGraph[ActionLabel] = child  # copy first?
+        
+            # edge will always be unique
+            siGraph[ObsLabel, ActionLabel] = AI.GraphEdge()
+
+        end
+    end
+
+
     if level == model.policies.policy_length
         if agent.settings.verbose
             println("returning terminal path")
         end
 
-        return # just return the (pruned) graph
+        return (G_children=G_children, q_pi_children=q_pi_children)  # just return the (pruned) children
     end
 
 
-    # make observation iterator for new observations
-    qo_pi_sizes = [1:x.size[1] for x in siGraph[children[1]].qo_pi]
+    #=
+    Make an observation iterator for new observations. It can be very large, and for that reason do 
+    not pre-calculate and store it.
+    =#
+    qo_pi_sizes = [1:x.size[1] for x in children[1].qo_pi]
+    observation_iterator = Iterators.product(qo_pi_sizes...) # every possible combination of observations e.g., (23, 2, 1) for 3 observations
+
     obs_names = [x.name for x in model.obs]
     
-    
-    # this iterator can be very large, and for that reason do not pre-calculate and store it
-    observation_iterator = Iterators.product(qo_pi_sizes...) # every possible combination of observations e.g., (23, 2, 1) for 3 observations
-    
-    for (idx, ActionLabel) in enumerate(children)
-        
-        qo_next = siGraph[ActionLabel].qo_pi
-        skip_observations = true
-        
+    for (idx, ActionChild) in enumerate(children)
+        if ActionChild.pruned
+            # make no ObsNode children for this ActionNode
+            continue
+        end
+
+
         # do standard inference?
         if agent.settings.policy_inference_method == :standard
-            # use this for :standard inference with :explicit graph
+            # use this for :standard inference with :explicit or :implicit graph
             
             # make only a single Obs node
-            ObsLabel = UUIDs.uuid1(rng) 
-                        
             # do not call update_posterior_states to get qs_next, use original
-            qs_next = siGraph[ActionLabel].qs_pi 
+            qs_next = ActionChild.qs_pi  
             prob = 1.0
-            obs = obs = (; zip(obs_names, zeros(length(obs_names)))...)  # dummy obs
-            siGraph[ObsLabel] = AI.ObsNode(
+            obs = (; zip(obs_names, zeros(length(obs_names)))...)  # dummy obs
+            
+            ObsParent = AI.ObsNode(
                 qs_next,
                 nothing,  # utility_updated
                 nothing,  # info_gain_updated
@@ -979,25 +899,34 @@ function recurse(siGraph::MGN.MetaGraph, agent::AI.Agent, ObsLabel::Base.UUID,
                 nothing,  # q_pi_updated
                 prob,
                 nothing,  # prob_updated
-                obs,  # dummy node
+                obs,  # dummy obs
                 level +1 ,
-                siGraph[ActionLabel].policy,
+                ActionChild.policy,
             )
 
-            siGraph[ActionLabel, ObsLabel] = AI.GraphEdge()
-            
+            ObsLabel = UUIDs.uuid1(rng) 
+            if !isnothing(siGraph)
+                siGraph[ObsLabel] = ObsParent
+                siGraph[action_labels[idx], ObsLabel] = AI.GraphEdge()
+            end
+
             if agent.settings.verbose
                 printfmtln("\n        level= {}, calling sophisticated", level)
             end
             
             #@infiltrate; @assert false
-            recurse(siGraph, agent, ObsLabel, action_names, rng)
-            
+            G_grandchildren, q_pi_grandchildren  = recurse(siGraph, ObsParent, agent, ObsLabel, action_names, rng)
+            G_weighted = sum(G_grandchildren .* q_pi_grandchildren) * prob
+            G_children[idx] += G_weighted
+
             continue
         end
-        
+
 
         # do regular SI
+        qo_next = ActionChild.qo_pi
+        skip_observations = true
+        
         cnt = 0
         max_prob = 0
         for (i_observation, observation) in enumerate(observation_iterator)    
@@ -1036,12 +965,7 @@ function recurse(siGraph::MGN.MetaGraph, agent::AI.Agent, ObsLabel::Base.UUID,
             # ObsLabel = vcat(ActionLabel, Label(level, observation, siGraph[ActionLabel].action, "Obs"))  # longer
             ObsLabel = UUIDs.uuid1(rng) 
 
-            if ObsLabel in collect(MGN.labels(siGraph))
-                # the label should not exist yet
-                @infiltrate; @assert false
-            end
-                        
-            siGraph[ObsLabel] = AI.ObsNode(
+            ObsParent = AI.ObsNode(
                 qs_next,
                 nothing,  # utility_updated
                 nothing,  # info_gain_updated
@@ -1053,29 +977,31 @@ function recurse(siGraph::MGN.MetaGraph, agent::AI.Agent, ObsLabel::Base.UUID,
                 nothing,  # prob_updated
                 obs,
                 level +1 ,
-                siGraph[ActionLabel].policy,
+                ActionChild.policy,
             )
-            #printfmtln("    level= {}, policy= {}", siGraph[ObsLabel].level, siGraph[ObsLabel].policy)
+                        
+            #printfmtln("    level= {}, policy= {}", ObsParent.level, ObsParent.policy)
             
-            siGraph[ActionLabel, ObsLabel] = AI.GraphEdge()
+            if !isnothing(siGraph)
+                siGraph[ObsLabel] = ObsParent
+                siGraph[action_labels[idx], ObsLabel] = AI.GraphEdge()
+            end
             
             if agent.settings.verbose
                 printfmtln("\n        level= {}, calling sophisticated", level)
             end
+        
             #@infiltrate; @assert false
-            recurse(siGraph, agent, ObsLabel, action_names, rng)
-            
-            #@infiltrate; @assert false
-            
-            #G_weighted = np.dot(qs_pi_next, G_next) * prob
-            #G[idx] += G_weighted
+            G_grandchildren, q_pi_grandchildren  = recurse(siGraph, ObsParent, agent, ObsLabel, action_names, rng)
+            G_weighted = sum(G_grandchildren .* q_pi_grandchildren) * prob
+            G_children[idx] += G_weighted
         end
 
         if agent.settings.verbose
             printfmtln("        level= {}, ending observation loop, idx={}, obs cnt= {}", level, idx, cnt)            
         end
         if cnt > 1 && agent.settings.verbose
-            printfmtln("\ncnt= {}, policy= {}", cnt, siGraph[ActionLabel].policy)
+            printfmtln("\ncnt= {}, policy= {}", cnt, ActionChild.policy)
             #@infiltrate; @assert false
         end
         if skip_observations == true
@@ -1092,6 +1018,9 @@ function recurse(siGraph::MGN.MetaGraph, agent::AI.Agent, ObsLabel::Base.UUID,
     if agent.settings.verbose
         printfmtln("    level = {}, ending idx loop", level)
     end
+
+    q_pi_children = LEF.softmax(G_children * agent.parameters.gamma)
+    return (G_children=G_children, q_pi_children=q_pi_children)  # return the (pruned) children after generating futher children
         
 end
 

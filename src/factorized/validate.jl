@@ -97,24 +97,29 @@ function validate(model, settings, parameters)
         if settings.SI_use_pymdp_methods
             # these are the settings that will approx replicate SI in pymdp
             @assert settings.policy_inference_method == :sophisticated
-            @assert settings.graph == :explicit
+            @assert settings.graph != :none
             @assert settings.EFE_over == :actions
-            @assert settings.graph_postprocessing_method == :G_prob_q_pi
-            @assert settings.EFE_reduction == :sum
         end
     catch e
-        s = "To appox replicate pymdp methods, user must choose settings :sophisticated, :explicit "
-        s *= format(":actions, :G_prob_q_pi, and :sum. Error is: {}", e)
+        s = "To appox replicate pymdp methods, user must choose settings :sophisticated "
+        s *= format("and :actions. Error is: {}", e)
         error(s)
     end
     
+    if settings.graph == :none
+        @assert !(settings.policy_inference_method in [:sophisticated, :inductive])
+    end
 
-    if settings.EFE_over == :actions && settings.policy_inference_method == :standard && settings.graph == :none
-        #@assert false "not yet implemented"  # todo: implement :actions and :standard - maybe just sum over actions at end of infer policies?
+    if settings.graph == :implicit
+        @assert settings.EFE_over == :actions
     end
 
     if settings.policy_inference_method == :inductive
         @assert false "not yet implemented"  # todo: implement inductive inference
+    end
+
+    if settings.use_param_info_gain && settings.graph != :none
+        @assert false "not yet implemented"  # todo: implement param_info_gain for graph methods
     end
 
     #=
