@@ -804,11 +804,13 @@ function recurse(siGraph::Union{Nothing, MGN.MetaGraph}, ObsParent::AI.ObsNode, 
                 child.G -= prune_penalty
 
                 if agent.settings.verbose
-                    printfmtln("---- prune round= {}: q_pi= {}, child policy= {}, label= {} \n", 
+                    
+                    state_names = [x.name for x in agent.model.states]
+                    printfmtln("---- prune round= {}: argmax(q_pi)= {}, max(q_pi)= {}, child policy= {}\n", 
                         prune_round,    
-                        q_pi_children[ii],
+                        (; zip(state_names, [argmax(x) for x in q_pi_children[ii]])...),
+                        (; zip(state_names, [max(x) for x in q_pi_children[ii]])...),
                         child.policy,
-                        child
                     )
                 end
                 #@infiltrate; @assert false

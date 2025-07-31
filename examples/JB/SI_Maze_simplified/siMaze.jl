@@ -56,7 +56,7 @@ function run_example()
             grid = grid,
             cells = cells,
             start_cell = [9,2], 
-            policy_length = 3,
+            policy_length = 2,
             number_simulation_steps = 10,
             number_simulations = 1,
         )
@@ -64,16 +64,17 @@ function run_example()
 
     # get_settings and modify as needed
     settings = AI.get_settings()
-    settings = @set settings.EFE_over = [:policies,  :actions][2]
+    settings = @set settings.EFE_over = [:policies,  :actions][1]
     settings = @set settings.policy_postprocessing_method = [:G_prob,  :G_prob_q_pi][1] 
     settings = @set settings.policy_inference_method = [:standard,  :sophisticated][1]
-    settings = @set settings.graph = [:none, :explicit, :implicit][3]
+    settings = @set settings.graph = [:none, :explicit, :implicit][2]
     
     settings = @set settings.use_param_info_gain = false
     settings = @set settings.SI_observation_prune_threshold = 1/16  
     settings = @set settings.SI_policy_prune_threshold = 1/16
-    settings = @set settings.verbose = false
+    settings = @set settings.verbose = true
     settings = @set settings.SI_use_pymdp_methods = false
+    settings = @set settings.action_selection = :deterministic
 
     # to run standard inference with an explicit graph, use:
     #settings = @set settings.policy_inference_method = :standard 
