@@ -97,9 +97,6 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
             )
         end
 
-        printfmtln("\nsimulation time= {}\n", round((Dates.time() - t0) , digits=2))
-        #@infiltrate; @assert false
-        
         # save results in database?
         if false
             save_utility(agent, model, q_pi, step_i, db)
@@ -109,11 +106,11 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
             #todo: save info_gain_B
         end
 
-        # custom sample action
+        # sample action
+        idx = findall(x -> !ismissing(x), G) 
         if agent.settings.action_selection == :deterministic
-            ii = argmax(q_pi)  # any path
+            ii = idx[argmax(q_pi[idx])]  # argmax over valid policies
         elseif agent.settings.action_selection == :stochastic
-            idx = findall(x -> !ismissing(x), G) 
             mnd = Distributions.Multinomial(1, Float64.(q_pi[idx]))
             ii = argmax(rand(mnd))
             ii = idx[ii]
@@ -168,7 +165,9 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
         if verbose
             printfmtln("Grid location at time {}, after action: {}", step_i, obs)
         end
-
+        
+        printfmtln("\nsimulation time= {}\n", round((Dates.time() - t0) , digits=2))
+        
         #@infiltrate; @assert false
     end
 
