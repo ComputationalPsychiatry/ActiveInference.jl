@@ -47,16 +47,25 @@ end
 
 
 
-function stable_xlogx(x::Union{Matrix{Float64}, Vector{Float64}})
-    #zz =  [LEF.xlogy.(z, clamp.(z, MINVAL, Inf)) for z in x]
-    zz =  [LEF.xlogy.(z, z) for z in x]
+function xstable_xlogx(x::Matrix{Float64})
+    
+    #z1 =  [LEF.xlogy.(z, clamp.(z, MINVAL, Inf)) for z in x]
+    #z2 =  [LEF.xlogy.(z, z) for z in x]
+    z3 = LEF.xlogy.(z, z)
+    @infiltrate; @assert false
     return zz
 end
 
 
-function stable_entropy(x::Union{Matrix{Float64}, Vector{Float64}})
-    #@infiltrate; @assert false
-    z = stable_xlogx(x)
+function stable_entropy(x::Vector{Float64})
+    z =  LEF.xlogy.(x, x)
+    return - sum(z)  
+end
+
+function stable_entropy(x::Matrix{Float64})
+    @infiltrate; @assert false
+    z =  [LEF.xlogy.(z, z) for z in x]
+    @infiltrate; @assert false
     return - sum(vcat(z...))  
 end
 

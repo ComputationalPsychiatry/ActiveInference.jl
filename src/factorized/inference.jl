@@ -409,7 +409,8 @@ function get_expected_obs(qs_pi, agent)
             
             # collect A dependencies
             deps = AI.Utils.collect_dependencies(qs_pi, obs, step_i)
-            A = deepcopy(obs.A)
+            #A = deepcopy(obs.A)
+            A = obs.A
                        
             qo = AI.Maths.dot_product1(A, deps)
             @assert qo.size == (A.size[1], ) 
@@ -518,8 +519,8 @@ function calc_info_gain(qs::Vector{T} where {T <: NamedTuple{<:Any, <:NTuple{N, 
         for (obs_i, obs) in enumerate(model.obs)
             
             H_qo = AI.Maths.stable_entropy(qo_step[obs.name])
-            H_A = - sum(AI.Maths.stable_xlogx(obs.A), dims=1)
-            
+            #H_A = - sum(AI.Maths.stable_xlogx(obs.A), dims=1)
+            H_A = - sum(LEF.xlogy.(obs.A, obs.A), dims=1)
             deps = AI.Utils.collect_dependencies(qs_step, obs)
             H_A = AI.Maths.dot_product1(H_A, deps)
             

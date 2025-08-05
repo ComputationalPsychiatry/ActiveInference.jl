@@ -615,9 +615,9 @@ function do_EFE_over_policies(siGraph, agent, leaves)
     agent.q_pi_policies[idx] .= LEF.softmax(agent.G_policies[idx] * agent.parameters.gamma + lnE, dims=1)  
 
 
-    if agent.sim_step == 2
-        @infiltrate; @assert false  
-    end  
+    #if agent.sim_step == 2
+    #    @infiltrate; @assert false  
+    #end  
 
     #@infiltrate; @assert false    
     
@@ -705,9 +705,9 @@ function recurse(siGraph::Union{Nothing, MGN.MetaGraph}, ObsParent::AI.ObsNode, 
             end
         end
 
-        if isapprox(qs.loc, qs_pi[1].loc)
-            @infiltrate; @assert false
-        end
+        #if isapprox(qs.loc, qs_pi[1].loc)
+        #    @infiltrate; @assert false
+        #end
 
         qo_pi = AI.Inference.get_expected_obs(qs_pi, agent)  
         

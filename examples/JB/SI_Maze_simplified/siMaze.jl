@@ -128,8 +128,8 @@ function run_example()
         )
         println("\n\n")
 
-        #@profilehtml simulate(model, agent, env, CONFIG, to_label, simulation_number)
-        #@infiltrate; @assert false
+        @profilehtml simulate(model, agent, env, CONFIG, to_label, simulation_number)
+        @infiltrate; @assert false
         results = simulate(model, agent, env, CONFIG, to_label, simulation_number)
         push!(history, results)
     end
