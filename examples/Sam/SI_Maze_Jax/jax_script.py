@@ -1,4 +1,9 @@
+import os
+os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=1"
+
+
 import jax
+from jax import jit
 import jax.numpy as jnp
 import numpy as np
 import jax.random as random
@@ -14,8 +19,11 @@ import tracemalloc
 
 from pymdp.agent import Agent
 from pymdp.planning.si import si_policy_search
+from pymdp.planning.si import tree_search
 from generative_model import MAZE, PREFERENCES, A, B, C, D
 from maze_env import SIMazeEnv
+
+import debugger
 
 def count_nodes(tree):
     return len(tree.nodes)
@@ -24,6 +32,7 @@ def count_nodes(tree):
 def benchmark_search(search_fn, *args):
     tracemalloc.start()
     start = time.perf_counter()
+    #assert False
     q_pi, tree = search_fn(*args)
     end = time.perf_counter()
     current, peak = tracemalloc.get_traced_memory()
@@ -43,6 +52,9 @@ def run_simulation(horizon, num_iterations):
         prune_penalty=512,
         gamma=1,
     )
+
+    #search_fn = jit(lambda agent, qs, horizon: tree_search(agent, qs, horizon))
+
     agent = Agent(A=A, B=B, C=C, D=D, policy_len=1, sampling_mode="full", gamma=1.0, alpha=1.0)
     env = SIMazeEnv(MAZE, PREFERENCES, start_state=17)
     rng_key = random.PRNGKey(seed=42)
@@ -55,9 +67,13 @@ def run_simulation(horizon, num_iterations):
 
     start_sim = time.perf_counter()
 
+    infer_states = jit(lambda obs, prior: agent.infer_states(obs, prior))
+    #infer_policies = jit(lambda qs : agent.infer_policies(qs))
+
     for t in range(num_iterations):
         qs = agent.infer_states(observation, empirical_prior)
         q_pi, tree, elapsed_time, mem_mib = benchmark_search(search_fn, agent, qs, rng_key)
+        #q_pi, tree, elapsed_time, mem_mib = benchmark_search(search_fn, agent, qs, horizon)
         q_pi = q_pi.reshape((1, -1))
         action = agent.sample_action(q_pi)
         empirical_prior = agent.update_empirical_prior(action, qs)
@@ -87,7 +103,8 @@ def run_simulation(horizon, num_iterations):
     })
     df_planning.to_csv(f"si_jax_planning_{horizon}.csv", index=False)
 
-for horizon in range(2, 14):
+#for horizon in range(2, 14):
+for horizon in range(2, 5):
     print(f"Running horizon {horizon}...")
     run_simulation(horizon, 10)
     print(f"Finished {horizon}.\n")

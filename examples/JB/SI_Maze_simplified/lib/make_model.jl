@@ -107,7 +107,7 @@ function make_model(CONFIG)
             move = (
                 name = :move, 
                 values = collect(1:2),
-                labels = (:UP, :DOWN),
+                labels = (:UP, :RIGHT),
                 null_action = nothing,
                 extra = nothing,
             ),

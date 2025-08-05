@@ -380,6 +380,7 @@ function update_posterior_policies!(agent::AI.Agent, obs_current::NamedTuple{<:A
     printfmtln("\ndo G time= {}\n", round((Dates.time() - t0) , digits=2))
     t0 = Dates.time()
     
+    
     # @infiltrate; @assert false  
 
     return 
@@ -613,6 +614,11 @@ function do_EFE_over_policies(siGraph, agent, leaves)
     lnE = AI.Maths.capped_log(Eidx)
     agent.q_pi_policies[idx] .= LEF.softmax(agent.G_policies[idx] * agent.parameters.gamma + lnE, dims=1)  
 
+
+    if agent.sim_step == 2
+        @infiltrate; @assert false  
+    end  
+
     #@infiltrate; @assert false    
     
     return 
@@ -699,6 +705,10 @@ function recurse(siGraph::Union{Nothing, MGN.MetaGraph}, ObsParent::AI.ObsNode, 
             end
         end
 
+        if isapprox(qs.loc, qs_pi[1].loc)
+            @infiltrate; @assert false
+        end
+
         qo_pi = AI.Inference.get_expected_obs(qs_pi, agent)  
         
         G = 0
@@ -753,6 +763,10 @@ function recurse(siGraph::Union{Nothing, MGN.MetaGraph}, ObsParent::AI.ObsNode, 
         @assert length(policy[1]) == level
 
         push!(children, ActionChild)  # children are ActionNodes
+
+        if agent.sim_step == 2 && level == 2 && policy == (move = (2, 1),)
+            @infiltrate; @assert false
+        end        
         
     end 
     
@@ -790,7 +804,7 @@ function recurse(siGraph::Union{Nothing, MGN.MetaGraph}, ObsParent::AI.ObsNode, 
         # todo: add inducive cost to G (record inductive cost)
 
         q_pi_children = LEF.softmax(G_children * agent.parameters.gamma)  
-        
+
         # prune out low q_pi_children
         pruned = false
         for (ii, child) in enumerate(children)

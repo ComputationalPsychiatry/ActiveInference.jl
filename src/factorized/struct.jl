@@ -36,6 +36,7 @@ mutable struct Agent
     info_gain_B::Union{Nothing, Matrix{Union{Missing, Float64}}} 
     info_gain_D::Union{Nothing, Matrix{Union{Missing, Float64}}}   
     history::NamedTuple
+    sim_step::Int64
 end
 
 

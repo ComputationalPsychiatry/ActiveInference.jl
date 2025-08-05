@@ -1,3 +1,5 @@
+#@infiltrate; @assert false
+
 
 module Maths
 
@@ -7,7 +9,7 @@ import OMEinsum as ein
 import LogExpFunctions as LEF
 
 #using Format
-#using Infiltrator
+using Infiltrator
 #using Revise
 
 # This utils modeule collects all the math utils functions that JB uses in the factorized version.
@@ -45,14 +47,15 @@ end
 
 
 
-function stable_xlogx(x)
-    zz =  [LEF.xlogy.(z, clamp.(z, MINVAL, Inf)) for z in x]
-    #@infiltrate; @assert false
+function stable_xlogx(x::Union{Matrix{Float64}, Vector{Float64}})
+    #zz =  [LEF.xlogy.(z, clamp.(z, MINVAL, Inf)) for z in x]
+    zz =  [LEF.xlogy.(z, z) for z in x]
     return zz
 end
 
 
-function stable_entropy(x)
+function stable_entropy(x::Union{Matrix{Float64}, Vector{Float64}})
+    #@infiltrate; @assert false
     z = stable_xlogx(x)
     return - sum(vcat(z...))  
 end

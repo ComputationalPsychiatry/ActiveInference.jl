@@ -173,7 +173,7 @@ function run_example()
     settings = @set settings.use_param_info_gain = false
     settings = @set settings.SI_observation_prune_threshold = 0.039 #1/16  
     settings = @set settings.SI_policy_prune_threshold = 1/16
-    settings = @set settings.verbose = false
+    settings = @set settings.verbose = true
     settings = @set settings.SI_use_pymdp_methods = false
     settings = @set settings.action_selection = :deterministic
 

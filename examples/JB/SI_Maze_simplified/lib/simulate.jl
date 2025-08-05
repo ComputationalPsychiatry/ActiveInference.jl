@@ -168,10 +168,13 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
         
         printfmtln("\nsimulation time= {}\n", round((Dates.time() - t0) , digits=2))
         
-        #@infiltrate; @assert false
+        if step_i == 2
+            @infiltrate; @assert false
+        end
     end
 
     printfmtln("\nsimulation time= {}\n", round((Dates.time() - t0) , digits=2))
+    return
     @infiltrate; @assert false
 
     # make animation

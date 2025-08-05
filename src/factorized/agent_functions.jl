@@ -147,6 +147,7 @@ function create_agent(model::NamedTuple, settings::NamedTuple; parameters=missin
                     info_gain_B,
                     info_gain_D,
                     history,
+                    0  # simulation_step
     )
 end
 
@@ -228,6 +229,7 @@ function infer_states!(agent::Agent, obs::NamedTuple{<:Any, <:NTuple{N, Int64} w
     # consistency test
     @assert keys(agent.model.obs) == keys(obs)
 
+    agent.sim_step += 1
     
     if !isnothing(agent.last_action)
         #=
