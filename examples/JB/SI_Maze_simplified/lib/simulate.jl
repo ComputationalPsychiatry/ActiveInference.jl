@@ -174,27 +174,24 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
     end
 
     printfmtln("\nsimulation time= {}\n", round((Dates.time() - t0) , digits=2))
-    return
-    @infiltrate; @assert false
-
+    
     # make animation
-    anim = Animation()
-    for p in plots
-        Plots.frame(anim, p)
-    end
-    Plots.gif(anim, gif_name, fps=1)
+    #anim = Animation()
+    #for p in plots
+    #    Plots.frame(anim, p)
+    #end
+    #Plots.gif(anim, gif_name, fps=1)
     
     results = Dict(
         :loc_id => history_of_locs,
         :EFE => history_of_EFE,
         :actions => history_of_actions,
-        :sq_error => history_of_sq_error,
-        :r => history_of_r,
+        #:sq_error => history_of_sq_error,
+        #:r => history_of_r,
         :cells => history_of_cells
     )
 
-    # 1000 steps in 4419 sec = 73.6 minutes
-    @infiltrate; @assert false
+    #@infiltrate; @assert false
 
     return results
 
