@@ -1,7 +1,7 @@
 # @infiltrate; @assert false
 
 import Setfield: @set
-
+import Test: @inferred
 
 #using Format
 #using Infiltrator
@@ -38,6 +38,7 @@ function create_agent(model::NamedTuple, settings::NamedTuple, float_type::Type;
     obs_names = [x.name for x in model.obs]
     qos = [zeros(float_type, x.A_dims[1]) for x in model.obs]
     qo = (; zip(obs_names, qos)...)
+    qo = Qo{float_type}(qo)
 
     G_actions = nothing
     G_policies = nothing
@@ -321,7 +322,8 @@ function infer_states!(
             agent.qs, 
             agent.current.action,
             agent 
-        )[1]
+        )[3][1]
+        #@infiltrate; @assert false
         set_vectors(agent.qs_prior, qs_prior) 
     end
 
@@ -346,9 +348,9 @@ end
 
 """ Update the agents's beliefs over policies """
 function infer_policies!(
-        agent::Agent, 
+        agent::Agent{T2}, 
         obs_current::NamedTuple{<:Any, <:NTuple{N, T} where {N, T}}
-    )
+    ) where {T2<:AbstractFloat}
 
     # Update posterior over policies and expected free energies of policies or actions
     

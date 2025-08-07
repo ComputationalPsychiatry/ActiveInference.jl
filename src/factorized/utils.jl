@@ -109,9 +109,9 @@ function select_B_actions(state::AI.State, policy, step_i=nothing, do_pB=false)
         B = state.B
     end
 
-    idx = nothing
+    idx = Vector{Union{Colon, Int64}}()
     if any([f in keys(policy) for f in state.B_dim_names])
-        idx = []
+        
         for (dep_i, dep) in enumerate(state.B_dim_names)
             if dep in keys(policy)
                 # this dep is an action
@@ -129,6 +129,7 @@ function select_B_actions(state::AI.State, policy, step_i=nothing, do_pB=false)
         B = B[idx...]  # select out actions, now only state dependencies left
     end
 
+    #@infiltrate; @assert false
     return B, idx
 end
 

@@ -58,7 +58,7 @@ function run_example()
             cells = cells,
             start_cell = [9,2], 
             policy_length = 15,
-            number_simulation_steps = 1,
+            number_simulation_steps = 10,
             number_simulations = 1,
             float_type = Float32,
         )
@@ -69,7 +69,7 @@ function run_example()
     settings = @set settings.EFE_over = [:policies,  :actions][2]
     settings = @set settings.policy_postprocessing_method = [:G_prob,  :G_prob_q_pi][2] 
     settings = @set settings.policy_inference_method = [:standard,  :sophisticated][1]
-    settings = @set settings.graph = [:none, :explicit, :implicit][3]
+    settings = @set settings.graph = [:none, :explicit, :implicit][1]
     
     settings = @set settings.use_param_info_gain = false
     settings = @set settings.SI_observation_prune_threshold = 1/16  
@@ -131,8 +131,8 @@ function run_example()
         #@infiltrate; @assert false
         println("\n\n")
 
-        @profilehtml simulate(model, agent, env, CONFIG, to_label, simulation_number)
-        @infiltrate; @assert false
+        #@profilehtml simulate(model, agent, env, CONFIG, to_label, simulation_number)
+        #@infiltrate; @assert false
         results = simulate(model, agent, env, CONFIG, to_label, simulation_number)
         push!(history, results)
     end

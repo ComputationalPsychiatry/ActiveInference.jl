@@ -59,7 +59,7 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
         end
 
         #AI.update_parameters!(agent)  # no parameter learning in this example
-        
+        #@infiltrate; @assert false
         AI.infer_policies!(agent, obs)
         
         #=

@@ -15,6 +15,8 @@ module Inference
 import LogExpFunctions as LEF
 import ActiveInference.ActiveInferenceFactorized as AI  
 
+import Test: @inferred
+
 using Format
 using Infiltrator
 
@@ -50,7 +52,7 @@ function get_expected_states(
     # earlystop_tests for current location
     if isa(model.policies.earlystop_tests, Function) && !model.policies.earlystop_tests(qs, model)
         # agent already believes it is at an early stop, before action
-        return missing  # missing is code for early stop
+        return (earlystop=true, filtered=false, qs=[qs])  # qs is a dummy, as a vector for type stability
     end
     
     n_steps = length(policy[1])  # policy length is the same for all actions, in SI not the same as policy length
@@ -65,13 +67,14 @@ function get_expected_states(
             
         if step_i == stop_early_at_step
             # stop early
-            return qs_pi[2:step_i]
+            return (earlystop=false, filtered=false, qs= qs_pi[2:step_i])
         end
 
         for (state_ii, state) in enumerate(model.states)
                         
             # select out actions from B matrix
             B, _ = AI.Utils.select_B_actions(state, policy, step_i)
+            
             
             # collect B dependencies
             deps = AI.Utils.collect_dependencies(qs_pi, state, policy, step_i)
@@ -94,7 +97,7 @@ function get_expected_states(
         # action_tests
         
         if isa(model.policies.action_tests, Function) && !model.policies.action_tests(qs_pi[step_i + 1], model)
-            return nothing # entire policy for all B matrices and actions is invalid
+            return (earlystop=false, filter=true, qs=[qs]) # entire policy for all B matrices and actions is invalid
         end
     
         # todo: perform policy_tests 
@@ -107,7 +110,7 @@ function get_expected_states(
                 
                 for acts in collect(zip(policy...))[step_i+1:end]
                     if acts != null_action_ids
-                        return nothing # entire policy for all B matrices and actions is invalid
+                        return (earlystop=false, filter=true, qs=[qs]) # entire policy for all B matrices and actions is invalid
                     end
                 end
                 
@@ -117,7 +120,7 @@ function get_expected_states(
         end
     end
     
-    return qs_pi[2:end]
+    return (earlystop=false, filtered=false, qs= qs_pi[2:end])
 end
 
 
@@ -144,15 +147,17 @@ function eval_policy(policy_i, policy_iterator, agent, qs_current, action_names,
     
     policy = policy_iterator[policy_i]
     policy = (; zip(action_names, policy)...)
-    qs_pi = get_expected_states(qs_current, policy, agent)  
+    earlystop, filtered, qs_pi = get_expected_states(qs_current, policy, agent) 
     
-    if isnothing(qs_pi)
+    #@infiltrate; @assert false
+    if earlystop
         # bad policy, given missing utility and info_gain, and zero EFE
         return
     end
 
     qo_pi = get_expected_obs(qs_pi, agent)  
-            
+    #@infiltrate; @assert false
+    
     # note: length of qs_pi and qo_pi will be less than policy length if early stop
 
     # Calculate expected utility
@@ -164,6 +169,7 @@ function eval_policy(policy_i, policy_iterator, agent, qs_current, action_names,
 
         # Otherwise calculate the expected utility and add it to the G vector
         utility_ = calc_expected_utility(qo_pi, agent)
+        
         
         # initialize this G?
         if ismissing(agent.G_policies[policy_i])
@@ -375,9 +381,12 @@ function update_posterior_policies!(agent::AI.Agent{T2}) where {T2<:AbstractFloa
     
 
 
-    fx(policy_i) = eval_policy(policy_i, policy_iterator, agent, qs_current, action_names, n_steps)
+    #fx(policy_i) = eval_policy(policy_i, policy_iterator, agent, qs_current, action_names, n_steps)
+    #@inferred fx(1)
+#@infiltrate; @assert false
+
     #pmap(i -> fx(i), 1:model.policies.n_policies)
-    map(i -> fx(i), 1:model.policies.n_policies)
+    map(i -> eval_policy(i, policy_iterator, agent, qs_current, action_names, n_steps), 1:model.policies.n_policies)
 
     if sum(skipmissing(agent.G_policies)) == 0
         #@infiltrate; @assert false  # All policies failed?
@@ -428,15 +437,20 @@ end
 
 """ Get Expected Observations """
 function get_expected_obs(
-        qs_pi::Vector{T} where {T <: NamedTuple{<:Any, <:NTuple{N, Vector{T2}} where {N}}},
+        #qs_pi::Vector{T} where {T <: NamedTuple{<:Any, <:NTuple{N, Vector{T2}} where {N}}},
+        qs_pi,
         agent::AI.Agent{T2}
     ) where {T2<:AbstractFloat}
     
     model = agent.model
     n_steps = length(qs_pi)  # this might be equal to or less than policy length, if stop was reached
     
-    qo_pi = [deepcopy(agent.qo) for _ in 1:n_steps]
-
+    qo_pi = Vector{AI.Qo{T2}}()
+    for i in 1:n_steps
+        push!(qo_pi, deepcopy(agent.qo))
+    end
+    #qo_pi = [deepcopy(agent.qo) for _ in 1:n_steps]
+    #@infiltrate; @assert false
     printflag = 0
     
     for step_i in 1:n_steps
@@ -471,8 +485,7 @@ function get_expected_obs(
                 end    
                 Am = res[1:end-1]
             end
-
-            qo_pi[step_i][obs.name][:] = qo
+            qo_pi[step_i].qo[obs.name][:] = qo
         end
     end
     #@infiltrate; @assert false
@@ -483,7 +496,7 @@ end
 
 """ Calculate Expected Utility """
 function calc_expected_utility(
-        qo_pi::Vector{T} where {T <: NamedTuple{<:Any, <:NTuple{N, Vector{T2}} where {N}}},
+        qo_pi::Vector{AI.Qo{T2}},
         agent::AI.Agent{T2}
     ) where {T2<:AbstractFloat}
     
@@ -525,7 +538,7 @@ function calc_expected_utility(
             
             lnC = AI.Maths.capped_log(C_prob)
             
-            expected_utility[step_i] += sum(qo_pi[step_i][pref.C_dim_names[1]] .* lnC)  # assumes 1-D pref
+            expected_utility[step_i] += sum(qo_pi[step_i].qo[pref.C_dim_names[1]] .* lnC)  # assumes 1-D pref
 
             if expected_utility[step_i] > 0
                 #@infiltrate; @assert false
@@ -544,7 +557,7 @@ end
 # --------------------------------------------------------------------------------------------------
 function calc_info_gain(
         qs::Vector{T} where {T <: NamedTuple{<:Any, <:NTuple{N, Vector{T2}} where {N}}}, 
-        qo::Vector{T} where {T <: NamedTuple{<:Any, <:NTuple{N, Vector{T2}} where {N}}}, 
+        qo::Vector{AI.Qo{T2}}, 
         agent::AI.Agent) where {T2<:AbstractFloat}
     """
     New version of expected information gain that takes into account sparse dependencies between observation modalities and hidden state factors.
@@ -561,17 +574,18 @@ function calc_info_gain(
         info_gains_per_modality = zeros(T2, length(model.obs))
         ambiguity_per_modality = zeros(T2, length(model.obs))
         qs_step = qs[step_i]
-        qo_step = qo[step_i]
+        qo_step = qo[step_i].qo
         
         for (obs_i, obs) in enumerate(model.obs)
             
             H_qo = AI.Maths.stable_entropy(qo_step[obs.name])
             #H_A = - sum(AI.Maths.stable_xlogx(obs.A), dims=1)
             
+            H_A = zeros(T2, (1,obs.A.size[2]))
             #if ndims(obs.A) == 2 && Set(unique(obs.A)) == Set([0,1])
             #    H_A = zeros(T2, (1,obs.A.size[2]))
             #else
-                H_A = - sum(LEF.xlogx.(obs.A), dims=1)
+            #    H_A = - sum(LEF.xlogx.(obs.A), dims=1)
             #end
             #@infiltrate; @assert false
             deps = AI.Utils.collect_dependencies(qs_step, obs)

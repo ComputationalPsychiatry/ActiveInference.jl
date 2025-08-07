@@ -13,6 +13,10 @@ mutable struct Current
     sim_step::Int64
 end
 
+mutable struct Qo{T<:AbstractFloat}
+    qo::NamedTuple{<:Any, <:NTuple{N, Vector{T}} where {N}}
+end
+
 struct State{T<:AbstractFloat}
     name::Symbol
     values::Union{UnitRange{Int64}, Vector{Int64}}
@@ -92,7 +96,7 @@ struct Agent{T<:AbstractFloat}
     qs_prior::NamedTuple{<:Any, <:NTuple{N, Vector{T}} where {N}}  # Prior beliefs about future states after potential action, before processing observations
     qs_prev::NamedTuple{<:Any, <:NTuple{N, Vector{T}} where {N}}  # Prior beliefs from last simulation step
     qs::NamedTuple{<:Any, <:NTuple{N, Vector{T}} where {N}}  # Current beliefs about states, after processing observations
-    qo::NamedTuple{<:Any, <:NTuple{N, Vector{T}} where {N}}  # Current beliefs about observations, just a placeholder, never written to
+    qo::Qo  # Current beliefs about observations, just a placeholder, never written to
             
     # policy group
     q_pi_policies::Union{Nothing, Vector{Union{Missing, T}}} # Posterior beliefs over policies/actions  
