@@ -24,7 +24,6 @@ import LogExpFunctions as LEF
 
 function simulate(model, agent, env, CONFIG, to_label, sim_i)
     
-    verbose = agent.settings.verbose
     verbose = true  # for testing
 
     t0 = Dates.time()
@@ -80,21 +79,25 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
         end
 
 
-        if verbose    
+        if verbose && agent.settings.verbose
             printfmtln("\ncounts of q_pi values = \n{}", StatsBase.countmap(round.(q_pi, digits=6)))
         end
 
-        idxs = findall(x -> !ismissing(x) && isapprox(x, maximum(skipmissing(q_pi))), q_pi)
-        if verbose && idxs.size[1] <= 10
-            printfmtln("\nmax q_pi at indexes= {}", idxs)
-            printfmtln("\npolicies at max q_pi= \n{}",  
-                [IterTools.nth(policies, ii)[1] for ii in idxs]
-            )
-        elseif verbose
-            printfmtln("\nmax q_pi at {} indexes", idxs.size[1])
-            printfmtln("\nexample policies at max q_pi= \n{}",  
-                [IterTools.nth(policies, ii)[1] for ii in idxs[1:min(10, idxs.size[1])]]
-            )
+        if verbose && agent.settings.verbose
+            idxs = findall(x -> !ismissing(x) && isapprox(x, maximum(skipmissing(q_pi))), q_pi)
+            if idxs.size[1] <= 10
+                idxs = findall(x -> !ismissing(x) && isapprox(x, maximum(skipmissing(q_pi))), q_pi)
+                printfmtln("\nmax q_pi at indexes= {}", idxs)
+                printfmtln("\npolicies at max q_pi= \n{}",  
+                    [IterTools.nth(policies, ii)[1] for ii in idxs]
+                )
+            else
+                idxs = findall(x -> !ismissing(x) && isapprox(x, maximum(skipmissing(q_pi))), q_pi)
+                printfmtln("\nmax q_pi at {} indexes", idxs.size[1])
+                printfmtln("\nexample policies at max q_pi= \n{}",  
+                    [IterTools.nth(policies, ii)[1] for ii in idxs[1:min(10, idxs.size[1])]]
+                )
+            end
         end
 
         # save results in database?
@@ -131,7 +134,7 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
                 step_i, action, ii, q_pi[ii], G[ii]
             )
             
-            if isnothing(agent.G_actions)
+            if isnothing(agent.G_actions) && agent.settings.verbose
                 printfmtln("\nutility= {}, sum= {}", agent.utility[ii, :], round(sum(skipmissing(agent.utility[ii, :])), digits=4))
 
                 printfmtln("\ninfo_gain= {}, sum= {}", agent.info_gain[ii, :], round(sum(skipmissing(agent.info_gain[ii, :])), digits=4))
@@ -146,7 +149,7 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
         #@infiltrate; @assert false
 
         # record EFE choice
-        if isnothing(agent.G_actions)
+        if false && isnothing(agent.G_actions)
             push!(history_of_EFE, [
                 sum(agent.info_gain[ii, :]), 
                 sum(agent.utility[ii, :]), 

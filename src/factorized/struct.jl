@@ -148,9 +148,9 @@ mutable struct ObsNode{T<:AbstractFloat}
     prob::Union{Nothing, Missing, T}
     prob_updated::Union{Nothing, Missing, T}
     
-    observation::NamedTuple{<:Any, <:NTuple{N, T} where {N}}
+    observation::NamedTuple{<:Any, <:NTuple{N, T1} where {N,T1}}
     level::Int64
-    policy::Union{Nothing, NamedTuple{<:Any, <:NTuple{N, T} where {N}}}
+    policy::Union{Nothing, NamedTuple{<:Any, <:NTuple{N, T1} where {N,T1}}}
 end
 
 
@@ -177,7 +177,7 @@ mutable struct ActionNode{T<:AbstractFloat}
     
     observation::NamedTuple{<:Any, <:NTuple{N, T2} where {N, T2}}
     level::Int64
-    policy::NamedTuple{<:Any, <:NTuple{N, T} where {N}}
+    policy::NamedTuple{<:Any, <:NTuple{N, T2} where {N, T2}}
 end
 
 

@@ -62,8 +62,8 @@ function xstable_xlogx(x::Matrix{T}) where {T<:AbstractFloat}
     MINVAL = eps(T)
     #z1 =  [LEF.xlogy.(z, clamp.(z, MINVAL, Inf)) for z in x]
     #z2 =  [LEF.xlogy.(z, z) for z in x]
-    z3 = LEF.xlogx.(z)
-    @infiltrate; @assert false
+    z3 = LEF.xlogx.(x)
+    #@infiltrate; @assert false
     return zz
 end
 

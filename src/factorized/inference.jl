@@ -567,7 +567,13 @@ function calc_info_gain(
             
             H_qo = AI.Maths.stable_entropy(qo_step[obs.name])
             #H_A = - sum(AI.Maths.stable_xlogx(obs.A), dims=1)
-            H_A = - sum(LEF.xlogx.(obs.A), dims=1)
+            
+            #if ndims(obs.A) == 2 && Set(unique(obs.A)) == Set([0,1])
+            #    H_A = zeros(T2, (1,obs.A.size[2]))
+            #else
+                H_A = - sum(LEF.xlogx.(obs.A), dims=1)
+            #end
+            #@infiltrate; @assert false
             deps = AI.Utils.collect_dependencies(qs_step, obs)
             H_A = AI.Maths.dot_product1(H_A, deps)
             

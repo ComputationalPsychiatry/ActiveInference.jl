@@ -61,7 +61,10 @@ to that have one or zero out edges.
 # --------------------------------------------------------------------------------------------------
 #### Policy Inference #### 
 """ Update Posterior over Policies """
-function update_posterior_policies!(agent::AI.Agent, obs_current::NamedTuple{<:Any, <:NTuple{N, T} where {N, T}})
+function update_posterior_policies!(
+        agent::AI.Agent{T2}, 
+        obs_current::NamedTuple{<:Any, <:NTuple{N, T} where {N,T}}
+    ) where {T2<:AbstractFloat}
     
     #@infiltrate; @assert false
     
@@ -106,8 +109,6 @@ function update_posterior_policies!(agent::AI.Agent, obs_current::NamedTuple{<:A
         agent.info_gain_D .= missing
     end
 
-    lnE = AI.Maths.capped_log(model.policies.E)
-    
     t0 = Dates.time()
 
     if !isnothing(agent.settings.random_seed)
@@ -116,11 +117,11 @@ function update_posterior_policies!(agent::AI.Agent, obs_current::NamedTuple{<:A
         rng = Random.Xoshiro()  
     end
 
-    ObsParent = AI.ObsNode(
+    ObsParent = AI.ObsNode{T2}(
         deepcopy(qs_current), 
         repeat([nothing], 6)..., 
-        1.0, 
-        1.0, 
+        T2.(1.0), 
+        T2.(1.0), 
         obs_current, 
         1,
         nothing,
@@ -610,7 +611,7 @@ function do_EFE_over_policies(siGraph, agent, leaves)
         @warn format("\nThe sum over G is zero.\n")
     end
 
-    Eidx = agent.model.policies.E[idx]
+    Eidx = agent.model.policies.E_policies[idx]
     lnE = AI.Maths.capped_log(Eidx)
     agent.q_pi_policies[idx] .= LEF.softmax(agent.G_policies[idx] * agent.parameters.gamma + lnE, dims=1)  
 
@@ -626,8 +627,14 @@ end
 
 
 # --------------------------------------------------------------------------------------------------
-function recurse(siGraph::Union{Nothing, MGN.MetaGraph}, ObsParent::AI.ObsNode, agent::AI.Agent, 
-        ObsLabel::Union{Nothing, Base.UUID}, action_names::Vector{Symbol}, rng::Random.Xoshiro)
+function recurse(
+        siGraph::Union{Nothing, MGN.MetaGraph}, 
+        ObsParent::AI.ObsNode, 
+        agent::AI.Agent{T2}, 
+        ObsLabel::Union{Nothing, Base.UUID}, 
+        action_names::Vector{Symbol}, 
+        rng::Random.Xoshiro
+    ) where {T2<:AbstractFloat}
     
     # todo: induction, info_gain_A, info_gain_B, info_gain_D are not yet handled
 
@@ -735,7 +742,7 @@ function recurse(siGraph::Union{Nothing, MGN.MetaGraph}, ObsParent::AI.ObsNode, 
         
         # add to graph 
         #@infiltrate; @assert false
-        ActionChild = AI.ActionNode(
+        ActionChild = AI.ActionNode{T2}(
             qs,  # size number of state variables [number of categories per variable]
             qs_pi[1], # size number of actions (=1) [number of state variables [ number of categories per variable]]
             qo_pi[1], # size number of actions (=1) [number of observation variables [ number of categories per variable]]
@@ -764,9 +771,9 @@ function recurse(siGraph::Union{Nothing, MGN.MetaGraph}, ObsParent::AI.ObsNode, 
 
         push!(children, ActionChild)  # children are ActionNodes
 
-        if agent.sim_step == 2 && level == 2 && policy == (move = (2, 1),)
-            @infiltrate; @assert false
-        end        
+        #if agent.sim_step == 2 && level == 2 && policy == (move = (2, 1),)
+        #    @infiltrate; @assert false
+        #end        
         
     end 
     
@@ -905,7 +912,7 @@ function recurse(siGraph::Union{Nothing, MGN.MetaGraph}, ObsParent::AI.ObsNode, 
             prob = 1.0
             obs = (; zip(obs_names, zeros(length(obs_names)))...)  # dummy obs
             
-            ObsParent = AI.ObsNode(
+            ObsParent = AI.ObsNode{T2}(
                 qs_next,
                 nothing,  # utility_updated
                 nothing,  # info_gain_updated
@@ -981,7 +988,7 @@ function recurse(siGraph::Union{Nothing, MGN.MetaGraph}, ObsParent::AI.ObsNode, 
             # ObsLabel = vcat(ActionLabel, Label(level, observation, siGraph[ActionLabel].action, "Obs"))  # longer
             ObsLabel = UUIDs.uuid1(rng) 
 
-            ObsParent = AI.ObsNode(
+            ObsParent = AI.ObsNode{T2}(
                 qs_next,
                 nothing,  # utility_updated
                 nothing,  # info_gain_updated
@@ -1035,6 +1042,7 @@ function recurse(siGraph::Union{Nothing, MGN.MetaGraph}, ObsParent::AI.ObsNode, 
         printfmtln("    level = {}, ending idx loop", level)
     end
 
+    # todo: no logE??
     q_pi_children = LEF.softmax(G_children * agent.parameters.gamma)
     return (G_children=G_children, q_pi_children=q_pi_children)  # return the (pruned) children after generating futher children
         

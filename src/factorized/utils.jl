@@ -99,11 +99,14 @@ function select_B_actions(state::AI.State, policy, step_i=nothing, do_pB=false)
     # select actions out of B matrix, returning the rest
     # e.g state.B_dim_names = [:self, :loc, :move], with last being an action
     
+
     if do_pB
         @assert !ismissing(state.pB) && !isnothing(state.pB)
-        B = copy(state.pB)
+        #B = copy(state.pB)
+        B = state.pB
     else
-        B = copy(state.B)
+        #B = copy(state.B)
+        B = state.B
     end
 
     idx = nothing
