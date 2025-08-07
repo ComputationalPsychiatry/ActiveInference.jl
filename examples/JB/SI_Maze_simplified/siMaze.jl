@@ -51,21 +51,22 @@ function run_example()
         grid = reshape(1:grid_size, (grid_dims[2], grid_dims[1]))
         cells = [[i, j] for j in 1:grid_dims[2] for i in 1:grid_dims[1] ]
         
-        global CONFIG = (
+        CONFIG = (
             experiment = experiment,
             grid_dims = grid_dims,
             grid = grid,
             cells = cells,
             start_cell = [9,2], 
-            policy_length = 12,
+            policy_length = 15,
             number_simulation_steps = 1,
             number_simulations = 1,
+            float_type = Float32,
         )
     end
 
     # get_settings and modify as needed
     settings = AI.get_settings()
-    settings = @set settings.EFE_over = [:policies,  :actions][1]
+    settings = @set settings.EFE_over = [:policies,  :actions][2]
     settings = @set settings.policy_postprocessing_method = [:G_prob,  :G_prob_q_pi][2] 
     settings = @set settings.policy_inference_method = [:standard,  :sophisticated][1]
     settings = @set settings.graph = [:none, :explicit, :implicit][1]
@@ -97,7 +98,7 @@ function run_example()
     make_A(model, CONFIG)
     make_B(model, CONFIG)
 
-    env = init_env(model, CONFIG.start_cell)
+    env = init_env(model, CONFIG.start_cell, CONFIG.float_type)
     
     # no preferences for loc or walls
     model.preferences.safe_pref.C[:] = [1.0, -1.0] # Preference for safe Locations
@@ -121,15 +122,17 @@ function run_example()
     
     #@infiltrate; @assert false
     for simulation_number in 1:number_simulations
-        global CONFIG
+        #global CONFIG
         agent = AI.create_agent(
             model,
             settings, 
+            CONFIG.float_type
         )
+        #@infiltrate; @assert false
         println("\n\n")
 
-        #@profilehtml simulate(model, agent, env, CONFIG, to_label, simulation_number)
-        #@infiltrate; @assert false
+        @profilehtml simulate(model, agent, env, CONFIG, to_label, simulation_number)
+        @infiltrate; @assert false
         results = simulate(model, agent, env, CONFIG, to_label, simulation_number)
         push!(history, results)
     end

@@ -4,21 +4,22 @@
 ################################ ENVIRONMENT ###################################
 ################################################################################
 
-mutable struct SI_MAZE_ENV
+mutable struct SI_MAZE_ENV{T<:AbstractFloat}
     maze::Matrix{Int}
-    preferences::Matrix{Float64}
+    preferences::Matrix{T}
     agent_row::Int
     agent_col::Int
     model
 end
 
 
-function init_env(model, START)
+function init_env(model, START, float_type::Type)
     start_id = findfirst(x -> x == START, model.states.loc.labels)
     nrows = size(model.states.loc.extra.MAZE, 1)
     row = (start_id - 1) % nrows + 1
     col = Int((start_id - 1) ÷ nrows + 1)
-    return SI_MAZE_ENV(model.states.loc.extra.MAZE, model.obs.safe_obs.extra.PREFERENCES, row, col, model)
+    PREF = float_type.(model.obs.safe_obs.extra.PREFERENCES)
+    return SI_MAZE_ENV(model.states.loc.extra.MAZE, PREF, row, col, model)
 end
 
 

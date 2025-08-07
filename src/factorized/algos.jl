@@ -19,11 +19,16 @@ using Infiltrator
 # @infiltrate; @assert false
 
 
-function all_marginal_log_likelihood(qs, LL, ii, jj, agent)
+function all_marginal_log_likelihood(
+        qs::NamedTuple{<:Any, <:NTuple{N, Vector{T2}} where {N}},
+        LL::Matrix{T2}, 
+        ii::Int64, 
+        jj::Int64, 
+        agent::AI.Agent{T2}
+    ) where {T2<:AbstractFloat}
+
     # returns a new version of qs updated by marginalizing over all dependencies but dependency ii
-
     
-
     if ndims(LL) == 2 #&& LL.size[2] == 1)
         # nothing to do, this is just A[obs,:]
         return dropdims(LL, dims=1)
@@ -31,7 +36,6 @@ function all_marginal_log_likelihood(qs, LL, ii, jj, agent)
 
     @infiltrate; @assert false  # ?? LL is e.g., 1x9 by design, never 9x1
     
-    @infiltrate; @assert false
     state = keys(metamodel.state_deps)[ii]
     obs_deps = metamodel.obs_deps[jj][2:end]
     dep_ids = [findfirst(x -> x == j, keys(metamodel.state_deps)) for j in obs_deps]
@@ -46,7 +50,7 @@ function all_marginal_log_likelihood(qs, LL, ii, jj, agent)
         dep_ids = dep_ids2
     end
 
-    deps = Vector{Vector{Float64}}()
+    deps = Vector{Vector{T2}}()
     for idep in reverse(dep_ids[2:end])   
         push!(deps, qs[idep])
     end
@@ -63,7 +67,10 @@ function all_marginal_log_likelihood(qs, LL, ii, jj, agent)
 end
 
 
-function run_factorized_fpi(agent::AI.Agent, new_obs::NamedTuple{<:Any, <:NTuple{N, Int64} where {N}})
+function run_factorized_fpi(
+        agent::AI.Agent{T2}, 
+        new_obs::NamedTuple{<:Any, <:NTuple{N, Int64} where {N}}
+    ) where {T2<:AbstractFloat}
     
     """
     Run the fixed point iteration algorithm with sparse dependencies between factors and outcomes 
@@ -79,12 +86,12 @@ function run_factorized_fpi(agent::AI.Agent, new_obs::NamedTuple{<:Any, <:NTuple
     =#
     
     obs_names = [x.name for x in model.obs]
-    mLLs = [zeros((1, x.A_dims[2:end]...)) for x in model.obs]
+    mLLs = [zeros(T2, (1, x.A_dims[2:end]...)) for x in model.obs]
     marginal_LLs = (; zip(obs_names, mLLs)...)
 
     #log_likelihoods = []
     for (ii, obs) in enumerate(agent.model.obs)
-        obs_ii = AI.Maths.onehot(new_obs[ii], obs.A_dims[1])
+        obs_ii = AI.Maths.onehot(new_obs[ii], obs.A_dims[1], T2)
         dims = repeat([1], length(obs.A_dims))
         dims[1] = obs_ii.size[1]  # e.g., [9,1,1] for 3-dim A with 9 categories
         obs_ii = reshape(obs_ii, dims...)
@@ -100,7 +107,7 @@ function run_factorized_fpi(agent::AI.Agent, new_obs::NamedTuple{<:Any, <:NTuple
 
     qs_current = deepcopy(agent.qs)
     for qs in qs_current
-        qs[:] = ones(length(qs)) / length(qs)
+        qs[:] = ones(T2, length(qs)) / length(qs)
     end
     last = deepcopy(qs_current)
     
@@ -119,7 +126,7 @@ function run_factorized_fpi(agent::AI.Agent, new_obs::NamedTuple{<:Any, <:NTuple
         #qs = [LEF.softmax(x) for x in new_log_q]
         
         for (ii, state) in enumerate(model.states)
-            qL = zeros(log_prior[ii].size)
+            qL = zeros(T2, log_prior[ii].size)
             
             for (jj, obs) in enumerate(model.obs)
                 if state.name in obs.A_dim_names

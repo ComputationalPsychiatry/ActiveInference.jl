@@ -8,7 +8,7 @@ import Setfield: @set
 #using Revise
 
 # Create ActiveInference Agent 
-function create_agent(model::NamedTuple, settings::NamedTuple, float_type::Type; parameters=missing)
+function create_agent(model::NamedTuple, settings::NamedTuple; parameters=missing)
     #=
     Before initializing the agent, we preform validation tests, fill in missing values, give 
     warnings, check types, create qs and EFE objects, and so on. Formal type checking occurs when we 
@@ -21,22 +21,16 @@ function create_agent(model::NamedTuple, settings::NamedTuple, float_type::Type;
         parameters = get_parameters()
     end
 
-    k = keys(parameters)
-    v = values(parameters)
-    parameters = (; zip(k, float_type.(v))...)
-
-    Validate.validate(model, settings, float_type, parameters)
-    model = Validate.complete(model, settings, float_type, parameters) 
+    Validate.validate(model, settings, parameters)
+    model = Validate.complete(model, settings, parameters) 
 
     state_names = [x.name for x in model.states]
     qss = [x.D for x in model.states]
-    qss = [float_type.(x) for x in qss]
     qs = (; zip(state_names, qss)...)
     qs_prior = deepcopy(qs)
-    qs_prev = deepcopy(qs)
 
     obs_names = [x.name for x in model.obs]
-    qos = [zeros(float_type, x.A_dims[1]) for x in model.obs]
+    qos = [zeros(x.A_dims[1]) for x in model.obs]
     qo = (; zip(obs_names, qos)...)
 
     G_actions = nothing
@@ -49,29 +43,29 @@ function create_agent(model::NamedTuple, settings::NamedTuple, float_type::Type;
         # if using a graph, always return G_actions and q_pi_actions
         n_actions = length(collect(model.policies.action_iterator))
         
-        q_pi_actions = zeros(Union{Missing, float_type}, n_actions) 
-        G_actions = zeros(Union{Missing, float_type}, n_actions)
+        q_pi_actions = zeros(Union{Missing, Float64}, n_actions) 
+        G_actions = zeros(Union{Missing, Float64}, n_actions)
                 
         # todo: we don't need to record utility etc. in matrices internally if setting.return_EFE_decompositions=false
-        utility = zeros(Union{Missing, float_type}, (n_actions, 1))
-        info_gain = zeros(Union{Missing, float_type}, (n_actions, 1))
-        risk = zeros(Union{Missing, float_type}, (n_actions, 1))
-        ambiguity = zeros(Union{Missing, float_type}, (n_actions, 1))
+        utility = zeros(Union{Missing, Float64}, (n_actions, 1))
+        info_gain = zeros(Union{Missing, Float64}, (n_actions, 1))
+        risk = zeros(Union{Missing, Float64}, (n_actions, 1))
+        ambiguity = zeros(Union{Missing, Float64}, (n_actions, 1))
         
         info_gain_A = nothing
         info_gain_B = nothing
         info_gain_D = nothing
 
         if !all([isnothing(obs.pA) for obs in model.obs]) 
-            info_gain_A = zeros(Union{Missing, float_type}, (n_actions, 1))
+            info_gain_A = zeros(Union{Missing, Float64}, (n_actions, 1))
         end
 
         if !all([isnothing(state.pB) for state in model.states]) 
-            info_gain_B = zeros(Union{Missing, float_type}, (n_actions, 1))
+            info_gain_B = zeros(Union{Missing, Float64}, (n_actions, 1))
         end
 
         if !all([isnothing(state.pD) for state in model.states]) 
-            info_gain_D = zeros(Union{Missing, float_type}, (n_actions, 1))
+            info_gain_D = zeros(Union{Missing, Float64}, (n_actions, 1))
         end
     end
 
@@ -81,43 +75,43 @@ function create_agent(model::NamedTuple, settings::NamedTuple, float_type::Type;
         || settings.EFE_over == :actions && settings.policy_inference_method == :standard && settings.graph == :none
         )
         
-        G_policies = zeros(Union{Missing, float_type}, model.policies.n_policies)
+        G_policies = zeros(Union{Missing, Float64}, model.policies.n_policies)
 
         if settings.EFE_over == :actions && settings.policy_inference_method == :standard && settings.graph == :none
             n_actions = length(collect(model.policies.action_iterator))
-            q_pi_actions = zeros(Union{Missing, float_type}, n_actions) 
-            G_actions = zeros(Union{Missing, float_type}, n_actions)
+            q_pi_actions = zeros(Union{Missing, Float64}, n_actions) 
+            G_actions = zeros(Union{Missing, Float64}, n_actions)
         else
-            q_pi_policies = zeros(Union{Missing, float_type}, model.policies.n_policies) 
+            q_pi_policies = zeros(Union{Missing, Float64}, model.policies.n_policies) 
         end
 
         # todo: we don't need to record utility etc. in matrices internally if setting.return_EFE_decompositions=false
-        utility = zeros(Union{Missing, float_type}, (model.policies.n_policies, model.policies.policy_length))
-        info_gain = zeros(Union{Missing, float_type}, (model.policies.n_policies, model.policies.policy_length))
-        risk = zeros(Union{Missing, float_type}, (model.policies.n_policies, model.policies.policy_length))
-        ambiguity = zeros(Union{Missing, float_type}, (model.policies.n_policies, model.policies.policy_length))
+        utility = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
+        info_gain = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
+        risk = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
+        ambiguity = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
         
         info_gain_A = nothing
         info_gain_B = nothing
         info_gain_D = nothing
 
         if !all([isnothing(obs.pA) for obs in model.obs]) 
-            info_gain_A = zeros(Union{Missing, float_type}, (model.policies.n_policies, model.policies.policy_length))
+            info_gain_A = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
         end
 
         if !all([isnothing(state.pB) for state in model.states]) 
-            info_gain_B = zeros(Union{Missing, float_type}, (model.policies.n_policies, model.policies.policy_length))
+            info_gain_B = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
         end
 
         if !all([isnothing(state.pD) for state in model.states]) 
-            info_gain_D = zeros(Union{Missing, float_type}, (model.policies.n_policies, model.policies.policy_length))
+            info_gain_D = zeros(Union{Missing, Float64}, (model.policies.n_policies, model.policies.policy_length))
         end
     
     end
     
     last_action = nothing 
     
-    #= initialize history NamedTuple
+    # initialize history NamedTuple
     history = (
         qs = [],
         actions = [],
@@ -132,86 +126,28 @@ function create_agent(model::NamedTuple, settings::NamedTuple, float_type::Type;
             SAPE = [],
         )
     end
-    =#
-
-    current = Current(nothing, 0)
-
-    # todo: put these constructors of model into try-catch
-    state_names = [x.name for x in model.states]
-    state_info = [State{float_type}(x...) for x in model.states]
-    states = (; zip(state_names, state_info)...)
-
-    obs_names = [x.name for x in model.obs]
-    obs_info = [Obs{float_type}(x...) for x in model.obs]
-    obs = (; zip(obs_names, obs_info)...)
-
-    action_names = [x.name for x in model.actions]
-    action_info = [Action(x...) for x in model.actions]
-    actions = (; zip(action_names, action_info)...)
-
-    pref_names = [x.name for x in model.preferences]
-    pref_info = [Preference{float_type}(x...) for x in model.preferences]
-    preferences = (; zip(pref_names, pref_info)...)
-
-    policies = Policies{float_type}(model.policies...)
-    
-    model = (
-        states = states,
-        obs = obs,
-        actions = actions,
-        preferences = preferences,
-        policies = policies
-    )
-
-#=
-@NamedTuple{
-    states::NamedTuple{<:Any, <:NTuple{N, State{float_type}} where {N}},
-    obs::NamedTuple{<:Any, <:NTuple{N, Obs{float_type}} where {N}},
-    actions::NamedTuple{<:Any, <:NTuple{N, Action} where {N}},
-    preferences::NamedTuple{<:Any, <:NTuple{N, Preference{float_type}} where {N}},
-    policies::Policies{float_type}}
-
-
-@NamedTuple{
-    states::@NamedTuple{
-        loc::ActiveInference.ActiveInferenceFactorized.State{Float32}}, 
-    obs::@NamedTuple{
-        loc_obs::ActiveInference.ActiveInferenceFactorized.Obs{Float32}, 
-        wall_obs::ActiveInference.ActiveInferenceFactorized.Obs{Float32}, 
-        safe_obs::ActiveInference.ActiveInferenceFactorized.Obs{Float32}}, 
-    actions::@NamedTuple{
-        move::ActiveInference.ActiveInferenceFactorized.Action}, 
-    preferences::@NamedTuple{
-        loc_pref::ActiveInference.ActiveInferenceFactorized.Preference{Float32}, 
-        wall_pref::ActiveInference.ActiveInferenceFactorized.Preference{Float32}, 
-        safe_pref::ActiveInference.ActiveInferenceFactorized.Preference{Float32}}, 
-    policies::ActiveInference.ActiveInferenceFactorized.Policies{Float32}}
-
-
-=#
-
 
     #@infiltrate; @assert false
-    return Agent{float_type}(
-                model,
-                settings,
-                parameters,
-                current,
-                qs_prior,
-                qs_prev,
-                qs,
-                qo,
-                q_pi_policies,
-                q_pi_actions,
-                G_policies,
-                G_actions,
-                utility,
-                info_gain, 
-                risk,
-                ambiguity, 
-                info_gain_A, 
-                info_gain_B,
-                info_gain_D,
+    return Agent(   model,
+                    parameters,
+                    settings,
+                    last_action,
+                    qs_prior,
+                    qs,
+                    qo,
+                    q_pi_policies,
+                    q_pi_actions,
+                    G_policies,
+                    G_actions,
+                    utility,
+                    info_gain, 
+                    risk,
+                    ambiguity, 
+                    info_gain_A, 
+                    info_gain_B,
+                    info_gain_D,
+                    history,
+                    0  # simulation_step
     )
 end
 
@@ -222,6 +158,7 @@ function get_settings()
     settings = (
         
         # general group
+        #use_Float64 = true,  # todo: Float32 not yet implemented
         save_history = false,
 
         # EFE calculation group
@@ -285,27 +222,16 @@ function get_parameters()
 end
 
 
-function set_vectors(old, new)
-    for (i,k) in enumerate(old)
-        k[:] = new[i]
-    end
-    return old
-end
-
-
 """ Update the agents's beliefs over states """
-function infer_states!(
-        agent::Agent, 
-        obs::NamedTuple{<:Any, <:NTuple{N, Int64} where {N}}
-    ) 
+function infer_states!(agent::Agent, obs::NamedTuple{<:Any, <:NTuple{N, Int64} where {N}}) 
     
     # todo: do similar consistency checks on all incoming objects from user (obs, actions, etc.) 
     # consistency test
     @assert keys(agent.model.obs) == keys(obs)
 
-    agent.current.sim_step += 1
+    agent.sim_step += 1
     
-    if !isnothing(agent.current.action)
+    if !isnothing(agent.last_action)
         #=
         An action has been taken, and new obs is available, but the agent hasn't processed the obs
         yet. Here we calculate qs_prior, beliefs about states resulting from the action. Note that 
@@ -314,42 +240,34 @@ function infer_states!(
         So here we calculate it again. The prior will be used later, in update_posterior_states, which
         uses the new observation.
         =#  
-        
-        set_vectors(agent.qs_prev, agent.qs)  # save current qs before changing it
-
-        qs_prior = Inference.get_expected_states(
+        agent.qs_prior = Inference.get_expected_states(
             agent.qs, 
-            agent.current.action,
+            agent.last_action,
             agent 
-        )[1]
-        set_vectors(agent.qs_prior, qs_prior) 
+        )[1] 
     end
 
     # Update posterior over states
     qs_current = Inference.update_posterior_states(agent, obs)  
 
     # @set qs in model
-    set_vectors(agent.qs, qs_current)
-        
+    agent.qs = qs_current
+    
     # Adding the obs to the agent struct
     #agent.obs_current = obs
 
     # Push changes to agent's history
-    #push!(agent.history.qs, deepcopy(agent.qs))
-    #if agent.settings.save_history
-    #    push!(agent.history.qs_prior, deepcopy(agent.qs_prior))
-    #end
+    push!(agent.history.qs, deepcopy(agent.qs))
+    if agent.settings.save_history
+        push!(agent.history.qs_prior, deepcopy(agent.qs_prior))
+    end
 
     return 
 end
 
 
 """ Update the agents's beliefs over policies """
-function infer_policies!(
-        agent::Agent, 
-        obs_current::NamedTuple{<:Any, <:NTuple{N, T} where {N, T}}
-    )
-
+function infer_policies!(agent::Agent, obs_current::NamedTuple{<:Any, <:NTuple{N, T} where {N, T}})
     # Update posterior over policies and expected free energies of policies or actions
     
     if agent.settings.policy_inference_method == :sophisticated || agent.settings.graph != :none
@@ -371,8 +289,6 @@ end
 
 """ Sample action from the beliefs over policies """
 function sample_action!(agent::Agent)
-    
-    @infiltrate; @assert false
     action = sample_action(
         agent.Q_pi, 
         agent.policies, 
@@ -402,10 +318,10 @@ end
 
 
 """ Update B-matrix """
-function update_B!(agent::Agent{T}) where {T<:AbstractFloat}
+function update_B!(agent::Agent)
     
-    if agent.current.sim_step > 1  
-        qs_prev = agent.qs_prev
+    if length(agent.history.qs) > 1  
+        qs_prev = agent.history.qs[end-1]
         Learning.update_state_likelihood_dirichlet!(agent, qs_prev)
     end
     #@infiltrate; @assert false

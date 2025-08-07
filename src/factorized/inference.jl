@@ -3,14 +3,27 @@
 
 module Inference
 
+#using Distributed
+#addprocs(4; exeflags="--project")
 
+#if nworkers() < 4
+#    addprocs(4, exeflags=`--project=$(Base.active_project()) -t 200`)
+#end
+#println(nworkers())
+#@everywhere begin
 
 import LogExpFunctions as LEF
-import ActiveInference.ActiveInferenceFactorized as AI  #todo: is this OK?
-
+import ActiveInference.ActiveInferenceFactorized as AI  
 
 using Format
 using Infiltrator
+
+#Distributed.@everywhere import LogExpFunctions as LEF
+#Distributed.@everywhere import ActiveInference.ActiveInferenceFactorized as AI 
+#Distributed.@everywhere import Pkg
+#Distributed.@everywhere Pkg.activate()
+
+
 #using Revise
 
 #include("./algos.jl")
@@ -27,15 +40,15 @@ using Infiltrator
 
 """ Get Expected States """
 function get_expected_states(
-    qs::NamedTuple{<:Any, <:NTuple{N, Vector{Float64}} where {N}}, 
+    qs::NamedTuple{<:Any, <:NTuple{N, Vector{T2}} where {N}}, 
     policy::NamedTuple, 
-    agent::AI.Agent
-    )
+    agent::AI.Agent{T2}
+    ) where {T2<:AbstractFloat}
     
     model = agent.model
 
     # earlystop_tests for current location
-    if !model.policies.earlystop_tests(qs, model)
+    if isa(model.policies.earlystop_tests, Function) && !model.policies.earlystop_tests(qs, model)
         # agent already believes it is at an early stop, before action
         return missing  # missing is code for early stop
     end
@@ -63,7 +76,6 @@ function get_expected_states(
             # collect B dependencies
             deps = AI.Utils.collect_dependencies(qs_pi, state, policy, step_i)
             
-            #@infiltrate; @assert false
             qs_new = AI.Maths.dot_product1(B, deps)
 
             #if isapprox(qs_pi[step_i][state.name], qs_new)
@@ -71,7 +83,8 @@ function get_expected_states(
             #end
 
             if !isapprox(sum(qs_new), 1.0)
-                @infiltrate; @assert false
+                #@infiltrate; @assert false
+                @assert false
             end
             
             #printfmtln("    {}", qs_new) 
@@ -80,7 +93,7 @@ function get_expected_states(
 
         # action_tests
         
-        if !model.policies.action_tests(qs_pi[step_i + 1], model)
+        if isa(model.policies.action_tests, Function) && !model.policies.action_tests(qs_pi[step_i + 1], model)
             return nothing # entire policy for all B matrices and actions is invalid
         end
     
@@ -88,8 +101,10 @@ function get_expected_states(
         
         # earlystop_tests
         if step_i < n_steps 
-            if !model.policies.earlystop_tests(qs_pi[step_i + 1], model)
+            if isa(model.policies.earlystop_tests, Function) && !model.policies.earlystop_tests(qs_pi[step_i + 1], model)
                 # are all remaining actions a null action, like "stay"
+                @assert any(null_action_ids .== nothing) "If early stopping is used, each action must have a specified null action"
+                
                 for acts in collect(zip(policy...))[step_i+1:end]
                     if acts != null_action_ids
                         return nothing # entire policy for all B matrices and actions is invalid
@@ -124,9 +139,195 @@ function update_posterior_states(agent::AI.Agent, obs::NamedTuple{<:Any, <:NTupl
 end
 
 
+
+function eval_policy(policy_i, policy_iterator, agent, qs_current, action_names, n_steps)
+    
+    policy = policy_iterator[policy_i]
+    policy = (; zip(action_names, policy)...)
+    qs_pi = get_expected_states(qs_current, policy, agent)  
+    
+    if isnothing(qs_pi)
+        # bad policy, given missing utility and info_gain, and zero EFE
+        return
+    end
+
+    qo_pi = get_expected_obs(qs_pi, agent)  
+            
+    # note: length of qs_pi and qo_pi will be less than policy length if early stop
+
+    # Calculate expected utility
+    if agent.settings.use_utility
+        # If ReverseDiff is tracking the expected utility, get the value
+        #if ReverseDiff.istracked(calc_expected_utility(qo_pi, agent.C))
+        #    @infiltrate; @assert false
+        #    G[policy_i] += ReverseDiff.value(calc_expected_utility(qo_pi, C))
+
+        # Otherwise calculate the expected utility and add it to the G vector
+        utility_ = calc_expected_utility(qo_pi, agent)
+        
+        # initialize this G?
+        if ismissing(agent.G_policies[policy_i])
+            agent.G_policies[policy_i] = 0
+        end
+
+        if length(utility_) == n_steps && agent.settings.EFE_reduction == :sum
+            # use sum  
+            agent.G_policies[policy_i] += sum(utility_) 
+        
+        elseif agent.settings.EFE_reduction == :min_max
+            agent.G_policies[policy_i] += (maximum(skipmissing(utility_)) + minimum(skipmissing(utility_))) / 2  # handles missings
+        
+        elseif agent.settings.EFE_reduction == :custom
+            agent.G_policies[policy_i] += agent.model.policies.utility_reduction_fx(utility_)
+        
+        elseif length(utility_) < n_steps && agent.settings.EFE_reduction == :sum
+            try
+                error("There may be missing values in utility vectors; EFE_reduction = :sum cannot be used.")
+            catch e
+                # Add context and rethrow the error
+                error("$(e)")
+            end
+        end
+
+        agent.utility[policy_i, 1:utility_.size[1]] = utility_
+        #@infiltrate; @assert false 
+    end
+
+    # Calculate expected information gain of states
+    if agent.settings.use_states_info_gain
+        # If ReverseDiff is tracking the information gain, get the value
+        #if false && ReverseDiff.istracked(calc_states_info_gain(agent.A, qs_pi))  # todo??
+        #    @infiltrate; @assert false
+        #    G[policy_i] += ReverseDiff.value(calc_states_info_gain(A, qs_pi))
+
+        # Otherwise calculate it and add it to the G vector
+        
+        info_gain_, ambiguity_ = calc_info_gain(qs_pi, qo_pi, agent)
+        
+        # initialize this G?
+        if ismissing(agent.G_policies[policy_i])
+            agent.G_policies[policy_i] = 0
+        end
+
+        if length(info_gain_) == n_steps && agent.settings.EFE_reduction == :sum
+            # use sum  
+            agent.G_policies[policy_i] += sum(info_gain_)  
+        
+        elseif agent.settings.EFE_reduction == :min_max
+            agent.G_policies[policy_i] += maximum(skipmissing(info_gain_))   # handles missings
+        
+        elseif agent.settings.EFE_reduction == :custom
+            agent.G_policies[policy_i] += agent.model.policies.info_gain_reduction_fx(info_gain_)
+        
+        elseif length(info_gain_) < n_steps && agent.settings.EFE_reduction == :sum
+            try
+                error("There may be missing values in info_gain vectors; EFE_reduction = :sum cannot be used.")
+            catch e
+                # Add context and rethrow the error
+                error("$(e)")
+            end
+        end
+        
+        # todo: should risk and ambiguity include info_gain_A, etc?
+        agent.info_gain[policy_i,1:info_gain_.size[1]] = info_gain_
+        agent.ambiguity[policy_i,1:ambiguity_.size[1]] = ambiguity_
+        agent.risk[policy_i,1:ambiguity_.size[1]] = (
+            agent.utility[policy_i, 1:ambiguity_.size[1]]
+            .+ info_gain_
+            .- ambiguity_
+        )
+        @assert isapprox(info_gain_ + utility_, agent.risk[policy_i,1:ambiguity_.size[1]] + ambiguity_)
+        #@infiltrate; @assert false
+    end
+
+
+    # Calculate expected information gain of parameters (learning)
+    if agent.settings.use_param_info_gain
+        
+        if agent.info_gain_A !== nothing
+            #@infiltrate; @assert false  # todo
+            @assert false
+
+            # if ReverseDiff is tracking pA information gain, get the value
+            if ReverseDiff.istracked(calc_pA_info_gain(pA, qo_pi, qs_pi))
+                agent.G_policies[policy_i] += ReverseDiff.value(calc_pA_info_gain(pA, qo_pi, qs_pi))
+            # Otherwise calculate it and add it to the G vector
+            else
+                # initialize this G?
+                if ismissing(agent.G_policies[policy_i])
+                    agent.G_policies[policy_i] = 0
+                end
+
+                agent.G_policies[policy_i] += calc_pA_info_gain(agent.pA, qo_pi, qs_pi)
+            end
+        end
+
+
+        if agent.info_gain_B !== nothing
+            #@infiltrate; @assert false
+            info_gain_B_ = calc_pB_info_gain(agent, qs_pi, qs_current, policy)
+            # use sum  
+            # initialize this G?
+            if ismissing(agent.G_policies[policy_i])
+                agent.G_policies[policy_i] = 0
+            end
+            
+            if length(info_gain_B_) == n_steps && agent.settings.EFE_reduction == :sum
+                agent.G_policies[policy_i] += sum(info_gain_B_)  
+        
+            elseif agent.settings.EFE_reduction == :min_max
+                agent.G_policies[policy_i] += maximum(skipmissing(info_gain_B_))   # handles missings
+            
+            elseif agent.settings.EFE_reduction == :custom
+                agent.G_policies[policy_i] += agent.model.policies.info_gain_reduction_fx(info_gain_B_)
+            
+            elseif length(info_gain_B_) < n_steps && agent.settings.EFE_reduction == :sum
+                try
+                    error("There may be missing values in info_gain_B vectors; EFE_reduction = :sum cannot be used.")
+                catch e
+                    # Add context and rethrow the error
+                    error("$(e)")
+                end
+            end
+            
+            agent.info_gain_B[policy_i,1:info_gain_B_.size[1]] = info_gain_B_
+            #@infiltrate; @assert false  # todo
+        end
+
+
+        if agent.info_gain_D !== nothing
+            #@infiltrate; @assert false  # todo
+            @assert false
+            
+            info_gain_B_ = calc_pD_info_gain(agent.pB, qs_pi, qs, policy, agent.metamodel)
+            # initialize this G?
+            if ismissing(agent.G_policies[policy_i])
+                agent.G_policies[policy_i] = 0
+            end
+            
+            if length(info_gain_B_) == n_steps
+                if agent.use_sum_for_calculating_G && !any(ismissing.(info_gain_B_))
+                    # use sum
+                    agent.G_policies[policy_i] += sum(info_gain_B_)  
+                else
+                    # use extremes; todo: pass in desired function for this
+                    agent.G_policies[policy_i] += maximum(info_gain_B_) 
+                end
+            else
+                # early stop, use extremes; todo: pass in desired function for this
+                @assert agent.use_sum_for_calculating_G == false  # a info_gain is short, sum cannot be used for any
+                agent.G_policies[policy_i] += maximum(skipmissing(info_gain_B_)) 
+            end  
+            info_gain_B[policy_i,1:info_gain_B_.size[1]] = info_gain_B_
+
+        end
+    end
+end
+
+#end  # -- everywhere
 #### Policy Inference #### 
 """ Update Posterior over Policies """
-function update_posterior_policies!(agent)
+function update_posterior_policies!(agent::AI.Agent{T2}) where {T2<:AbstractFloat}
     
     model = agent.model
     qs_current = agent.qs
@@ -167,188 +368,16 @@ function update_posterior_policies!(agent)
     if !isnothing(agent.info_gain_D)
         agent.info_gain_D .= missing
     end
-
-    lnE = AI.Maths.capped_log(model.policies.E)
+    policy_iterator = model.policies.policy_iterator
+    #for (policy_i, policy) in enumerate(model.policies.policy_iterator)
+    #for policy_i in 1:model.policies.n_policies
+    #end
     
-    for (policy_i, policy) in enumerate(model.policies.policy_iterator)
-        policy = (; zip(action_names, policy)...)
-        qs_pi = get_expected_states(qs_current, policy, agent)  
-        
-        if isnothing(qs_pi)
-            # bad policy, given missing utility and info_gain, and zero EFE
-            continue
-        end
-
-        qo_pi = get_expected_obs(qs_pi, agent)  
-                
-        # note: length of qs_pi and qo_pi will be less than policy length if early stop
-
-        # Calculate expected utility
-        if agent.settings.use_utility
-            # If ReverseDiff is tracking the expected utility, get the value
-            #if ReverseDiff.istracked(calc_expected_utility(qo_pi, agent.C))
-            #    @infiltrate; @assert false
-            #    G[policy_i] += ReverseDiff.value(calc_expected_utility(qo_pi, C))
-
-            # Otherwise calculate the expected utility and add it to the G vector
-            utility_ = calc_expected_utility(qo_pi, agent)
-            
-            # initialize this G?
-            if ismissing(agent.G_policies[policy_i])
-                agent.G_policies[policy_i] = 0
-            end
-
-            if length(utility_) == n_steps && agent.settings.EFE_reduction == :sum
-                # use sum  
-                agent.G_policies[policy_i] += sum(utility_) 
-            
-            elseif agent.settings.EFE_reduction == :min_max
-                agent.G_policies[policy_i] += (maximum(skipmissing(utility_)) + minimum(skipmissing(utility_))) / 2  # handles missings
-            
-            elseif agent.settings.EFE_reduction == :custom
-                agent.G_policies[policy_i] += agent.model.policies.utility_reduction_fx(utility_)
-            
-            elseif length(utility_) < n_steps && agent.settings.EFE_reduction == :sum
-                try
-                    error("There may be missing values in utility vectors; EFE_reduction = :sum cannot be used.")
-                catch e
-                    # Add context and rethrow the error
-                    error("$(e)")
-                end
-            end
-
-            agent.utility[policy_i, 1:utility_.size[1]] = utility_
-            #@infiltrate; @assert false 
-        end
-
-        # Calculate expected information gain of states
-        if agent.settings.use_states_info_gain
-            # If ReverseDiff is tracking the information gain, get the value
-            #if false && ReverseDiff.istracked(calc_states_info_gain(agent.A, qs_pi))  # todo??
-            #    @infiltrate; @assert false
-            #    G[policy_i] += ReverseDiff.value(calc_states_info_gain(A, qs_pi))
-
-            # Otherwise calculate it and add it to the G vector
-            
-            info_gain_, ambiguity_ = calc_info_gain(qs_pi, qo_pi, agent)
-            
-            # initialize this G?
-            if ismissing(agent.G_policies[policy_i])
-                agent.G_policies[policy_i] = 0
-            end
-
-            if length(info_gain_) == n_steps && agent.settings.EFE_reduction == :sum
-                # use sum  
-                agent.G_policies[policy_i] += sum(info_gain_)  
-            
-            elseif agent.settings.EFE_reduction == :min_max
-                agent.G_policies[policy_i] += maximum(skipmissing(info_gain_))   # handles missings
-            
-            elseif agent.settings.EFE_reduction == :custom
-                agent.G_policies[policy_i] += agent.model.policies.info_gain_reduction_fx(info_gain_)
-            
-            elseif length(info_gain_) < n_steps && agent.settings.EFE_reduction == :sum
-                try
-                    error("There may be missing values in info_gain vectors; EFE_reduction = :sum cannot be used.")
-                catch e
-                    # Add context and rethrow the error
-                    error("$(e)")
-                end
-            end
-            
-            # todo: should risk and ambiguity include info_gain_A, etc?
-            agent.info_gain[policy_i,1:info_gain_.size[1]] = info_gain_
-            agent.ambiguity[policy_i,1:ambiguity_.size[1]] = ambiguity_
-            agent.risk[policy_i,1:ambiguity_.size[1]] = (
-                agent.utility[policy_i, 1:ambiguity_.size[1]]
-                .+ info_gain_
-                .- ambiguity_
-            )
-            @assert isapprox(info_gain_ + utility_, agent.risk[policy_i,1:ambiguity_.size[1]] + ambiguity_)
-            #@infiltrate; @assert false
-        end
 
 
-        # Calculate expected information gain of parameters (learning)
-        if agent.settings.use_param_info_gain
-            
-            if agent.info_gain_A !== nothing
-                @infiltrate; @assert false  # todo
-
-                # if ReverseDiff is tracking pA information gain, get the value
-                if ReverseDiff.istracked(calc_pA_info_gain(pA, qo_pi, qs_pi))
-                    agent.G_policies[policy_i] += ReverseDiff.value(calc_pA_info_gain(pA, qo_pi, qs_pi))
-                # Otherwise calculate it and add it to the G vector
-                else
-                    # initialize this G?
-                    if ismissing(agent.G_policies[policy_i])
-                        agent.G_policies[policy_i] = 0
-                    end
-
-                    agent.G_policies[policy_i] += calc_pA_info_gain(agent.pA, qo_pi, qs_pi)
-                end
-            end
-
-
-            if agent.info_gain_B !== nothing
-                info_gain_B_ = calc_pB_info_gain(agent, qs_pi, qs_current, policy)
-                # use sum  
-                # initialize this G?
-                if ismissing(agent.G_policies[policy_i])
-                    agent.G_policies[policy_i] = 0
-                end
-                
-                if length(info_gain_B_) == n_steps && agent.settings.EFE_reduction == :sum
-                    agent.G_policies[policy_i] += sum(info_gain_B_)  
-            
-                elseif agent.settings.EFE_reduction == :min_max
-                    agent.G_policies[policy_i] += maximum(skipmissing(info_gain_B_))   # handles missings
-                
-                elseif agent.settings.EFE_reduction == :custom
-                    agent.G_policies[policy_i] += agent.model.policies.info_gain_reduction_fx(info_gain_B_)
-                
-                elseif length(info_gain_B_) < n_steps && agent.settings.EFE_reduction == :sum
-                    try
-                        error("There may be missing values in info_gain_B vectors; EFE_reduction = :sum cannot be used.")
-                    catch e
-                        # Add context and rethrow the error
-                        error("$(e)")
-                    end
-                end
-                
-                agent.info_gain_B[policy_i,1:info_gain_B_.size[1]] = info_gain_B_
-                #@infiltrate; @assert false  # todo
-            end
-
-
-            if agent.info_gain_D !== nothing
-                @infiltrate; @assert false  # todo
-                
-                info_gain_B_ = calc_pD_info_gain(agent.pB, qs_pi, qs, policy, agent.metamodel)
-                # initialize this G?
-                if ismissing(agent.G_policies[policy_i])
-                    agent.G_policies[policy_i] = 0
-                end
-                
-                if length(info_gain_B_) == n_steps
-                    if agent.use_sum_for_calculating_G && !any(ismissing.(info_gain_B_))
-                        # use sum
-                        agent.G_policies[policy_i] += sum(info_gain_B_)  
-                    else
-                        # use extremes; todo: pass in desired function for this
-                        agent.G_policies[policy_i] += maximum(info_gain_B_) 
-                    end
-                else
-                    # early stop, use extremes; todo: pass in desired function for this
-                    @assert agent.use_sum_for_calculating_G == false  # a info_gain is short, sum cannot be used for any
-                    agent.G_policies[policy_i] += maximum(skipmissing(info_gain_B_)) 
-                end  
-                info_gain_B[policy_i,1:info_gain_B_.size[1]] = info_gain_B_
-
-            end
-        end
-
-    end
+    fx(policy_i) = eval_policy(policy_i, policy_iterator, agent, qs_current, action_names, n_steps)
+    #pmap(i -> fx(i), 1:model.policies.n_policies)
+    map(i -> fx(i), 1:model.policies.n_policies)
 
     if sum(skipmissing(agent.G_policies)) == 0
         #@infiltrate; @assert false  # All policies failed?
@@ -377,16 +406,19 @@ function update_posterior_policies!(agent)
         end
         
         idx3 = findall(x -> !ismissing(x), agent.G_actions) 
-        # note (and todo?): no LnE over actions?
+        Eidx = model.policies.E_actions[idx3]
+        lnE = AI.Maths.capped_log(Eidx)
+        
+        agent.q_pi_actions[idx3] = LEF.softmax(T2.(agent.G_actions[idx3]) * agent.parameters.gamma + lnE, dims=1)  
+        
         #@infiltrate; @assert false
-        agent.q_pi_actions[idx3] = LEF.softmax(Float64.(agent.G_actions[idx3]) * agent.parameters.gamma, dims=1)  
         return
     end
 
     # calculate q_pi over policies   
-    Eidx = model.policies.E[idx]
+    Eidx = model.policies.E_policies[idx]
     lnE = AI.Maths.capped_log(Eidx)
-    agent.q_pi_policies[idx] .= LEF.softmax(Float64.(agent.G_policies[idx]) * agent.parameters.gamma + lnE, dims=1)  
+    agent.q_pi_policies[idx] .= LEF.softmax(T2.(agent.G_policies[idx]) * agent.parameters.gamma + lnE, dims=1)  
 
     #@infiltrate; @assert false
     
@@ -395,7 +427,10 @@ end
 
 
 """ Get Expected Observations """
-function get_expected_obs(qs_pi, agent)
+function get_expected_obs(
+        qs_pi::Vector{T} where {T <: NamedTuple{<:Any, <:NTuple{N, Vector{T2}} where {N}}},
+        agent::AI.Agent{T2}
+    ) where {T2<:AbstractFloat}
     
     model = agent.model
     n_steps = length(qs_pi)  # this might be equal to or less than policy length, if stop was reached
@@ -419,10 +454,11 @@ function get_expected_obs(qs_pi, agent)
 
             if !isapprox(sum(qo), 1.0)
                 printfmtln("\nmodailty= {}, qo={}", obs.name, qo)
-                @infiltrate; @assert false
+                #@infiltrate; @assert false
+                @assert false
 
                 Am = copy(A_m)
-                Am = vcat(Am, zeros(1, Am.size[2:end]...))
+                Am = vcat(Am, zeros(T2, (1, Am.size[2:end]...)))
                 res = dot_product1(Am, deps)
                 if printflag == 10
                     printfmtln("\nmodailty= {}, remade Am={}", modality, res)
@@ -430,7 +466,8 @@ function get_expected_obs(qs_pi, agent)
                 end
                 
                 if !isapprox(sum(res), 1.0) || !isapprox(res[end], 0.0) 
-                    @infiltrate; @assert false
+                    #@infiltrate; @assert false
+                    @assert false
                 end    
                 Am = res[1:end-1]
             end
@@ -445,10 +482,15 @@ end
 
 
 """ Calculate Expected Utility """
-function calc_expected_utility(qo_pi, agent)
+function calc_expected_utility(
+        qo_pi::Vector{T} where {T <: NamedTuple{<:Any, <:NTuple{N, Vector{T2}} where {N}}},
+        agent::AI.Agent{T2}
+    ) where {T2<:AbstractFloat}
+    
+    
     model = agent.model
     n_steps = length(qo_pi)
-    expected_utility = zeros(n_steps)
+    expected_utility = zeros(T2, n_steps)
     
     #num_modalities = length(C)
 
@@ -477,7 +519,8 @@ function calc_expected_utility(qo_pi, agent)
             
             if ndims(C_prob) > 1
                 # todo: select for state dependencies
-                @infiltrate; @assert false
+                #@infiltrate; @assert false
+                @assert false
             end
             
             lnC = AI.Maths.capped_log(C_prob)
@@ -485,7 +528,8 @@ function calc_expected_utility(qo_pi, agent)
             expected_utility[step_i] += sum(qo_pi[step_i][pref.C_dim_names[1]] .* lnC)  # assumes 1-D pref
 
             if expected_utility[step_i] > 0
-                @infiltrate; @assert false
+                #@infiltrate; @assert false
+                @assert false
             end   
             #@infiltrate; @assert false
         end
@@ -498,7 +542,10 @@ end
 
 
 # --------------------------------------------------------------------------------------------------
-function calc_info_gain(qs::Vector{T} where {T <: NamedTuple{<:Any, <:NTuple{N, Vector{Float64}} where {N}}}, qo::Vector{T} where {T <: NamedTuple{<:Any, <:NTuple{N, Vector{Float64}} where {N}}}, agent::AI.Agent)
+function calc_info_gain(
+        qs::Vector{T} where {T <: NamedTuple{<:Any, <:NTuple{N, Vector{T2}} where {N}}}, 
+        qo::Vector{T} where {T <: NamedTuple{<:Any, <:NTuple{N, Vector{T2}} where {N}}}, 
+        agent::AI.Agent) where {T2<:AbstractFloat}
     """
     New version of expected information gain that takes into account sparse dependencies between observation modalities and hidden state factors.
     qs, qo are over policy steps
@@ -506,13 +553,13 @@ function calc_info_gain(qs::Vector{T} where {T <: NamedTuple{<:Any, <:NTuple{N, 
 
     model = agent.model
     #@infiltrate; @assert false
-    info_gain_per_step = zeros(qs.size[1])
-    ambiguity_per_step = zeros(qs.size[1])
+    info_gain_per_step = zeros(T2, qs.size[1])
+    ambiguity_per_step = zeros(T2, qs.size[1])
     
     for step_i in 1:qs.size[1]
         
-        info_gains_per_modality = zeros(length(model.obs))
-        ambiguity_per_modality = zeros(length(model.obs))
+        info_gains_per_modality = zeros(T2, length(model.obs))
+        ambiguity_per_modality = zeros(T2, length(model.obs))
         qs_step = qs[step_i]
         qo_step = qo[step_i]
         
@@ -520,12 +567,13 @@ function calc_info_gain(qs::Vector{T} where {T <: NamedTuple{<:Any, <:NTuple{N, 
             
             H_qo = AI.Maths.stable_entropy(qo_step[obs.name])
             #H_A = - sum(AI.Maths.stable_xlogx(obs.A), dims=1)
-            H_A = - sum(LEF.xlogy.(obs.A, obs.A), dims=1)
+            H_A = - sum(LEF.xlogx.(obs.A), dims=1)
             deps = AI.Utils.collect_dependencies(qs_step, obs)
             H_A = AI.Maths.dot_product1(H_A, deps)
             
             if ndims(H_A) > 1
-                @infiltrate; @assert false
+                #@infiltrate; @assert false
+                @assert false
             end
             @assert H_A.size[1] == 1
             
@@ -538,7 +586,8 @@ function calc_info_gain(qs::Vector{T} where {T <: NamedTuple{<:Any, <:NTuple{N, 
         ambiguity_per_step[step_i] = sum(ambiguity_per_modality)
         
         if info_gain_per_step[step_i] < 0
-            @infiltrate; @assert false
+            #@infiltrate; @assert false
+            @assert false
         end 
 
     end
@@ -549,8 +598,12 @@ end
 
 
 """ Calculate States Information Gain """
-function calc_states_info_gain(A, qs_pi)
-    @infiltrate; @assert false  # not yet implemented
+function calc_states_info_gain(
+        A, 
+        qs_pi
+    )
+    #@infiltrate; @assert false  # not yet implemented
+    @assert false
 
     n_steps = length(qs_pi)
     #states_surprise = 0.0
@@ -565,8 +618,13 @@ end
 
 
 """ Calculate observation to state info Gain """
-function calc_pA_info_gain(pA, qo_pi, qs_pi)
-    @infiltrate; @assert false  # not yet implemented
+function calc_pA_info_gain(
+        pA, 
+        qo_pi, 
+        qs_pi
+    )
+    #@infiltrate; @assert false  # not yet implemented
+    @assert false
     
     n_steps = length(qo_pi)
     num_modalities = length(pA)
@@ -590,17 +648,24 @@ end
 
 
 """ Calculate state to state info Gain """
-function calc_pB_info_gain(agent, qs_pi, qs_prev, policy)
+function calc_pB_info_gain(
+    agent::AI.Agent{T2},
+    qs_pi::Vector{T} where {T <: NamedTuple{<:Any, <:NTuple{N, Vector{T2}} where {N}}},
+    qs_prev::NamedTuple{<:Any, <:NTuple{N, Vector{T2}} where {N}}, 
+    policy::NamedTuple, 
+    ) where {T2<:AbstractFloat}
+    
     # todo: we could calculate info_gain per step and per state. Here we sum over all states.
 
     model = agent.model
     
     n_steps = length(qs_pi)  # this might be less than the policy length, if there was early stopping
     if n_steps != length(policy[1])
-        @infiltrate; @assert false  # todo: validate that all of the following work for early stopping
+        #@infiltrate; @assert false  # todo: validate that all of the following work for early stopping
+        @assert false
     end
     
-    info_gain_per_step = zeros(n_steps)
+    info_gain_per_step = zeros(T2, n_steps)
     for step_i in 1:n_steps
         
         for (state_ii, state) in enumerate(model.states)
@@ -629,7 +694,7 @@ function calc_pB_info_gain(agent, qs_pi, qs_prev, policy)
             # collect B dependencies
             deps = AI.Utils.collect_dependencies(previous_qs, state, policy)
             
-            wB .*= Float64.(pB .> 0)  # only consider wB if pB > 0
+            wB .*= T2.(pB .> 0)  # only consider wB if pB > 0
             Wqs = AI.Maths.dot_product1(wB, deps)
             info_gain_per_step[step_i] -= sum(qs_pi[step_i][state.name] .* Wqs)
         end
@@ -651,13 +716,14 @@ function sample_action(
     metamodel=metamodel
     )
     
+    #@infiltrate; @assert false
+    @assert false
     
     if action_selection == "deterministic"
         ii = argmax(q_pi)
-        @infiltrate; @assert false
+       
         selected_policy[factor_i] = select_highest(action_marginals[factor_i])
     elseif action_selection == "stochastic"
-        @infiltrate; @assert false
         log_marginal_f = capped_log(action_marginals[factor_i])  # min capped_log(x) = -36.8
         p_actions = softmax(log_marginal_f * alpha, dims=1)
         selected_policy[factor_i] = action_select(p_actions)
@@ -667,7 +733,6 @@ function sample_action(
     return selected_policy
 
     
-    @infiltrate; @assert false
     # todo: allow action choice based on q_pi or log marginal
     
     num_factors = length(num_controls)
@@ -680,7 +745,8 @@ function sample_action(
     action_marginals = create_matrix_templates(num_controls, "zeros", eltype_q_pi)
 
     for (pol_idx, policy) in enumerate(policies.policy_iterator)
-        @infiltrate; @assert false
+        #@infiltrate; @assert false
+        @assert false
         for (factor_i, action_i) in enumerate(policy[1,:])
             # only want to choose a 1-step action, regardless of later policy choices
             # but what if first action for best policy is seen only once? Others would 

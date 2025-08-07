@@ -139,7 +139,7 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
         if agent.settings.action_selection == :deterministic
             ii = idx[argmax(q_pi[idx])]  # argmax over valid policies
         elseif agent.settings.action_selection == :stochastic
-            mnd = Distributions.Multinomial(1, Float64.(q_pi[idx]))
+            mnd = Distributions.Multinomial(1, CONFIG.float_type.(q_pi[idx]))
             ii = argmax(rand(mnd))
             ii = idx[ii]
         end
@@ -148,10 +148,10 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
         action_ids = collect(zip(policy...))[1]
         action = (; zip(action_names, action_ids)...)
         
-        agent.last_action = action
+        agent.current.action = action
 
         # Push action to agent's history
-        push!(agent.history.actions, action)
+        #push!(agent.history.actions, action)
 
         if verbose
             printfmtln("\nAction at time {}: {}, ipolicy={}, q_pi= {}, G={}", 

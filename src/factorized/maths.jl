@@ -16,13 +16,15 @@ using Infiltrator
 # todo: Perhaps other math utils functions, in other math utils files, are not used anywhere. If so,
 # they can be deleted.
 
-MINVAL = eps(Float64)
 
+function dot_product1(
+        X::Union{Array{T, N}, Matrix{T}} where {N}, 
+        xs::Vector{Vector{T}} 
+    ) where {T<:AbstractFloat}
 
-function dot_product1(X::Union{Array{Float64, N} where N, Matrix{Float64}}, xs::Vector{Vector{Float64}})
     # xs is a vector of qs vectors for each dependency, in reverse order
     
-    if isa(X, Matrix{Float64})
+    if isa(X, Matrix{T})
         @assert length(xs) == 1
         return X * xs[1]
     end
@@ -34,35 +36,45 @@ function dot_product1(X::Union{Array{Float64, N} where N, Matrix{Float64}}, xs::
     tried code2 = ein.EinCode([collect(X.size), [dep.size[1]]], collect(X.size[1:end-1]))
     but that did not work
     =#
+    
+    #@infiltrate; @assert false
     return code2(X,xs...)
 end
 
 
 """ Creates a onehot encoded vector """
-function onehot(index::Int, vector_length::Int)
-    vector = zeros(vector_length)
+function onehot(
+        index::Int, 
+        vector_length::Int,
+        float_type::Type
+    )
+
+    vector = zeros(float_type, vector_length)
     vector[index] = 1.0
     return vector
 end
 
 
 
-function xstable_xlogx(x::Matrix{Float64})
+function xstable_xlogx(x::Matrix{T}) where {T<:AbstractFloat}
     
+
+    MINVAL = eps(T)
     #z1 =  [LEF.xlogy.(z, clamp.(z, MINVAL, Inf)) for z in x]
     #z2 =  [LEF.xlogy.(z, z) for z in x]
-    z3 = LEF.xlogy.(z, z)
+    z3 = LEF.xlogx.(z)
     @infiltrate; @assert false
     return zz
 end
 
 
-function stable_entropy(x::Vector{Float64})
-    z =  LEF.xlogy.(x, x)
+function stable_entropy(x::Vector{T}) where {T<:AbstractFloat}
+    z =  LEF.xlogx.(x)
     return - sum(z)  
 end
 
-function stable_entropy(x::Matrix{Float64})
+
+function stable_entropy(x::Matrix{T}) where {T<:AbstractFloat}
     @infiltrate; @assert false
     z =  [LEF.xlogy.(z, z) for z in x]
     @infiltrate; @assert false
@@ -78,14 +90,15 @@ end
 
 Return the natural logarithm of x, capped at the machine epsilon value of x.
 """
-function capped_log(x::Real)
+function capped_log(x::T) where {T<:AbstractFloat}
     return log(max(x, eps(x))) 
 end
 
+#=
 """
     capped_log(array::Array{Float64})
 """
-function capped_log(array::Array{Float64}) 
+function capped_log(array::Array{T}) where {T<:AbstractFloat} 
 
     epsilon = oftype(array[1], 1e-16)
     # Return the log of the array values capped at epsilon
@@ -93,11 +106,12 @@ function capped_log(array::Array{Float64})
 
     return array
 end
+=#
 
 """
     capped_log(array::Array{T}) where T <: Real 
 """
-function capped_log(array::Array{T}) where T <: Real 
+function capped_log(array::Array{T}) where {T<:AbstractFloat} 
 
     epsilon = oftype(array[1], 1e-16)
     # Return the log of the array values capped at epsilon
@@ -109,7 +123,7 @@ end
 """
     capped_log(array::Vector{Real})
 """
-function capped_log(array::Vector{Real})
+function capped_log(array::Vector{T}) where {T<:AbstractFloat}
     epsilon = oftype(array[1], 1e-16)
 
     array = log.(max.(array, epsilon))
@@ -125,20 +139,30 @@ end
 
 
 """ SPM_wnorm """
-function spm_wnorm(A)
-    EPS_VAL = 1e-16
+function spm_wnorm(A::Array{T2, N} where {N}) where {T2<:AbstractFloat}
+    
+    EPS_VAL = T2.(1e-16)
 
     A .+= EPS_VAL
-    norm = 1.0 ./ sum(A, dims = 1)
+    norm = T2.(1.0) ./ sum(A, dims = 1)
     avg = 1 ./ A
     wA = norm .- avg
-
+    
+    #@infiltrate; @assert false
     return wA
 end
 
 
 """ Multi-dimensional outer product """
-function outer_product(x, y=nothing; remove_singleton_dims=true, args...)
+function outer_product(
+        x::Vector{T2}, 
+        y::Union{Nothing, Vector{T2}} =nothing; 
+        remove_singleton_dims::Bool =true, 
+        args...
+    ) where {T2<:AbstractFloat}
+    
+    #@infiltrate; @assert false
+
     # If only x is provided and it is a vector of arrays, recursively call outer_product on its elements.
     if y === nothing && isempty(args)
         if x isa AbstractVector
@@ -154,7 +178,7 @@ function outer_product(x, y=nothing; remove_singleton_dims=true, args...)
     if y !== nothing
         reshape_dims_x = tuple(size(x)..., ones(Real, ndims(y))...)
         A = reshape(x, reshape_dims_x)
-
+        
         reshape_dims_y = tuple(ones(Real, ndims(x))..., size(y)...)
         B = reshape(y, reshape_dims_y)
 
@@ -186,7 +210,7 @@ end
 
 
 """ Normalizes multiple arrays """
-function normalize_arrays(array::Vector{<:Array{<:Real}})
+function normalize_arrays(array::Vector{<:Array{<:T}}) where {T<:AbstractFloat}
     return map(normalize_distribution, array)
 end
 

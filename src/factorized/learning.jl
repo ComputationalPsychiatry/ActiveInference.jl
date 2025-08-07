@@ -52,10 +52,13 @@ end
 
 """ Update state likelihood matrix """
 
-function update_state_likelihood_dirichlet!(agent::AI.Agent, qs_prev::NamedTuple{<:Any, <:NTuple{N, Vector{Float64}} where {N}})
+function update_state_likelihood_dirichlet!(
+        agent::AI.Agent{T2}, 
+        qs_prev::NamedTuple{<:Any, <:NTuple{N, Vector{T2}} where {N}}
+    ) where {T2<:AbstractFloat}
 
     model = agent.model
-    policy = agent.last_action
+    policy = agent.current.action
     
     for (state_i, state) in enumerate(model.states)
             

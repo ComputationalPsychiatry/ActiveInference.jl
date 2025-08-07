@@ -115,7 +115,8 @@ function make_model(CONFIG)
             earlystop_tests = (qs, model) -> true,
             utility_reduction_fx = nothing,  # user-supplied function for EFE reduction that allows missings
             info_gain_reduction_fx = nothing,  # user-supplied function for EFE reduction that allows missings
-            E = missing,
+            E_policies = missing,
+            E_actions = missing,
             extra = nothing,
         )
     )

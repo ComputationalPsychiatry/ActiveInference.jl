@@ -19,7 +19,7 @@ import ActiveInference.ActiveInferenceFactorized as AI
 
 # --------------------------------------------------------------------------------------------------
 # test model and settings for correctness
-function validate(model, settings, parameters)
+function validate(model, settings, float_type, parameters)
     
     #@infiltrate; @assert false
     
@@ -37,6 +37,7 @@ function validate(model, settings, parameters)
     =#
 
     
+    @assert float_type in [Float32, Float64]
 
     # Check A matrix
     #@infiltrate; @assert false
@@ -191,23 +192,36 @@ end
 
 
 # --------------------------------------------------------------------------------------------------
-function complete(model, settings, parameters)
+function complete(model, settings, float_type, parameters)
     #=
     todo:
         - fill in any missings in template that the user has not filled in
     =#
     
+
     
     # if E-vector is not provided
-    if ismissing(model.policies.E)
+    if ismissing(model.policies.E_policies)
         # use uninformative prior on policies
         if settings.EFE_over == :policies
-            model = @set model.policies.E = ones(Real, model.policies.n_policies) / model.policies.n_policies
-        elseif settings.EFE_over == :actions
-            n_actions = length(collect(model.policies.action_iterator))
-            model = @set model.policies.E = ones(Real, n_actions) / n_actions
+            model = @set model.policies.E_policies = ones(float_type, model.policies.n_policies) / model.policies.n_policies
+        else
+            model = @set model.policies.E_policies = nothing
         end
     end
+
+    if ismissing(model.policies.E_actions)
+        # use uninformative prior on actions
+        if settings.EFE_over == :actions || settings.graph != :none
+            n_actions = length(collect(model.policies.action_iterator))
+            model = @set model.policies.E_actions = ones(float_type, n_actions) / n_actions
+        else
+            model = @set model.policies.E_actions = nothing
+        end
+    end
+
+    
+    #@infiltrate; @assert false
 
     return model
 

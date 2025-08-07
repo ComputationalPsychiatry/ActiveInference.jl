@@ -2,6 +2,8 @@
 
 module Utils
 
+import ActiveInference.ActiveInferenceFactorized as AI
+
 using Format
 using Infiltrator
 #using Revise
@@ -93,7 +95,7 @@ end
 
 
 # --------------------------------------------------------------------------------------------------
-function select_B_actions(state, policy, step_i=nothing, do_pB=false)
+function select_B_actions(state::AI.State, policy, step_i=nothing, do_pB=false)
     # select actions out of B matrix, returning the rest
     # e.g state.B_dim_names = [:self, :loc, :move], with last being an action
     
@@ -129,18 +131,21 @@ end
 
 
 # --------------------------------------------------------------------------------------------------
-function collect_dependencies(qs, state::NamedTuple, policy::NamedTuple, step_i::Union{Nothing, Int64}=nothing)
+function collect_dependencies(
+        qs::Union{Vector{T} where T<:NamedTuple{<:Any, <:NTuple{N, Vector{T2}} where {N}}, NamedTuple{<:Any, <:NTuple{N, Vector{T2}} where {N}}}, 
+        state::AI.State{T2}, 
+        policy::NamedTuple, 
+        step_i::Union{Nothing, Int64}=nothing
+    ) where {T2<:AbstractFloat}
     
-    # qs should be union of NamedTuple with Vector{NamedTuple{<:Any, NTuple{N, Vector{Float64}} where {N}}} but this does not work
-
     if !isnothing(step_i)
         qs = qs[step_i]
         @assert !(qs isa Vector) 
     end
 
     # collect dependencies for state
-    deps = Vector{Vector{Float64}}()
-    
+    deps = Vector{Vector{T2}}()
+
     # first factor is new state, others are dependencies or actions 
     for (dep_i, dep) in enumerate(reverse(state.B_dim_names[2:end])) 
         if dep in keys(policy)
@@ -152,7 +157,11 @@ function collect_dependencies(qs, state::NamedTuple, policy::NamedTuple, step_i:
 end
 
 
-function collect_dependencies(qs, obs::NamedTuple, step_i::Union{Nothing, Int64}=nothing)
+function collect_dependencies(
+        qs, 
+        obs::AI.Obs{T}, 
+        step_i::Union{Nothing, Int64}=nothing
+    ) where T<:AbstractFloat
     
     # todo: only difference here is that no policy sent means obs. It would be better if obs/state had a type to check
     
@@ -161,7 +170,7 @@ function collect_dependencies(qs, obs::NamedTuple, step_i::Union{Nothing, Int64}
     end
 
     # collect dependencies for obs
-    deps = Vector{Vector{Float64}}()
+    deps = Vector{Vector{T}}()
     
     # first factor is new state, others are dependencies or actions 
     for (dep_i, dep) in enumerate(reverse(obs.A_dim_names[2:end])) 

@@ -159,6 +159,7 @@ function run_example()
             number_simulation_steps = 500,
             number_simulations = 1,
             use_filtering = false,
+            float_type = Float32,
         )
     end
     
@@ -168,7 +169,7 @@ function run_example()
     settings = @set settings.EFE_over = [:policies,  :actions][1]
     settings = @set settings.policy_postprocessing_method = [:G_prob,  :G_prob_q_pi][1] 
     settings = @set settings.policy_inference_method = [:standard,  :sophisticated][1]
-    settings = @set settings.graph = [:none, :explicit, :implicit][2]
+    settings = @set settings.graph = [:none, :explicit, :implicit][1]
     
     settings = @set settings.use_param_info_gain = false
     settings = @set settings.SI_observation_prune_threshold = 0.039 #1/16  
@@ -220,7 +221,8 @@ function run_example()
         global CONFIG
         agent = AI.create_agent(
             model,
-            settings, 
+            settings,
+            CONFIG.float_type 
         )
         println("\n\n")
 
