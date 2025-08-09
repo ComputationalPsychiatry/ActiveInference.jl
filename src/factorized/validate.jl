@@ -120,9 +120,9 @@ function validate(model, settings, float_type, parameters)
         @assert false "not yet implemented"  # todo: implement inductive inference
     end
 
-    if settings.use_param_info_gain && settings.graph != :none
-        @assert false "not yet implemented"  # todo: implement param_info_gain for graph methods
-    end
+    #if settings.use_param_info_gain && settings.graph != :none
+    #    @assert false "not yet implemented"  # todo: implement param_info_gain for graph methods
+    #end
 
     for (obs_i, obs) in enumerate(model.obs)
         @assert !ismissing(obs.pA)  "The pA for each obs should be a tensor or nothing, not missing"

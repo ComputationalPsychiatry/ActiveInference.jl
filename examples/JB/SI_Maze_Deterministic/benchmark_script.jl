@@ -92,7 +92,7 @@ function run_simulation(horizon, num_iterations)
     
     settings = AI.get_settings()
     settings = @set settings.EFE_over = [:policies,  :actions][1]
-    settings = @set settings.policy_postprocessing_method = [:sum, :G_prob,  :G_prob_q_pi][2] 
+    settings = @set settings.policy_postprocessing_method = [:G_prob,  :G_prob_q_pi][1] 
     settings = @set settings.policy_inference_method = [:standard,  :sophisticated][2]
     settings = @set settings.graph = [:none, :explicit, :implicit][2]
     settings = @set settings.EFE_reduction = [:sum, :min_max, :custom][2]

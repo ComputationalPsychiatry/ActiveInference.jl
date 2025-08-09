@@ -86,6 +86,7 @@ function make_model(CONFIG)
                 values = 1:grid_size,
                 labels = CONFIG.cells,
                 A = missing,
+                HA = missing,
                 A_dim_names = (:loc, :loc),
                 A_dims = (grid_size, grid_size),
                 pA = nothing,
@@ -111,7 +112,7 @@ function make_model(CONFIG)
             policy_length = CONFIG.policy_length,
             n_policies = missing,
             policy_tests = (policy, model) -> true,  # unused for now
-            action_tests = (qs_pi, model) -> true,
+            action_tests = (qs_pi_next, qs_pi_last, model) -> true,
             earlystop_tests = (qs, model) -> true,
             utility_reduction_fx = nothing,  # user-supplied function for EFE reduction that allows missings
             info_gain_reduction_fx = nothing,  # user-supplied function for EFE reduction that allows missings

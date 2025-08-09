@@ -214,10 +214,16 @@ function update_posterior_policies!(
     end
     
     if max_level < n_steps-1
-        printfmtln("\n-------\nWarning!! ------\nmax_level={} is < policy_length={}\n-----\n", 
-        max_level, n_steps
-        )
-        @infiltrate; @assert false    
+        s = format("\nmax_level={} is < policy_length={}. Setting all G to zero.\n", max_level, n_steps)
+        @warn s
+        if !isnothing(agent.G_policies)
+            agent.G_policies .= 0
+            agent.q_pi_policies .= LEF.softmax(T2.(agent.G_policies), dims=1) 
+        end
+        agent.G_actions .= 0
+        agent.q_pi_actions .= LEF.softmax(T2.(agent.G_actions), dims=1)
+        return
+           
     end
     
     # clean up dfs paths
@@ -375,7 +381,7 @@ function update_posterior_policies!(
         agent.q_pi_actions[:] = q_pi_grandchildren
         agent.G_actions[:] = G_grandchildren
     else
-        do_EFE_over_policies(siGraph, agent, leaves)
+        do_EFE_over_policies(siGraph, agent, leaves, T2)
     end
 
     printfmtln("\ndo G time= {}\n", round((Dates.time() - t0) , digits=2))
@@ -389,7 +395,7 @@ end
 
 
 # --------------------------------------------------------------------------------------------------
-function do_EFE_over_policies(siGraph, agent, leaves)
+function do_EFE_over_policies(siGraph, agent, leaves, T2)
     #=
     This is the G * prob method, where prob is cascaded from node 0 to leaves. It calculates
     EFE over policies, not actions.
@@ -411,12 +417,12 @@ function do_EFE_over_policies(siGraph, agent, leaves)
         # todo: if policies are created as per a pattern, only a subset needs to be searched over to 
         # find the policy_i corresponding to the current policy.
         policy_i = findfirst(x -> x == values(policy), agent.model.policies.policy_iterator) 
-        try
-            @assert !isnothing(policy_i) 
-        catch e
-            s = format("Error: {}. If this fails, no valid instances of a policy exist. Try ", e) 
+        
+        if isnothing(policy_i) 
+            s = format("Error: isnothing(policy={}). If this fails, no valid instances of a policy exist. Try ", policy) 
             s *= "reducing prunning thresholds or set :SI_use_pymdp_methods to false."
-            error(s)
+            @warn s
+            continue
         end
         #=
         todo: either fail the above assert as is or add null actions to fill up a subpolicy to make
@@ -549,7 +555,13 @@ function do_EFE_over_policies(siGraph, agent, leaves)
 
 
     if all(ismissing.(agent.utility))
-        @infiltrate; @assert false    
+        @warn "\nall(ismissing.(agent.utility)). Setting all G to zero.\n"
+        agent.G_policies .= 0
+        agent.q_pi_policies .= LEF.softmax(T2.(agent.G_policies), dims=1)  
+        agent.G_actions .= 0
+        agent.q_pi_actions .= LEF.softmax(T2.(agent.G_actions), dims=1)
+        return
+        #@infiltrate; @assert false    
     end
 
 
@@ -730,6 +742,15 @@ function recurse(
             G += info_gain
             #@infiltrate; @assert false
 
+        end
+
+        # todo: hack for now, just add parameter info gain to existing info gain. Later, these should be separated.
+        if agent.settings.use_param_info_gain
+            info_gain_B = AI.Inference.calc_pB_info_gain(agent, qs_pi, qs, policy1)[1]
+            
+            info_gain += info_gain_B
+            G += info_gain_B
+            #@infiltrate; @assert false
         end
         
         #if policy == (move=(1,2),) 

@@ -142,6 +142,7 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
             mnd = Distributions.Multinomial(1, CONFIG.float_type.(q_pi[idx]))
             ii = argmax(rand(mnd))
             ii = idx[ii]
+            #ii = rand(idx)  # this option chooses randomly over all nonmissing G
         end
 
         policy = IterTools.nth(policies, ii)
@@ -158,7 +159,7 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
                 step_i, action, ii, q_pi[ii], G[ii]
             )
             
-            if isnothing(agent.G_actions)
+            if !isnothing(agent.utility)
                 printfmtln("\nutility= {}, sum= {}", agent.utility[ii, :], round(sum(skipmissing(agent.utility[ii, :])), digits=4))
 
                 printfmtln("\ninfo_gain= {}, sum= {}", agent.info_gain[ii, :], round(sum(skipmissing(agent.info_gain[ii, :])), digits=4))
@@ -203,7 +204,7 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
         if false
             push!(plots, plot_grid(CONFIG, to_label, plot_title, sim_i, step_i, CONFIG[:walls], locations=history_of_cells))
         else
-            if step_i % max(Int(round(CONFIG.number_simulation_steps/10)), 1) == 0
+            if step_i % max(Int(round(CONFIG.number_simulation_steps/20)), 1) == 0
                 plot_visited(CONFIG, to_label, plot_title, sim_i, step_i, CONFIG[:walls], history_of_cells)
                 plot_sq_error(CONFIG, sim_i, step_i, history_of_sq_error)
                 #@infiltrate; @assert false
