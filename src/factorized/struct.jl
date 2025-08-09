@@ -36,6 +36,7 @@ struct Obs{T<:AbstractFloat}
     values::Union{UnitRange{Int64}, Vector{Int64}}
     labels::Union{Vector, NTuple{N, T2} where {N, T2}}
     A::Array{T, N} where {N}
+    HA::Union{Nothing, Array{T, N} where {N}}
     A_dim_names::NTuple{N, Symbol} where N
     A_dims::NTuple{N, Int64} where N
     pA::Union{Nothing, Array{T, N} where {N}}
@@ -170,7 +171,7 @@ mutable struct ActionNode{T<:AbstractFloat}
     risk::Union{Nothing, Missing, T}
     G::Union{Nothing, Missing, T}
     pruned::Bool  # are children of this ActionNode pruned out due to policy_prune_threshold 
-    q_pi_children::Union{Nothing, T}  # q_pi over set of viable, non-pruned children of ObsNode
+    q_pi::Union{Nothing, T}  # q_pi over set of viable, non-pruned children of ObsNode
     
     utility_updated::Union{Nothing, Missing, T}
     info_gain_updated::Union{Nothing, Missing, T}

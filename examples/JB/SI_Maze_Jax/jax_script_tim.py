@@ -1,5 +1,5 @@
-import os
-os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=1"
+#import os
+#os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=1"
 
 
 import numpy as np
@@ -131,22 +131,41 @@ env = Env(params, dependencies)
 from tom.planning.si import rollout
 
 key = jr.PRNGKey(11)
-T = 2
+T = 10
 
-last, info, env = rollout(agent,
-            env,
-            T,
-            key,
-            max_depth=T,
-            max_nodes = 10000,
-            max_branching = 10,
-            policy_prune_threshold = 1/16, #1/ 64,
-            observation_prune_threshold = 1/16, #1 / 64,
-            entropy_stop_threshold = 0, #0.5,
-            efe_stop_threshold = 10000000, #5,
-            kl_threshold=0, #1e-2,
-            prune_penalty = 512,
-            )
+last, info, env = rollout(
+    agent,
+    env,
+    T,
+    key,
+    max_depth=12,
+    max_nodes = 10000,
+    max_branching = 10,
+    policy_prune_threshold = 1/16, #1/ 64,
+    observation_prune_threshold = 1/16, #1 / 64,
+    entropy_stop_threshold = 0, #0.5,
+    efe_stop_threshold = 10000000, #5,
+    kl_threshold=0, #1e-2,
+    prune_penalty = 512,
+    )
+
+'''
+expected for a horizon 4 for regular jax agemt:
+    qs[0].shape = (1,1,81)
+    q_pi[0].shape = (2,)
+    action.shape = (1,1)
+    1. empirical_prior = tuple of len=2
+        empirical_prior[0][0].shape = (1,81)
+        empirical_prior[1][0].shape = (1,1,81)
+    2. empirical_prior[0].shape = (1,1,81)
+    3. empirical_prior[0].shape = (1,81)
+    observation[0].shape = (1,81)
+'''
+
+qs = [info["qs"][0][-1,:,:].reshape(1,1,-1)]
+q_pi = info["qpi"][:,1,:][-1,:].reshape((1, -1))
+
+#assert False
 
 #print(info)
 

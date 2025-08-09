@@ -2,13 +2,14 @@
 
 import Setfield: @set
 import Test: @inferred
+import Memoization: empty_all_caches!
 
 #using Format
 #using Infiltrator
 #using Revise
 
 # Create ActiveInference Agent 
-function create_agent(model::NamedTuple, settings::NamedTuple, float_type::Type; parameters=missing)
+function create_agent(model::NamedTuple, settings::NamedTuple, float_type::Type, parameters=missing)
     #=
     Before initializing the agent, we preform validation tests, fill in missing values, give 
     warnings, check types, create qs and EFE objects, and so on. Formal type checking occurs when we 
@@ -16,6 +17,8 @@ function create_agent(model::NamedTuple, settings::NamedTuple, float_type::Type;
     
     todo: specify exact types for the objects that we create             
     =#
+
+    #empty_all_caches!()
     
     if ismissing(parameters)
         parameters = get_parameters()
@@ -322,13 +325,16 @@ function infer_states!(
             agent.qs, 
             agent.current.action,
             agent 
-        )[3][1]
-        #@infiltrate; @assert false
+        )[3][1]  # 3rd is qs, vector size is 1
         set_vectors(agent.qs_prior, qs_prior) 
     end
 
     # Update posterior over states
-    qs_current = Inference.update_posterior_states(agent, obs)  
+    qs_current = Inference.update_posterior_states(
+        agent.qs_prior, 
+        obs, 
+        agent
+    )  
 
     # @set qs in model
     set_vectors(agent.qs, qs_current)

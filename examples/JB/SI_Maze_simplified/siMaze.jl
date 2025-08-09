@@ -8,6 +8,7 @@ import Setfield: @set
 #import StaticArrays as SA
 import Statistics
 
+
 using Format
 using Infiltrator
 using Revise
@@ -35,6 +36,7 @@ Plots.scalefontsizes(0.8)
 ####################################################################################################
 
 function run_example()
+
     
     experiment_id = 1
     #@infiltrate; @assert false
@@ -57,7 +59,7 @@ function run_example()
             grid = grid,
             cells = cells,
             start_cell = [9,2], 
-            policy_length = 15,
+            policy_length = 7,
             number_simulation_steps = 10,
             number_simulations = 1,
             float_type = Float32,
@@ -68,8 +70,8 @@ function run_example()
     settings = AI.get_settings()
     settings = @set settings.EFE_over = [:policies,  :actions][2]
     settings = @set settings.policy_postprocessing_method = [:G_prob,  :G_prob_q_pi][2] 
-    settings = @set settings.policy_inference_method = [:standard,  :sophisticated][1]
-    settings = @set settings.graph = [:none, :explicit, :implicit][1]
+    settings = @set settings.policy_inference_method = [:standard,  :sophisticated][2]
+    settings = @set settings.graph = [:none, :explicit, :implicit][2]
     
     settings = @set settings.use_param_info_gain = false
     settings = @set settings.SI_observation_prune_threshold = 1/16  
@@ -77,6 +79,8 @@ function run_example()
     settings = @set settings.verbose = false
     settings = @set settings.SI_use_pymdp_methods = false
     settings = @set settings.action_selection = :deterministic
+    settings = @set settings.EFE_reduction = [:sum, :min_max, :custom][2]
+    #settings = @set settings.FPI_num_iter = 10
 
     settings = @set settings.use_states_info_gain = true
 

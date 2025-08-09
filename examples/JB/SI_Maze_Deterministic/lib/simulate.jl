@@ -24,6 +24,7 @@ import LogExpFunctions as LEF
 
 function simulate(model, agent, env, CONFIG, to_label, sim_i)
     
+    verbose = agent.settings.verbose
     verbose = true  # for testing
 
     t0 = Dates.time()
@@ -45,11 +46,8 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
     
 
     for step_i in 1:CONFIG.number_simulation_steps
-        
-        t00 = Dates.time() 
         AI.infer_states!(agent, obs) 
-        printfmtln("\ntime infer_states= {}\n", Dates.time() - t00)
-
+        
         if verbose
             printfmtln("\n-----------\nt={}", step_i)
             for (k,v) in zip(keys(agent.qs), agent.qs)
@@ -62,12 +60,9 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
         end
 
         #AI.update_parameters!(agent)  # no parameter learning in this example
-        #@infiltrate; @assert false
         
-        t00 = Dates.time()
         AI.infer_policies!(agent, obs)
-        printfmtln("\ntime infer_policies= {}\n", Dates.time() - t00)
-
+        
         #=
         Note that if an explicit graph is used and EFE is over policies, G and q_pi over actions are
         also available and can be queried. 
@@ -85,27 +80,26 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
         end
 
 
-        if verbose && agent.settings.verbose
+        if verbose    
             printfmtln("\ncounts of q_pi values = \n{}", StatsBase.countmap(round.(q_pi, digits=6)))
         end
 
-        if verbose && agent.settings.verbose
-            idxs = findall(x -> !ismissing(x) && isapprox(x, maximum(skipmissing(q_pi))), q_pi)
-            if idxs.size[1] <= 10
-                idxs = findall(x -> !ismissing(x) && isapprox(x, maximum(skipmissing(q_pi))), q_pi)
-                printfmtln("\nmax q_pi at indexes= {}", idxs)
-                printfmtln("\npolicies at max q_pi= \n{}",  
-                    [IterTools.nth(policies, ii)[1] for ii in idxs]
-                )
-            else
-                idxs = findall(x -> !ismissing(x) && isapprox(x, maximum(skipmissing(q_pi))), q_pi)
-                printfmtln("\nmax q_pi at {} indexes", idxs.size[1])
-                printfmtln("\nexample policies at max q_pi= \n{}",  
-                    [IterTools.nth(policies, ii)[1] for ii in idxs[1:min(10, idxs.size[1])]]
-                )
-            end
+        idxs = findall(x -> !ismissing(x) && isapprox(x, maximum(skipmissing(q_pi))), q_pi)
+        if verbose && idxs.size[1] <= 10
+            printfmtln("\nmax q_pi at indexes= {}", idxs)
+            printfmtln("\npolicies at max q_pi= \n{}",  
+                [IterTools.nth(policies, ii)[1] for ii in idxs]
+            )
+        elseif verbose
+            printfmtln("\nmax q_pi at {} indexes", idxs.size[1])
+            printfmtln("\nexample policies at max q_pi= \n{}",  
+                [IterTools.nth(policies, ii)[1] for ii in idxs[1:min(10, idxs.size[1])]]
+            )
         end
 
+        printfmtln("\nsimulation time= {}\n", round((Dates.time() - t0) , digits=2))
+        #@infiltrate; @assert false
+        
         # save results in database?
         if false
             save_utility(agent, model, q_pi, step_i, db)
@@ -115,34 +109,31 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
             #todo: save info_gain_B
         end
 
-        # sample action
-        t00 = Dates.time()
-        idx = findall(x -> !ismissing(x), G) 
+        # custom sample action
         if agent.settings.action_selection == :deterministic
-            ii = idx[argmax(q_pi[idx])]  # argmax over valid policies
+            ii = argmax(q_pi)  # any path
         elseif agent.settings.action_selection == :stochastic
-            mnd = Distributions.Multinomial(1, CONFIG.float_type.(q_pi[idx]))
+            idx = findall(x -> !ismissing(x), G) 
+            mnd = Distributions.Multinomial(1, Float64.(q_pi[idx]))
             ii = argmax(rand(mnd))
             ii = idx[ii]
         end
-        printfmtln("\ntime policy selection= {}\n", Dates.time() - t00)
 
         policy = IterTools.nth(policies, ii)
         action_ids = collect(zip(policy...))[1]
         action = (; zip(action_names, action_ids)...)
         
-
-        agent.current.action = action
+        agent.last_action = action
 
         # Push action to agent's history
-        #push!(agent.history.actions, action)
+        push!(agent.history.actions, action)
 
         if verbose
             printfmtln("\nAction at time {}: {}, ipolicy={}, q_pi= {}, G={}", 
                 step_i, action, ii, q_pi[ii], G[ii]
             )
             
-            if isnothing(agent.G_actions) && agent.settings.verbose
+            if isnothing(agent.G_actions)
                 printfmtln("\nutility= {}, sum= {}", agent.utility[ii, :], round(sum(skipmissing(agent.utility[ii, :])), digits=4))
 
                 printfmtln("\ninfo_gain= {}, sum= {}", agent.info_gain[ii, :], round(sum(skipmissing(agent.info_gain[ii, :])), digits=4))
@@ -157,7 +148,7 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
         #@infiltrate; @assert false
 
         # record EFE choice
-        if false && isnothing(agent.G_actions)
+        if isnothing(agent.G_actions)
             push!(history_of_EFE, [
                 sum(agent.info_gain[ii, :]), 
                 sum(agent.utility[ii, :]), 
@@ -168,40 +159,40 @@ function simulate(model, agent, env, CONFIG, to_label, sim_i)
         end
         push!(history_of_actions, action)
         
-        t00 = Dates.time()
+
         obs = step_env!(env, action)
         cell_obs = model.states.loc.labels[obs.loc_obs]
         #push!(history_of_observations, obs.loc_obs)
         push!(history_of_cells, cell_obs)
-        printfmtln("\ntime step= {}\n", Dates.time() - t00)
 
         if verbose
             printfmtln("Grid location at time {}, after action: {}", step_i, obs)
         end
-        
-        printfmtln("\nsimulation time= {}\n", round((Dates.time() - t0) , digits=2))
-        
+
+        #@infiltrate; @assert false
     end
 
     printfmtln("\nsimulation time= {}\n", round((Dates.time() - t0) , digits=2))
-    
+    @infiltrate; @assert false
+
     # make animation
-    #anim = Animation()
-    #for p in plots
-    #    Plots.frame(anim, p)
-    #end
-    #Plots.gif(anim, gif_name, fps=1)
+    anim = Animation()
+    for p in plots
+        Plots.frame(anim, p)
+    end
+    Plots.gif(anim, gif_name, fps=1)
     
     results = Dict(
         :loc_id => history_of_locs,
         :EFE => history_of_EFE,
         :actions => history_of_actions,
-        #:sq_error => history_of_sq_error,
-        #:r => history_of_r,
+        :sq_error => history_of_sq_error,
+        :r => history_of_r,
         :cells => history_of_cells
     )
 
-    #@infiltrate; @assert false
+    # 1000 steps in 4419 sec = 73.6 minutes
+    @infiltrate; @assert false
 
     return results
 

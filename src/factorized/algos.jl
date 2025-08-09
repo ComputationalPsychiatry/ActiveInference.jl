@@ -68,10 +68,12 @@ end
 
 
 function run_factorized_fpi(
-        agent::AI.Agent{T2}, 
-        new_obs::NamedTuple{<:Any, <:NTuple{N, Int64} where {N}}
+        log_prior::NamedTuple{<:Any, <:NTuple{N, Vector{T2}} where {N}}, 
+        new_obs::NamedTuple{<:Any, <:NTuple{N, Int64} where {N}},
+        agent::AI.Agent{T2},
     ) where {T2<:AbstractFloat}
     
+    # qs_prior called log_prior here, as it will be converted to log
     """
     Run the fixed point iteration algorithm with sparse dependencies between factors and outcomes 
     """
@@ -100,12 +102,12 @@ function run_factorized_fpi(
     end
     
     # Step 2: Map prior to log space and create initial log-posterior
-    log_prior = deepcopy(agent.qs_prior)
     for prior in log_prior
         prior[:] = AI.Maths.capped_log(prior)
     end
 
-    qs_current = deepcopy(agent.qs)
+    # create an uninformed guess at new qs
+    qs_current = deepcopy(log_prior)
     for qs in qs_current
         qs[:] = ones(T2, length(qs)) / length(qs)
     end

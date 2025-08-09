@@ -2,18 +2,19 @@
 # taskset --cpu-list 1 python jax_script_standard_inference.py
 
 import os
-#os.environ['MKL_NUM_THREADS']='1' 
-#os.environ['OPENBLAS_NUM_THREADS']='1'
-#os.environ['OMP_NUM_THREADS']='1'
 
-#os.environ["NUM_INTER_THREADS"]="1"
-#os.environ["NUM_INTRA_THREADS"]="1"
-#os.environ["NUM_INTRA_THREADS"]="1"
+os.environ['MKL_NUM_THREADS']='1' 
+os.environ['OPENBLAS_NUM_THREADS']='1'
+os.environ['OMP_NUM_THREADS']='1'
+
+os.environ["NUM_INTER_THREADS"]="1"
+os.environ["NUM_INTRA_THREADS"]="1"
+
 
                          
-#os.environ["XLA_FLAGS"] = "--xla_cpu_multi_thread_eigen=false"
-#os.environ["XLA_FLAGS"] = "--intra_op_parallelism_threads=1"
-#os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=1"
+os.environ["XLA_FLAGS"] = "--xla_cpu_multi_thread_eigen=false intra_op_parallelism_threads=1 xla_force_host_platform_device_count=1"
+os.environ["NPROC"] = "1"
+
 
 import jax
 jax.config.update('jax_platform_name', 'cpu')
@@ -45,10 +46,10 @@ def run_simulation(policy_len, num_iterations):
     
     #assert False
     infer_states = jax.jit(lambda obs, prior: agent.infer_states(obs, prior))
-    #infer_policies = jax.jit(lambda qs: agent.infer_policies(qs))
+    infer_policies = jax.jit(lambda qs: agent.infer_policies(qs))
 
     #infer_states = agent.infer_states
-    infer_policies = agent.infer_policies
+    #infer_policies = agent.infer_policies
 
     env = SIMazeEnv(MAZE, PREFERENCES, start_state=17)
 
@@ -107,6 +108,11 @@ def run_simulation(policy_len, num_iterations):
     #df_planning.to_csv(f"std_jax_jit_planning_{horizon}.csv", index=False)
 
 #for horizon in range(2, 14):
+for horizon in range(15, 16):
+    print(f"Running horizon {horizon}...")
+    run_simulation(horizon, 10)
+    print(f"Finished {horizon}.\n")
+
 for horizon in range(15, 16):
     print(f"Running horizon {horizon}...")
     run_simulation(horizon, 10)

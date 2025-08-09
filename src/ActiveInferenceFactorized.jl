@@ -3,7 +3,7 @@ module ActiveInferenceFactorized
 # todo:  move most of these 'usings' to the modules where they are used, and make them either import x or import x: m1, m2,...
 # todo: maybe only include one files here, struct.jl, and any needed for ActionModels
 
-using ActionModels
+#using ActionModels
 #using LinearAlgebra
 #using IterTools
 #using Random
@@ -35,20 +35,20 @@ include("factorized/algos.jl")
 include("factorized/inference.jl")
 
 
-include("ActionModelsExtensions/get_states.jl")
-include("ActionModelsExtensions/get_parameters.jl")
-include("ActionModelsExtensions/get_history.jl")
-include("ActionModelsExtensions/set_parameters.jl")
-include("ActionModelsExtensions/reset.jl")
-include("ActionModelsExtensions/give_inputs.jl")
-include("ActionModelsExtensions/set_save_history.jl")
+#include("ActionModelsExtensions/get_states.jl")
+#include("ActionModelsExtensions/get_parameters.jl")
+#include("ActionModelsExtensions/get_history.jl")
+#include("ActionModelsExtensions/set_parameters.jl")
+#include("ActionModelsExtensions/reset.jl")
+#include("ActionModelsExtensions/give_inputs.jl")
+#include("ActionModelsExtensions/set_save_history.jl")
 
-include("factorized/POMDP.jl")
+#include("factorized/POMDP.jl")
 #include("factorized/utils/helper_functions.jl")
 #include("factorized/utils/create_matrix_templates.jl")
 
 # todo  move most of these to the modules where they are used, and make them include(...)
-export # utils/create_matrix_templates.jl
+#export # utils/create_matrix_templates.jl
        #todo: do all these really have to be exported?
        
        #create_matrix_templates,
@@ -65,45 +65,45 @@ export # utils/create_matrix_templates.jl
        #get_model_dimensions,
 
        # struct.jl
-       create_agent,
-       infer_states!,
-       infer_policies!,
-       sample_action!,
-       update_A!,
-       update_B!,
-       update_D!,
-       update_parameters!,
+       #create_agent,
+       #infer_states!,
+       #infer_policies!,
+       #sample_action!,
+       #update_A!,
+       #update_B!,
+       #update_D!,
+       #update_parameters!,
        
 
        # POMDP.jl
-       action_factorized!,
+       #action_factorized!,
 
        # ActionModelsExtensions
-       get_states,
-       get_parameters,
-       get_history,
-       set_parameters!,
-       reset!,
-       single_input!,
-       give_inputs!,
-       set_save_history!
+       #get_states,
+       #get_parameters,
+       #get_history,
+       #set_parameters!,
+       #reset!,
+       #single_input!,
+       #give_inputs!,
+       #set_save_history!
 
-    module Environments
+    #module Environments
 
-    using LinearAlgebra
-    using ActiveInference
-    using Distributions
+    #using LinearAlgebra
+    #using ActiveInference
+    #using Distributions
     
-    include("Environments/EpistChainEnv.jl")
+    #include("Environments/EpistChainEnv.jl")
     
-    export EpistChainEnv, step!, reset_env!
+    #export EpistChainEnv, step!, reset_env!
 
-    include("Environments/TMazeEnv.jl")
-    include("factorized/maths.jl")
+    #include("Environments/TMazeEnv.jl")
+    #include("factorized/maths.jl")
 
-    export TMazeEnv, step_TMaze!, reset_TMaze!, initialize_gp
+    #export TMazeEnv, step_TMaze!, reset_TMaze!, initialize_gp
        
-    end
+    #end
 end
 
 

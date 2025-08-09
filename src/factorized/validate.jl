@@ -1,6 +1,7 @@
 module Validate
 
 import Setfield: @set
+import LogExpFunctions as LEF
 
 using Format
 using Infiltrator
@@ -123,6 +124,14 @@ function validate(model, settings, float_type, parameters)
         @assert false "not yet implemented"  # todo: implement param_info_gain for graph methods
     end
 
+    for (obs_i, obs) in enumerate(model.obs)
+        @assert !ismissing(obs.pA)  "The pA for each obs should be a tensor or nothing, not missing"
+    end
+
+    if settings.policy_inference_method == :sophisticated && settings.EFE_reduction == :sum
+        @assert false "If sophisticated inference, do not use :sum to reduce EFE"
+    end
+
     #=
     todo:  all these tests needs to be cleaned up, added to, and reorganized
 
@@ -217,6 +226,16 @@ function complete(model, settings, float_type, parameters)
             model = @set model.policies.E_actions = ones(float_type, n_actions) / n_actions
         else
             model = @set model.policies.E_actions = nothing
+        end
+    end
+
+    
+    # calc HA for each obs, if no parameter learning
+    for (obs_i, obs) in enumerate(model.obs)
+        if isnothing(obs.pA)
+            # obs has fixed A matrix, pre-calculate entropy
+            HA = - sum(LEF.xlogx.(float_type.(obs.A)), dims=1)  # take log of right type
+            model = @set model.obs[obs.name].HA = HA
         end
     end
 

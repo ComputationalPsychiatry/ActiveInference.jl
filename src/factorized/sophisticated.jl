@@ -429,7 +429,9 @@ function do_EFE_over_policies(siGraph, agent, leaves)
         paths = Vector{Vector{Base.UUID}}()
         done = Set()
         for leaf in leaves[policy]
-            parents = recurse_parents(leaf, siGraph, Vector{Base.UUID}())  # last parent is top node, first is leaf
+            
+            # last parent is top node, first parent in parents is leaf
+            parents = recurse_parents(leaf, siGraph, Vector{Base.UUID}())  
             push!(paths, parents)
             
             # reset all updated values on this path to 0. EFE calculations are per path.
@@ -464,6 +466,7 @@ function do_EFE_over_policies(siGraph, agent, leaves)
             siGraph[leaf].risk_updated = siGraph[leaf].risk
             siGraph[leaf].ambiguity_updated = siGraph[leaf].ambiguity
             siGraph[leaf].G_updated = siGraph[leaf].G  
+            siGraph[leaf].q_pi_updated = siGraph[leaf].q_pi
         end
 
         #=
@@ -498,7 +501,7 @@ function do_EFE_over_policies(siGraph, agent, leaves)
                 # todo: if we are certain method is ok, this test could be skipped
                 # get all ActionNode siblings, some of which are not in subpolicy
                 siblings = collect(MGN.outneighbor_labels(siGraph, obs_node))
-                q_pi = [siGraph[sibling].q_pi_children for sibling in siblings]
+                q_pi = [siGraph[sibling].q_pi for sibling in siblings]
                 @assert isapprox(sum(q_pi), 1)
                 
                 # update the ObsNode parent
@@ -516,8 +519,8 @@ function do_EFE_over_policies(siGraph, agent, leaves)
                     
                 elseif agent.settings.policy_postprocessing_method == :G_prob_q_pi
                     # unlike pymdp, which only sums over G, here we also keep track of utility, etc.
-                    # so we also multiply utility etc. by q_pi_children
-                    qpi = siGraph[action_node].q_pi_children
+                    # so we also multiply utility etc. by q_pi
+                    qpi = siGraph[action_node].q_pi
                     siGraph[obs_node].G_updated = prob * siGraph[action_node].G * qpi
                     siGraph[obs_node].utility_updated = prob * siGraph[action_node].utility * qpi
                     siGraph[obs_node].info_gain_updated = prob * siGraph[action_node].info_gain * qpi
@@ -616,7 +619,7 @@ function do_EFE_over_policies(siGraph, agent, leaves)
     agent.q_pi_policies[idx] .= LEF.softmax(agent.G_policies[idx] * agent.parameters.gamma + lnE, dims=1)  
 
 
-    #if agent.sim_step == 2
+    #if agent.current.sim_step == 2
     #    @infiltrate; @assert false  
     #end  
 
@@ -676,11 +679,12 @@ function recurse(
             policy = (; zip(keys(policy), Tuple.([vcat(policy[ii]..., act) for (ii,act) in enumerate(action)]))...)
         end
         
-        qs_pi = AI.Inference.get_expected_states(qs, policy1, agent)  # use a policy of one action
+        # qs_pi is the qs_prior for what the node belives it will see after an action, before seeing the obs
+        earlystop, filtered, qs_pi = AI.Inference.get_expected_states(qs, policy1, agent)  # use a policy of one action
 
         if !isnothing(siGraph)
-            
-            if isnothing(qs_pi) 
+            # add any nodes for earlystop or filtered
+            if filtered
                 # bad policy for given states
                 ActionLabel = UUIDs.uuid1(rng) 
                 siGraph[ActionLabel] = AI.BadPath("BadPath")
@@ -689,7 +693,7 @@ function recurse(
                 continue
             end
 
-            if ismissing(qs_pi)
+            if earlystop
                 # early stop, will be true for all actions
                 ActionLabel = UUIDs.uuid1(rng) 
                 siGraph[ActionLabel] = AI.EarlyStop("EarlyStop")
@@ -699,22 +703,10 @@ function recurse(
             end
         else
             # for an implicit graph there should be no early stops or bad paths
-            if isnothing(qs_pi) 
-                # bad policy for given states
-                @infiltrate; @assert false
-                continue
-            end
-
-            if ismissing(qs_pi)
-                # early stop, will be true for all actions
-                @infiltrate; @assert false  
-                continue  
+            if earlystop || filtered
+                @infiltrate; @assert false #"Should be no earlystops or filtered paths."
             end
         end
-
-        #if isapprox(qs.loc, qs_pi[1].loc)
-        #    @infiltrate; @assert false
-        #end
 
         qo_pi = AI.Inference.get_expected_obs(qs_pi, agent)  
         
@@ -740,19 +732,23 @@ function recurse(
 
         end
         
+        #if policy == (move=(1,2),) 
+        #    @infiltrate; @assert false
+        #end
+
         # add to graph 
         #@infiltrate; @assert false
         ActionChild = AI.ActionNode{T2}(
-            qs,  # size number of state variables [number of categories per variable]
-            qs_pi[1], # size number of actions (=1) [number of state variables [ number of categories per variable]]
-            qo_pi[1], # size number of actions (=1) [number of observation variables [ number of categories per variable]]
+            qs,  # parent qs
+            qs_pi[1], 
+            qo_pi[1].qo, 
             utility, # scalar
             info_gain, # scalar
             ambiguity, # scalar
             risk, # scalar
             G, # scalar
             false,  # are childen pruned out due to prune penalty?
-            nothing,  # q_pi_children
+            nothing,  # q_pi
                                    
             nothing, # utility_updated
             nothing, # info_gain_updated
@@ -855,9 +851,9 @@ function recurse(
 
     # record results for q_pi on viable ActionNodes
     G_children = [child.G for child in children]  # This is G over all viable children of ObsNode
-    q_pi_children = LEF.softmax(G_children * agent.parameters.gamma)  # this is qs_pi over all viable children of ObsNode 
+    q_pi_children = LEF.softmax(G_children * agent.parameters.gamma)  # this is q_pi over all children, with G penalties 
     for (ii, child) in enumerate(children)
-        child.q_pi_children = q_pi_children[ii]
+        child.q_pi = q_pi_children[ii]  # this is the action node's effective q_pi going forward
     end
     #@infiltrate; @assert false
     
@@ -872,7 +868,6 @@ function recurse(
         
             # edge will always be unique
             siGraph[ObsLabel, ActionLabel] = AI.GraphEdge()
-
         end
     end
 
@@ -901,18 +896,16 @@ function recurse(
             continue
         end
 
-
         # do standard inference?
         if agent.settings.policy_inference_method == :standard
             # use this for :standard inference with :explicit or :implicit graph
-            
             # make only a single Obs node
             # do not call update_posterior_states to get qs_next, use original
             qs_next = ActionChild.qs_pi  
             prob = 1.0
             obs = (; zip(obs_names, zeros(length(obs_names)))...)  # dummy obs
             
-            ObsParent = AI.ObsNode{T2}(
+            ObsParent2 = AI.ObsNode{T2}(
                 qs_next,
                 nothing,  # utility_updated
                 nothing,  # info_gain_updated
@@ -929,7 +922,7 @@ function recurse(
 
             ObsLabel = UUIDs.uuid1(rng) 
             if !isnothing(siGraph)
-                siGraph[ObsLabel] = ObsParent
+                siGraph[ObsLabel] = ObsParent2
                 siGraph[action_labels[idx], ObsLabel] = AI.GraphEdge()
             end
 
@@ -938,7 +931,7 @@ function recurse(
             end
             
             #@infiltrate; @assert false
-            G_grandchildren, q_pi_grandchildren  = recurse(siGraph, ObsParent, agent, ObsLabel, action_names, rng)
+            G_grandchildren, q_pi_grandchildren  = recurse(siGraph, ObsParent2, agent, ObsLabel, action_names, rng)
             G_weighted = sum(G_grandchildren .* q_pi_grandchildren) * prob
             G_children[idx] += G_weighted
 
@@ -982,13 +975,23 @@ function recurse(
             end
 
             obs = (; zip(obs_names, observation)...)
-            qs_next = AI.Inference.update_posterior_states(agent, obs)
+            
+            #=
+            We want an updated qs, given qs_prior, after seeing a (potential) observation. Here, 
+            for this obs node:
+                qs_prior = ActionChild.qs_pi 
+            =#
+            qs_next = AI.Inference.update_posterior_states(
+                ActionChild.qs_pi,
+                obs, 
+                agent
+            )
                 
             # make Obs node and link to parent, overwrite ObsLabel
             # ObsLabel = vcat(ActionLabel, Label(level, observation, siGraph[ActionLabel].action, "Obs"))  # longer
             ObsLabel = UUIDs.uuid1(rng) 
 
-            ObsParent = AI.ObsNode{T2}(
+            ObsParent2 = AI.ObsNode{T2}(
                 qs_next,
                 nothing,  # utility_updated
                 nothing,  # info_gain_updated
@@ -1002,11 +1005,16 @@ function recurse(
                 level +1 ,
                 ActionChild.policy,
             )
+
+            #if obs == (loc_obs = 17, wall_obs = 1) && ActionChild.policy == (move = (1,),)
+            #    @infiltrate; @assert false
+            #end
+ 
                         
             #printfmtln("    level= {}, policy= {}", ObsParent.level, ObsParent.policy)
             
             if !isnothing(siGraph)
-                siGraph[ObsLabel] = ObsParent
+                siGraph[ObsLabel] = ObsParent2
                 siGraph[action_labels[idx], ObsLabel] = AI.GraphEdge()
             end
             
@@ -1015,7 +1023,7 @@ function recurse(
             end
         
             #@infiltrate; @assert false
-            G_grandchildren, q_pi_grandchildren  = recurse(siGraph, ObsParent, agent, ObsLabel, action_names, rng)
+            G_grandchildren, q_pi_grandchildren  = recurse(siGraph, ObsParent2, agent, ObsLabel, action_names, rng)
             G_weighted = sum(G_grandchildren .* q_pi_grandchildren) * prob
             G_children[idx] += G_weighted
         end

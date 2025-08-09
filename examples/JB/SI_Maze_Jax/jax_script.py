@@ -82,6 +82,21 @@ def run_simulation(horizon, num_iterations):
         observation = env.step(action[0])
         planning_times.append(elapsed_time)
         planning_mibs.append(mem_mib)
+        '''
+        for horizon 4:
+            qs[0].shape = (1,1,81)
+            q_pi[0].shape = (2,)
+            action.shape = (1,1)
+            1. empirical_prior = tuple of len=2
+                empirical_prior[0][0].shape = (1,81)
+                empirical_prior[1][0].shape = (1,1,81)
+            2. empirical_prior[0].shape = (1,1,81)
+            3. empirical_prior[0].shape = (1,81)
+            observation[0].shape = (1,81)
+        '''
+
+
+        assert False
 
     end_sim = time.perf_counter()
     sim_time = end_sim - start_sim
@@ -105,7 +120,7 @@ def run_simulation(horizon, num_iterations):
 
 #for horizon in range(2, 14):
 #for horizon in range(2, 5):
-for horizon in range(15, 16):
+for horizon in range(4, 5):
     print(f"Running horizon {horizon}...")
     run_simulation(horizon, 10)
     print(f"Finished {horizon}.\n")

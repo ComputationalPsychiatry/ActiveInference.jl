@@ -3,32 +3,20 @@
 
 module Inference
 
-#using Distributed
-#addprocs(4; exeflags="--project")
-
-#if nworkers() < 4
-#    addprocs(4, exeflags=`--project=$(Base.active_project()) -t 200`)
-#end
-#println(nworkers())
-#@everywhere begin
-
 import LogExpFunctions as LEF
 import ActiveInference.ActiveInferenceFactorized as AI  
 
 import Test: @inferred
+import Memoization: @memoize
+import Dates
+
+using Base.Threads
+#using TimerOutputs
 
 using Format
 using Infiltrator
 
-#Distributed.@everywhere import LogExpFunctions as LEF
-#Distributed.@everywhere import ActiveInference.ActiveInferenceFactorized as AI 
-#Distributed.@everywhere import Pkg
-#Distributed.@everywhere Pkg.activate()
-
-
 #using Revise
-
-#include("./algos.jl")
 
 
 # @infiltrate; @assert false
@@ -71,15 +59,21 @@ function get_expected_states(
         end
 
         for (state_ii, state) in enumerate(model.states)
+        #for state_ii in 1:length(model.states)
+        #    state = model.states[state_ii]
+        
                         
             # select out actions from B matrix
+            
             B, _ = AI.Utils.select_B_actions(state, policy, step_i)
             
             
             # collect B dependencies
             deps = AI.Utils.collect_dependencies(qs_pi, state, policy, step_i)
+                        
             
             qs_new = AI.Maths.dot_product1(B, deps)
+            
 
             #if isapprox(qs_pi[step_i][state.name], qs_new)
             #    @infiltrate; @assert false
@@ -95,9 +89,8 @@ function get_expected_states(
         end
 
         # action_tests
-        
-        if isa(model.policies.action_tests, Function) && !model.policies.action_tests(qs_pi[step_i + 1], model)
-            return (earlystop=false, filter=true, qs=[qs]) # entire policy for all B matrices and actions is invalid
+        if isa(model.policies.action_tests, Function) && !model.policies.action_tests(qs_pi[step_i + 1], qs_pi[step_i], model)
+            return (earlystop=false, filtered=true, qs=[qs]) # entire policy for all B matrices and actions is invalid
         end
     
         # todo: perform policy_tests 
@@ -110,7 +103,7 @@ function get_expected_states(
                 
                 for acts in collect(zip(policy...))[step_i+1:end]
                     if acts != null_action_ids
-                        return (earlystop=false, filter=true, qs=[qs]) # entire policy for all B matrices and actions is invalid
+                        return (earlystop=false, filtered=true, qs=[qs]) # entire policy for all B matrices and actions is invalid
                     end
                 end
                 
@@ -118,6 +111,12 @@ function get_expected_states(
                 stop_early_at_step = step_i + 1
             end
         end
+
+        #if argmax(qs.loc) == 17 && policy == (move = (2,),)
+        #    q= qs_pi[step_i + 1].loc
+        #    printfmtln("17 & 2:  max qs= {}, max qs_pi= {}, ", findall(x-> isapprox(x, maximum(qs.loc)), qs.loc), findall(x-> isapprox(x, maximum(q)), q))
+        #    #@infiltrate; @assert false
+        #end
     end
     
     return (earlystop=false, filtered=false, qs= qs_pi[2:end])
@@ -126,14 +125,21 @@ end
 
 
 """ Update Posterior States """
-function update_posterior_states(agent::AI.Agent, obs::NamedTuple{<:Any, <:NTuple{N, Int64} where {N}}) 
+function update_posterior_states(
+        qs_prior::NamedTuple{<:Any, <:NTuple{N, Vector{T2}} where {N}}, 
+        obs::NamedTuple{<:Any, <:NTuple{N, Int64} where {N}},
+        agent::AI.Agent{T2}
+        )  where {T2<:AbstractFloat}  
+    
+    # note: qs and qs_prior might be from SI, looking into the future, and not from current agent.
+    
     # todo: there seems to be no need for this function, except to call run_factorized_fpi.
     # If this is just a pass through function, is that is what we want? Maybe later we will
     # have other algorithms, in addition to fpi.
     
     #@infiltrate; @assert false
     
-    qs = AI.Algos.run_factorized_fpi(agent, obs)  
+    qs = AI.Algos.run_factorized_fpi(qs_prior, obs, agent)  
 
     #@infiltrate; @assert false
 
@@ -144,18 +150,30 @@ end
 
 
 function eval_policy(policy_i, policy_iterator, agent, qs_current, action_names, n_steps)
-    
+    #@timeit TO "eval_policy" begin
+
     policy = policy_iterator[policy_i]
     policy = (; zip(action_names, policy)...)
+    
     earlystop, filtered, qs_pi = get_expected_states(qs_current, policy, agent) 
     
-    #@infiltrate; @assert false
-    if earlystop
+    if filtered
         # bad policy, given missing utility and info_gain, and zero EFE
         return
     end
 
+    if earlystop 
+        @infiltrate; @assert false "todo: earlystop"
+        return
+    end
+
+    #t0 = Dates.time()
+
+    #@timeit TO "get expected obs" begin
     qo_pi = get_expected_obs(qs_pi, agent)  
+    #end  # -- timeit
+    
+    #printfmtln("\n    time get expected obs= {}\n", (Dates.time() - t0) * agent.model.policies.n_policies)
     #@infiltrate; @assert false
     
     # note: length of qs_pi and qo_pi will be less than policy length if early stop
@@ -167,7 +185,10 @@ function eval_policy(policy_i, policy_iterator, agent, qs_current, action_names,
         #    @infiltrate; @assert false
         #    G[policy_i] += ReverseDiff.value(calc_expected_utility(qo_pi, C))
 
+        
+        #t0 = Dates.time()
         # Otherwise calculate the expected utility and add it to the G vector
+        #@timeit TO "utility" begin
         utility_ = calc_expected_utility(qo_pi, agent)
         
         
@@ -196,7 +217,9 @@ function eval_policy(policy_i, policy_iterator, agent, qs_current, action_names,
         end
 
         agent.utility[policy_i, 1:utility_.size[1]] = utility_
+        #printfmtln("\n    time utility= {}\n", (Dates.time() - t0) * agent.model.policies.n_policies)
         #@infiltrate; @assert false 
+        #end  # -- timeit
     end
 
     # Calculate expected information gain of states
@@ -207,7 +230,8 @@ function eval_policy(policy_i, policy_iterator, agent, qs_current, action_names,
         #    G[policy_i] += ReverseDiff.value(calc_states_info_gain(A, qs_pi))
 
         # Otherwise calculate it and add it to the G vector
-        
+        #t0 = Dates.time()
+        #@timeit TO "info gain" begin
         info_gain_, ambiguity_ = calc_info_gain(qs_pi, qo_pi, agent)
         
         # initialize this G?
@@ -243,6 +267,11 @@ function eval_policy(policy_i, policy_iterator, agent, qs_current, action_names,
             .- ambiguity_
         )
         @assert isapprox(info_gain_ + utility_, agent.risk[policy_i,1:ambiguity_.size[1]] + ambiguity_)
+
+        #printfmtln("\n    time info gain= {}\n", (Dates.time() - t0) * agent.model.policies.n_policies)
+        #end  # -- timeit
+        
+    
         #@infiltrate; @assert false
     end
 
@@ -328,7 +357,30 @@ function eval_policy(policy_i, policy_iterator, agent, qs_current, action_names,
 
         end
     end
+    #end  # -- timeit
+    #println(policy_i)
+    #@infiltrate; @assert false 
+
 end
+
+
+function partition(x, np)
+    (len, rem) = divrem(length(x), np)
+    Base.Generator(1:np) do p
+        i1 = firstindex(x) + (p - 1) * len
+        i2 = i1 + len - 1
+        if p <= rem
+            i1 += p - 1
+            i2 += p
+        else
+            i1 += rem
+            i2 += rem
+        end
+        chunk = x[i1:i2]
+    end
+end
+
+
 
 #end  # -- everywhere
 #### Policy Inference #### 
@@ -379,14 +431,33 @@ function update_posterior_policies!(agent::AI.Agent{T2}) where {T2<:AbstractFloa
     #for policy_i in 1:model.policies.n_policies
     #end
     
-
+    #TO = TimerOutput()
+    #@timeit TO "policy" begin
+    
+    #t0 = Dates.time()
+    #chunks = partition(1:length(policy_iterator), nthreads())
+    #tasks = map(chunks) do chunk
+    #    @spawn for i in chunk
+    #        eval_policy(i, policy_iterator, agent, qs_current, action_names, n_steps)
+    #    end
+    #end
+    #wait.(tasks)
+    
+    #end  # timer
+    
+    #for i in 1:length(policy_iterator)    
+    @threads for i in 1:length(policy_iterator)
+        eval_policy(i, policy_iterator, agent, qs_current, action_names, n_steps)
+    end
+    
+    #printfmtln("\ntime eval= {}\n", Dates.time() - t0)
 
     #fx(policy_i) = eval_policy(policy_i, policy_iterator, agent, qs_current, action_names, n_steps)
     #@inferred fx(1)
-#@infiltrate; @assert false
+    #@infiltrate; @assert false
 
     #pmap(i -> fx(i), 1:model.policies.n_policies)
-    map(i -> eval_policy(i, policy_iterator, agent, qs_current, action_names, n_steps), 1:model.policies.n_policies)
+    #map(i -> eval_policy(i, policy_iterator, agent, qs_current, action_names, n_steps), 1:model.policies.n_policies)
 
     if sum(skipmissing(agent.G_policies)) == 0
         #@infiltrate; @assert false  # All policies failed?
@@ -397,12 +468,21 @@ function update_posterior_policies!(agent::AI.Agent{T2}) where {T2<:AbstractFloa
     idx = findall(x -> !ismissing(x), agent.G_policies)
     
     if agent.settings.EFE_over == :actions 
-        
+        #@timeit TO "efe actions" begin
         # marginalize G over actions
+
+        firsts = [first.(x) for x in policy_iterator]
+        for (ii, first_action) in enumerate(agent.model.policies.action_iterator)
+            jjs = findall(i -> i in idx && firsts[i] == first_action, 1:agent.model.policies.n_policies)
+            agent.G_actions[ii] = sum(agent.G_policies[jjs])
+        end 
+
+        #=
         for (policy_i, policy) in enumerate(model.policies.policy_iterator)  
             if !(policy_i in idx)
                 continue
             end 
+            @infiltrate; @assert false
             policy = (; zip(action_names, policy)...) 
             first_action = first.(values(policy))
             idx2 = findfirst(x -> x == first_action, agent.model.policies.action_iterator)
@@ -413,22 +493,28 @@ function update_posterior_policies!(agent::AI.Agent{T2}) where {T2<:AbstractFloa
             
             agent.G_actions[idx2] += agent.G_policies[policy_i] 
         end
+        =#
+        #printfmtln("\n   intermediate= {}\n", Dates.time() - t00)
         
         idx3 = findall(x -> !ismissing(x), agent.G_actions) 
         Eidx = model.policies.E_actions[idx3]
         lnE = AI.Maths.capped_log(Eidx)
         
         agent.q_pi_actions[idx3] = LEF.softmax(T2.(agent.G_actions[idx3]) * agent.parameters.gamma + lnE, dims=1)  
-        
+        #printfmtln("\ntime infer actions calc q_pi= {}\n", Dates.time() - t00)
+        #end  # -- timer
         #@infiltrate; @assert false
         return
     end
 
+    #t00 = Dates.time()
     # calculate q_pi over policies   
+    #@timeit TO "efe policies" begin
     Eidx = model.policies.E_policies[idx]
     lnE = AI.Maths.capped_log(Eidx)
     agent.q_pi_policies[idx] .= LEF.softmax(T2.(agent.G_policies[idx]) * agent.parameters.gamma + lnE, dims=1)  
-
+    #printfmtln("\ntime infer policies calc q_pi= {}\n", Dates.time() - t00)
+    #end  # --timer
     #@infiltrate; @assert false
     
     return 
@@ -557,8 +643,9 @@ end
 # --------------------------------------------------------------------------------------------------
 function calc_info_gain(
         qs::Vector{T} where {T <: NamedTuple{<:Any, <:NTuple{N, Vector{T2}} where {N}}}, 
-        qo::Vector{AI.Qo{T2}}, 
-        agent::AI.Agent) where {T2<:AbstractFloat}
+        qo::Vector{AI.Qo{T2}},
+        agent::AI.Agent
+    ) where {T2<:AbstractFloat}
     """
     New version of expected information gain that takes into account sparse dependencies between observation modalities and hidden state factors.
     qs, qo are over policy steps
@@ -570,31 +657,26 @@ function calc_info_gain(
     ambiguity_per_step = zeros(T2, qs.size[1])
     
     for step_i in 1:qs.size[1]
-        
+    #@threads for step_i in 1:qs.size[1]
+        #@timeit TO "setup" begin 
+        #info_gains_per_modality .= 0
+        #ambiguity_per_modality .= 0
         info_gains_per_modality = zeros(T2, length(model.obs))
         ambiguity_per_modality = zeros(T2, length(model.obs))
-        qs_step = qs[step_i]
-        qo_step = qo[step_i].qo
-        
+
+        #end  # -- timer
         for (obs_i, obs) in enumerate(model.obs)
+            #@timeit TO "H_qo" begin
+            H_qo = AI.Maths.stable_entropy(qo[step_i].qo[obs.name])
             
-            H_qo = AI.Maths.stable_entropy(qo_step[obs.name])
-            #H_A = - sum(AI.Maths.stable_xlogx(obs.A), dims=1)
-            
-            H_A = zeros(T2, (1,obs.A.size[2]))
-            #if ndims(obs.A) == 2 && Set(unique(obs.A)) == Set([0,1])
-            #    H_A = zeros(T2, (1,obs.A.size[2]))
-            #else
-            #    H_A = - sum(LEF.xlogx.(obs.A), dims=1)
-            #end
-            #@infiltrate; @assert false
-            deps = AI.Utils.collect_dependencies(qs_step, obs)
-            H_A = AI.Maths.dot_product1(H_A, deps)
-            
-            if ndims(H_A) > 1
-                #@infiltrate; @assert false
-                @assert false
+            if !isnothing(obs.HA)
+                H_A = obs.HA
+            else
+                H_A = - sum(LEF.xlogx.(obs.A), dims=1)
             end
+            
+            deps = AI.Utils.collect_dependencies(qs[step_i], obs)
+            H_A = AI.Maths.dot_product1(H_A, deps)
             @assert H_A.size[1] == 1
             
             info_gains_per_modality[obs_i] = H_qo - H_A[1]
@@ -602,16 +684,18 @@ function calc_info_gain(
             #@infiltrate; @assert false
         end
         
+        #@timeit TO "final" begin    
+    
         info_gain_per_step[step_i] = sum(info_gains_per_modality)
         ambiguity_per_step[step_i] = sum(ambiguity_per_modality)
         
         if info_gain_per_step[step_i] < 0
-            #@infiltrate; @assert false
-            @assert false
+            @infiltrate; @assert false
         end 
-
     end
-
+        #end  # --timer
+        
+    #@infiltrate; @assert false
     return info_gain_per_step, ambiguity_per_step
 end
 
