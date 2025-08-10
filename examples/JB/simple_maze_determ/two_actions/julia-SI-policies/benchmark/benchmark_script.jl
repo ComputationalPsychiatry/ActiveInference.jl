@@ -1,12 +1,18 @@
 
 # @infiltrate; @assert false
 
+
+
+module Benchmark
+
+folder = "./two_actions/julia-SI-policies"
+
+
 #using Pkg
 #Pkg.activate(".")
 import Plots
 import Random
 import Setfield: @set
-#import StaticArrays as SA
 import Statistics
 using CSV, DataFrames
 
@@ -17,13 +23,14 @@ using Revise
 import ActiveInference.ActiveInferenceFactorized as AI
 
 include("lib/make_model.jl")
-include("environment.jl")
+include("lib/environment.jl")
 
 include("lib/make_A.jl")
 include("lib/make_B.jl")
 include("lib/simulate.jl")
 include("lib/make_policies.jl")
 include("lib/custom_sample_action.jl")
+include("lib/animate.jl")
 
 Random.seed!(51233)
 
@@ -167,24 +174,39 @@ end
 # Make env global for plotting
 global env = nothing
 
+function run()
+    # Main execution loop
+    
+    
+    # writes results to folder where REPL is opened
+    if ispath(folder)
+        for file in readdir(folder)
+            rm(joinpath(folder, file))
+        end
+    else
+        mkpath(folder)
+    end
+    
+    
+    n_sim_steps = 10
+    for horizon in 12:12
+        println("Running horizon $(horizon)...")
+        run_simulation(horizon, n_sim_steps)
+        println("\nFinished policy len $(horizon).\n")
+    end
 
-# Main execution loop
-n_sim_steps = 10
-for horizon in 12:12
-    println("Running horizon $(horizon)...")
-    run_simulation(horizon, n_sim_steps)
-    println("\nFinished policy len $(horizon).\n")
+    animate!(env.history[2:n_sim_steps+2], CONFIG.policy_length)
+
+    @infiltrate; @assert false
+
 end
 
 ######################################################################################################################
 
-include("lib/animate.jl")
-
-animate!(env.history[2:n_sim_steps+2], CONFIG.policy_length)
-
-
-@infiltrate; @assert false
 
 #=
 standard inference, no graph, horizon 6: policy goes to cell 31, actions goes to cell 14
 =#
+
+
+end  # -- module
