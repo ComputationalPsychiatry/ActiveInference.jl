@@ -54,9 +54,8 @@ PREFERENCES_vec = PREFERENCES.T.flatten()
 
 A0 = jnp.eye(81)  # Observation modality 0 as identity matrix
 A1 = jnp.vstack([(1 - MAZE_vec), MAZE_vec])  # Observation modality 1
-A2 = jnp.vstack([PREFERENCES_vec, 1 - PREFERENCES_vec])  # Observation modality 2
 
-A = [A0, A1, A2]
+A = [A0, A1]
 
 def construct_B_matrices_jax(maze):
     nrows, ncols = maze.shape
@@ -95,10 +94,19 @@ def construct_B_matrices_jax(maze):
 B = [construct_B_matrices_jax(MAZE)]
 
 C = [
-    jnp.zeros(81),          
-    jnp.zeros(2),            
-    jnp.array([1.0, -1.0])   
-]
+     jnp.array([
+    -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,  # column 1
+    -1.0, -1.0, -1.0, -1.0, -0.4, -0.6, -0.7, -0.8, -1.0,  # column 2
+    -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -0.75, -1.0, # column 3
+    -1.0, -1.0, -1.0,  0.0, -0.2, -0.4, -0.6, -0.7, -1.0, # column 4
+    -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -0.65, -1.0,  # column 5
+    -1.0, -1.0,  0.4,  0.2,  0.05, -0.15, -0.35, -0.55, -1.0, # column 6
+    -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -0.4, -1.0,  # column 7
+    -1.0,  1.0,  0.65, 0.4,  0.25, 0.15, 0.0, -0.2, -1.0, # column 8
+    -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0   # column 9
+    ]),
+    jnp.zeros(2),
+    ]
 
 def onehot(index, size):
     return jnp.eye(size)[index]
@@ -138,7 +146,7 @@ last, info, env = rollout(
     env,
     T,
     key,
-    max_depth=12,
+    max_depth=7,
     max_nodes = 10000,
     max_branching = 10,
     policy_prune_threshold = 1/16, #1/ 64,
@@ -164,9 +172,17 @@ expected for a horizon 4 for regular jax agemt:
 
 print("\nobservations= \n{}\n".format(info["observation"][0][:,0,0]))
 
+#assert False
+
+#print(info)
+
 end_time = time.perf_counter()
 elapsed_time = end_time - start_time
 print(f"Function execution time: {elapsed_time:.4f} seconds")
+
+
+qs = info["qs"][0][:,0,:]
+q_pi = info["qpi"][:,1,:][-1,:].reshape((1, -1))
 
 assert False
 #matplotlib widget
