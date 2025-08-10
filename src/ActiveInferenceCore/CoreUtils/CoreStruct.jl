@@ -56,14 +56,10 @@ struct AIFModel{
 end
 
 function AIFModel(
-    generative_model::GM,
-    perceptual_process::PP,
-    action_process::AP
-) where {
-    GM <: AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType},
-    PP <: AbstractPerceptualProcess{AbstractOptimEngine},
-    AP <: AbstractActionProcess
-}
+    generative_model::AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType},
+    perceptual_process::AbstractPerceptualProcess{AbstractOptimEngine},
+    action_process::AbstractActionProcess
+)
 
     @error "Please create a constructor for AIFModel that utilizes concrete types.
             The current generative model is: $(typeof(generative_model)),
@@ -73,26 +69,27 @@ function AIFModel(
 end
 
 function perception(
-    model::AIFModel{GM, PP, AP},
+    model::AIFModel{AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType}, AbstractPerceptualProcess{AbstractOptimEngine}, AbstractActionProcess},
     observation::Vector{Real}
-) where {
-    GM <: AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType},
-    PP <: AbstractPerceptualProcess{AbstractOptimEngine},
-    AP <: AbstractActionProcess
-}
+) 
     @error "Please create a perception function utilizing concrete type.
             The current model is: $(typeof(model))"
 
 end
 
-function prediction(model::AIFModel{AbstractGenerativeModel, AbstractPerceptualProcess, AbstractActionProcess})
+
+function prediction(
+    model::AIFModel{AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType}, AbstractPerceptualProcess{AbstractOptimEngine}, AbstractActionProcess}
+)
 
     @error "Please create a prediction function utilizing concrete type.
             The current model is: $(typeof(model))"
 
 end
 
-function planning(model::AIFModel{AbstractGenerativeModel, AbstractPerceptualProcess, AbstractActionProcess})
+function planning(
+    model::AIFModel{AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType}, AbstractPerceptualProcess{AbstractOptimEngine}, AbstractActionProcess}
+)
 
     @error "Please create an action function utilizing concrete type.
             The current model is: $(typeof(model))"

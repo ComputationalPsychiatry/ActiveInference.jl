@@ -25,10 +25,8 @@ include("GenerativeModel/GenerativeModel.jl")
 include("PerceptualProcess/learning/LearningStructs.jl")
 include("PerceptualProcess/learning/learning_update_functions.jl")
 include("PerceptualProcess/utils/PerceptualProcessInfoStruct.jl")
-include("PerceptualProcess/optim_engines/FixedPointIteration.jl")
 include("PerceptualProcess/utils/utils.jl")
 include("PerceptualProcess/PerceptualProcess.jl")
-
 
 # Include action process type and files
 include("ActionProcess/utils/ActionProcessInfoStruct.jl")
@@ -40,6 +38,9 @@ include("ActionProcess/utils/action_selection.jl")
 # Include agent initialization
 include("AgentInitialization/AgentInit.jl")
 
+# Include perception function
+include("Perception/FixedPointIteration.jl")
+
 # Include utility functions
 include("../../utils/maths.jl")
 include("../../utils/utils.jl")
@@ -47,6 +48,6 @@ include("../../utils/utils.jl")
 # Export main types and functions
 export GenerativeModel, PerceptualProcess, ActionProcess
 export Learn_A, Learn_B, Learn_D
-export perception
+# export perception
 
 end

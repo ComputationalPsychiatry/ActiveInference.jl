@@ -23,13 +23,13 @@ mutable struct PerceptualProcess{T<:AbstractOptimEngine} <: AbstractPerceptualPr
     info::PerceptualProcessInfo
 
     # Optimization engine for state inference
-    optim_engine::T
+    optim_engine::Union{T, Missing}
 
     function PerceptualProcess(;
         A_learning::Union{Nothing, Learn_A} = nothing,
         B_learning::Union{Nothing, Learn_B} = nothing,
         D_learning::Union{Nothing, Learn_D} = nothing,
-        optim_engine::AbstractOptimEngine = FixedPointIteration(),
+        optim_engine::AbstractOptimEngine = missing,
         verbose::Bool = true
     )
 
@@ -45,24 +45,25 @@ mutable struct PerceptualProcess{T<:AbstractOptimEngine} <: AbstractPerceptualPr
     end
 end
 
-function perception(
-    agent::AIFModel,
-    observation::Vector{Int}
-)
-    # Set the current observation in the perceptual process
-    agent.perceptual_process.current_observation = observation
+# function perception(
+#     agent::AIFModel{GenerativeModel, PerceptualProcess{FixedPointIteration}, ActionProcess},
+#     observation::Vector{Int}
+# )
+#     println("Hello, this is FPI")
+#     # # Set the current observation in the perceptual process
+#     # agent.perceptual_process.current_observation = observation
 
-    # Set the current posterior_states to the previous_posterior states
-    agent.perceptual_process.previous_posterior_states = agent.perceptual_process.posterior_states
+#     # # Set the current posterior_states to the previous_posterior states
+#     # agent.perceptual_process.previous_posterior_states = agent.perceptual_process.posterior_states
 
-    # Infer states with muætiple dispatch on the optimization engine
-    new_posterior_states = infer_states(agent, agent.perceptual_process.optim_engine)
-    agent.perceptual_process.posterior_states = new_posterior_states
+#     # # Infer states with muætiple dispatch on the optimization engine
+#     # new_posterior_states = infer_states(agent, agent.perceptual_process.optim_engine)
+#     # agent.perceptual_process.posterior_states = new_posterior_states
 
-    # If learning is enabled, update the beliefs about the parameters
-    if agent.perceptual_process.info.learning_enabled
-        update_parameters(agent)
-    end
+#     # # If learning is enabled, update the beliefs about the parameters
+#     # if agent.perceptual_process.info.learning_enabled
+#     #     update_parameters(agent)
+#     # end
 
-end
+# end
 

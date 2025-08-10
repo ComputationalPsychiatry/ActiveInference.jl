@@ -3,12 +3,38 @@
 @kwdef struct FixedPointIteration <: AbstractOptimEngine 
     num_iter::Int = 10
     dF_tol::Float64 = 1e-3
-    dF::Float64 = 1.0
 end
 
-""" Update the agents's beliefs over states """
-function infer_states(agent::AIFModel, optim_engine::FixedPointIteration)
+# function ActiveInferenceCore.perception(
+#     agent::AIFModel{GenerativeModel, PerceptualProcess{FixedPointIteration}, ActionProcess},
+#     observation::Vector{Int}
+# )
+#     println("Hello, this is FPI")
+#     # Set the current observation in the perceptual process
+#     agent.perceptual_process.current_observation = observation
 
+#     # Set the current posterior_states to the previous_posterior states
+#     agent.perceptual_process.previous_posterior_states = agent.perceptual_process.posterior_states
+
+#     # Infer states with muætiple dispatch on the optimization engine
+#     new_posterior_states = infer_states(agent, agent.perceptual_process.optim_engine)
+#     agent.perceptual_process.posterior_states = new_posterior_states
+
+#     # If learning is enabled, update the beliefs about the parameters
+#     if agent.perceptual_process.info.learning_enabled
+#         update_parameters(agent)
+#     end
+
+# end
+
+
+""" Update the agents's beliefs over states """
+function ActiveInferenceCore.perception(
+    agent::AIFModel{GenerativeModel, PerceptualProcess{FixedPointIteration}, ActionProcess},
+    observation::Vector{Int}
+)
+
+    println("Hello, this is FPI")
     if agent.action_process.previous_action !== nothing
         int_action = round.(Int, agent.action_process.previous_action)
         agent.perceptual_process.prior = get_expected_states(agent.perceptual_process.posterior_states, agent.generative_model.B, reshape(int_action, 1, length(int_action)))[1]
@@ -16,7 +42,7 @@ function infer_states(agent::AIFModel, optim_engine::FixedPointIteration)
 
     # make observations into a one-hot encoded vector
     processed_observation = process_observation(
-        agent.perceptual_process.current_observation, 
+        observation, 
         agent.generative_model.info.n_modalities, 
         agent.generative_model.info.n_observations
     )
@@ -29,7 +55,6 @@ function infer_states(agent::AIFModel, optim_engine::FixedPointIteration)
         n_states = agent.generative_model.info.n_states,
         prior = agent.perceptual_process.prior,
         num_iter = optim_engine.num_iter,
-        dF = optim_engine.dF,
         dF_tol = optim_engine.dF_tol
     )
 
