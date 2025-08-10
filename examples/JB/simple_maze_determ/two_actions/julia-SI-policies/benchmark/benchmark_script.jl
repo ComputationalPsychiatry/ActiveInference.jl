@@ -1,8 +1,6 @@
 
 # @infiltrate; @assert false
 
-
-
 module Benchmark
 
 folder = "./two_actions/julia-SI-policies"
@@ -110,9 +108,7 @@ function run_simulation(horizon, num_iterations)
     settings = @set settings.verbose = false
     settings = @set settings.SI_use_pymdp_methods = false
     settings = @set settings.action_selection = :deterministic
-    
-    
-    
+     
     
     global env = init_env(model, CONFIG.start_cell)
     agent = AI.create_agent(model, settings, CONFIG.float_type, parameters)
@@ -132,16 +128,20 @@ function run_simulation(horizon, num_iterations)
 
             elapsed_time, mem_mib = benchmark_planning(agent, observation)
             
-            action = custom_sample_action!(agent, t)
+            action, policy, G, q_pi = custom_sample_action!(agent, t)
             observation = step_env!(env, action)
-            
+
+            push!(agent.history.policy, policy)
+            push!(agent.history.G, G)
+            push!(agent.history.q_pi, q_pi)
+            push!(agent.history.observation, observation)
+
             push!(planning_times, elapsed_time)
             push!(planning_mibs, mem_mib)
-
+            
             #cell_obs = model.states.loc.labels[obs.loc_obs]
 
             printfmtln("Grid location at time {}, after action: {}", t, observation)
-            
             
         end
     end
@@ -153,19 +153,29 @@ function run_simulation(horizon, num_iterations)
     
     # Save total simulation summary (matching Python column names exactly)
     df_total = DataFrame(
-        Symbol("std_julia_time_$(horizon)") => [sim_time],
-        #Symbol("std_julia_nodes_$(horizon)") => [node_count],
-        Symbol("std_julia_last_obs_$(horizon)") => [string(last_obs)]
-    )
-    #CSV.write("std_actions_none_julia_total_$(horizon).csv", df_total)
+        Symbol("folder") => repeat([folder], num_iterations),
+        Symbol("n_sim_steps") => repeat([num_iterations], num_iterations),
+        Symbol("horizon") => repeat([horizon], num_iterations),
+        Symbol("sim_time") => repeat([sim_time], num_iterations),
+        
+        # for graph experiments only
+        Symbol("graph_initial_node_count") => agent.history.graph_initial_node_count,  
+        Symbol("graph_final_node_count") => agent.history.graph_final_node_count,  
+        Symbol("graph_min_level") => agent.history.graph_min_level, 
+        Symbol("graph_max_level") => agent.history.graph_max_level, 
 
-    df_planning = DataFrame(
-        std_julia_planning_time = planning_times,
-        std_julia_planning_MiB = planning_mibs
+        Symbol("action") => [x.move for x in agent.history.action],
+        Symbol("observation") => [x.loc_obs for x in agent.history.observation],
+        Symbol("G") => agent.history.G,
+        Symbol("q_pi") => agent.history.q_pi,
+        Symbol("policy") => [values(x) for x in agent.history.policy]
+        
     )
+    CSV.write(joinpath(folder, "results.csv"), df_total)
+
     println("Time:", sim_time)
     println("Last Observation", last_obs)
-    #CSV.write("std_actions_none_julia_planning_$(horizon).csv", df_planning)
+@infiltrate; @assert false
     return env.history
 end
 
@@ -173,6 +183,7 @@ end
 
 # Make env global for plotting
 global env = nothing
+
 
 function run()
     # Main execution loop
@@ -188,7 +199,7 @@ function run()
     end
     
     
-    n_sim_steps = 10
+    n_sim_steps = 3
     for horizon in 12:12
         println("Running horizon $(horizon)...")
         run_simulation(horizon, n_sim_steps)
@@ -196,6 +207,12 @@ function run()
     end
 
     animate!(env.history[2:n_sim_steps+2], CONFIG.policy_length)
+
+    results = (
+        folder = folder,
+        obs = 2,
+        sim_time = 2,
+    )
 
     @infiltrate; @assert false
 

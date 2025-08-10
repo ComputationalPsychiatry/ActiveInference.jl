@@ -31,10 +31,15 @@ using Infiltrator
 """ Get Expected States """
 function get_expected_states(
     qs::NamedTuple{<:Any, <:NTuple{N, Vector{T2}} where {N}}, 
-    policy::NamedTuple, 
+    policy::Union{
+        NamedTuple{<:Any, <:NTuple{N1, NTuple{N2, Int64}} where {N1,N2}}, 
+        NamedTuple{<:Any, <:NTuple{N, Int64} where N}
+    },
     agent::AI.Agent{T2}
     ) where {T2<:AbstractFloat}
     
+    # policy could be a policy or an action (in SI case)
+
     model = agent.model
 
     # earlystop_tests for current location

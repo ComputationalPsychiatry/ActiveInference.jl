@@ -159,6 +159,7 @@ function update_posterior_policies!(
 
     #@infiltrate; @assert false
     nv = Graphs.nv(siGraph) 
+    push!(agent.history.graph_initial_node_count, nv)
 
     if nv == 0
         @infiltrate; @assert false    
@@ -314,6 +315,7 @@ function update_posterior_policies!(
     printfmtln("\ncleanup dfs paths time= {}, start nv= {}, final nv= {}\n", 
         round((Dates.time() - t0) , digits=2), nv, Graphs.nv(siGraph)
     )
+    push!(agent.history.graph_final_node_count, Graphs.nv(siGraph))
     t0 = Dates.time()
 
 
@@ -369,6 +371,9 @@ function update_posterior_policies!(
     printfmtln("\nget leaves list time= {}, final action nodes={}, min_level= {}, max_level= {}\n", 
         round((Dates.time() - t0) , digits=2), cnt_action_nodes, min_level, max_level
     )
+    push!(agent.history.graph_min_level, min_level)
+    push!(agent.history.graph_max_level, max_level)
+    
     t0 = Dates.time()
 
     if max_level < n_steps
@@ -631,7 +636,7 @@ function do_EFE_over_policies(siGraph, agent, leaves, T2)
     agent.q_pi_policies[idx] .= LEF.softmax(agent.G_policies[idx] * agent.parameters.gamma + lnE, dims=1)  
 
 
-    #if agent.current.sim_step == 2
+    #if agent.history.sim_step == 2
     #    @infiltrate; @assert false  
     #end  
 

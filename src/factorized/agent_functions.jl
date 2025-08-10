@@ -121,24 +121,14 @@ function create_agent(model::NamedTuple, settings::NamedTuple, float_type::Type,
     
     last_action = nothing 
     
-    #= initialize history NamedTuple
-    history = (
-        qs = [],
-        actions = [],
+    
+    #@infiltrate; @assert false
+    history = History{float_type}(0, [], [], [], [], 
+        NamedTuple{<:Any, <:NTuple{N, Int64} where N}[],
+        NamedTuple{<:Any, <:NTuple{N, Int64} where N}[],
+        [], [], 
+        NamedTuple{<:Any, <:NTuple{N1, NTuple{N2, Int64}} where {N1,N2}}[],
     )
-    if settings.save_history
-        history = (
-            qs = [],
-            qs_prior = [],
-            posterior_policies = [],
-            EFE = [],
-            bayesian_model_averages = [],
-            SAPE = [],
-        )
-    end
-    =#
-
-    current = Current(nothing, 0)
 
     # todo: put these constructors of model into try-catch
     state_names = [x.name for x in model.states]
@@ -167,40 +157,13 @@ function create_agent(model::NamedTuple, settings::NamedTuple, float_type::Type,
         policies = policies
     )
 
-#=
-@NamedTuple{
-    states::NamedTuple{<:Any, <:NTuple{N, State{float_type}} where {N}},
-    obs::NamedTuple{<:Any, <:NTuple{N, Obs{float_type}} where {N}},
-    actions::NamedTuple{<:Any, <:NTuple{N, Action} where {N}},
-    preferences::NamedTuple{<:Any, <:NTuple{N, Preference{float_type}} where {N}},
-    policies::Policies{float_type}}
-
-
-@NamedTuple{
-    states::@NamedTuple{
-        loc::ActiveInference.ActiveInferenceFactorized.State{Float32}}, 
-    obs::@NamedTuple{
-        loc_obs::ActiveInference.ActiveInferenceFactorized.Obs{Float32}, 
-        wall_obs::ActiveInference.ActiveInferenceFactorized.Obs{Float32}, 
-        safe_obs::ActiveInference.ActiveInferenceFactorized.Obs{Float32}}, 
-    actions::@NamedTuple{
-        move::ActiveInference.ActiveInferenceFactorized.Action}, 
-    preferences::@NamedTuple{
-        loc_pref::ActiveInference.ActiveInferenceFactorized.Preference{Float32}, 
-        wall_pref::ActiveInference.ActiveInferenceFactorized.Preference{Float32}, 
-        safe_pref::ActiveInference.ActiveInferenceFactorized.Preference{Float32}}, 
-    policies::ActiveInference.ActiveInferenceFactorized.Policies{Float32}}
-
-
-=#
-
 
     #@infiltrate; @assert false
     return Agent{float_type}(
                 model,
                 settings,
                 parameters,
-                current,
+                history,
                 qs_prior,
                 qs_prev,
                 qs,
@@ -307,9 +270,9 @@ function infer_states!(
     # consistency test
     @assert keys(agent.model.obs) == keys(obs)
 
-    agent.current.sim_step += 1
+    agent.history.sim_step += 1
     
-    if !isnothing(agent.current.action)
+    if length(agent.history.action) > 0
         #=
         An action has been taken, and new obs is available, but the agent hasn't processed the obs
         yet. Here we calculate qs_prior, beliefs about states resulting from the action. Note that 
@@ -323,7 +286,7 @@ function infer_states!(
 
         qs_prior = Inference.get_expected_states(
             agent.qs, 
-            agent.current.action,
+            agent.history.action[end],
             agent 
         )[3][1]  # 3rd is qs, vector size is 1
         set_vectors(agent.qs_prior, qs_prior) 
@@ -377,27 +340,6 @@ function infer_policies!(
 end
 
 
-""" Sample action from the beliefs over policies """
-function sample_action!(agent::Agent)
-    
-    @infiltrate; @assert false
-    action = sample_action(
-        agent.Q_pi, 
-        agent.policies, 
-        agent.num_controls; 
-        action_selection=agent.action_selection, 
-        alpha=agent.alpha,
-        metamodel = agent.metamodel
-    )
-
-    agent.action = action 
-
-    # Push action to agent's history
-    push!(agent.states["action"], copy(agent.action))
-    return 
-end
-
-
 """ Update A-matrix """
 function update_A!(agent::Agent)
     @infiltrate; @assert false
@@ -412,7 +354,7 @@ end
 """ Update B-matrix """
 function update_B!(agent::Agent{T}) where {T<:AbstractFloat}
     
-    if agent.current.sim_step > 1  
+    if agent.history.sim_step > 1  
         qs_prev = agent.qs_prev
         Learning.update_state_likelihood_dirichlet!(agent, qs_prev)
     end

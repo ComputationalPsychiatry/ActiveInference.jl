@@ -8,9 +8,31 @@
 #show(stdout, "text/plain", x)
 # @infiltrate; @assert false
 
-mutable struct Current
-    action::Union{Nothing, NamedTuple{<:Any, <:NTuple{N, Int64} where {N}}}
+
+#=
+struct History
+    qs::Vector{NamedTuple}
+    q_pi::Vector{NamedTuple}
+    EFE::Vector{T} where T<:AbstractFloat
+    bayesian_model_averages::Vector{Any}
+    SAPE::Vector{Any}
+    extra::NamedTuple{<:Any, <:NTuple{N, Vector} where {N}}  # any extra info to be saved
+end
+=#
+
+
+mutable struct History{T<:AbstractFloat}
     sim_step::Int64
+    graph_initial_node_count::Vector{Int64}
+    graph_final_node_count::Vector{Int64}
+    graph_min_level::Vector{Int64}
+    graph_max_level::Vector{Int64}
+    
+    action::Vector{T2} where {T2<:NamedTuple{<:Any, <:NTuple{N, Int64} where N}}
+    observation::Vector{T2} where {T2<:NamedTuple{<:Any, <:NTuple{N, Int64} where N}}
+    G::Vector{T}
+    q_pi::Vector{T}
+    policy::Vector{T2} where {T2<:NamedTuple{<:Any, <:NTuple{N1, NTuple{N2, Int64}} where {N1,N2}}}
 end
 
 mutable struct Qo{T<:AbstractFloat}
@@ -91,7 +113,7 @@ struct Agent{T<:AbstractFloat}
     
     settings::NamedTuple
     parameters::NamedTuple{<:Any, <:NTuple{N, T} where {N}}
-    current::Current
+    history::History
     
     # belief group
     qs_prior::NamedTuple{<:Any, <:NTuple{N, Vector{T}} where {N}}  # Prior beliefs about future states after potential action, before processing observations
@@ -113,30 +135,6 @@ struct Agent{T<:AbstractFloat}
     info_gain_D::Union{Nothing, Matrix{Union{Missing, T}}}
     
 end
-
-struct Agent2{T<:AbstractFloat}
-    model::@NamedTuple{
-    states::NamedTuple{<:Any, <:NTuple{N, State{T}} where {N}},
-    obs::NamedTuple{<:Any, <:NTuple{N, Obs{T}} where {N}},
-    actions::NamedTuple{<:Any, <:NTuple{N, Action} where {N}},
-    preferences::NamedTuple{<:Any, <:NTuple{N, Preference{T}} where {N}},
-    policies::Policies{T}}
-end
-
-
-#=
-struct History
-    qs::Vector{NamedTuple}
-    q_pi::Vector{NamedTuple}
-    EFE::Vector{T} where T<:AbstractFloat
-    bayesian_model_averages::Vector{Any}
-    SAPE::Vector{Any}
-    extra::NamedTuple{<:Any, <:NTuple{N, Vector} where {N}}  # any extra info to be saved
-end
-=#
-
-
-
 
 
 # graph structures

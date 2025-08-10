@@ -29,10 +29,12 @@ function custom_sample_action!(agent, step_i)
     printfmtln("\ntime policy selection= {}\n", Dates.time() - t00)
 
     policy = IterTools.nth(policies, ii)
+    policy = (; zip([x.name for x in agent.model.actions], policy)...)  # requried to save in agent.history
+    
     action_ids = collect(zip(policy...))[1]
     action = (; zip(action_names, action_ids)...)
     
-    agent.current.action = action
+    push!(agent.history.action, action)  # required
 
     if true
         printfmtln("\nAction at time {}: {}, ipolicy={}, q_pi= {}, G={}, policy= {}", 
@@ -66,6 +68,6 @@ function custom_sample_action!(agent, step_i)
     
     # Push action to agent's history
     #push!(agent.history.actions, action)
-    return action
+    return action, policy, G[ii], q_pi[ii]
 end
 
