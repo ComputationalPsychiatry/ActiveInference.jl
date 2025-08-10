@@ -32,7 +32,7 @@ abstract type AbstractOptimEngine end
 
 # Perceptual Process abstract type
 abstract type AbstractPerceptualProcess{
-    TypeOptimEngine<:AbstractOptimEngine
+    TypeOptimEngine<:Union{AbstractOptimEngine, Missing}
 } end
 
 ### Action process types ###
@@ -76,7 +76,6 @@ function perception(
             The current model is: $(typeof(model))"
 
 end
-
 
 function prediction(
     model::AIFModel{AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType}, AbstractPerceptualProcess{AbstractOptimEngine}, AbstractActionProcess}

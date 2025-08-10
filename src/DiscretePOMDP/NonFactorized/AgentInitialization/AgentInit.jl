@@ -39,6 +39,11 @@ function fill_missing_parameters(generative_model::GenerativeModel, perceptual_p
     n_policies = length(action_process.policies)
     action_process.E = fill(1.0 / n_policies, n_policies)
 
+    # set default optim engine if not provided
+    if perceptual_process.optim_engine === missing
+        perceptual_process.optim_engine = FixedPointIteration()
+    end
+
 end 
 
 function create_learning_priors(

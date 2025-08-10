@@ -2,11 +2,10 @@
 In this script, we define a the perceptual inference process for the DiscretePOMDP.
 """
 
-using ..ActiveInferenceCore: AbstractPerceptualProcess, AIFModel, AbstractOptimEngine
-
+using ..ActiveInferenceCore: AbstractPerceptualProcess, AbstractOptimEngine
 
 #Struct for containing current beliefs and optimization engine
-mutable struct PerceptualProcess{T<:AbstractOptimEngine} <: AbstractPerceptualProcess{T}
+mutable struct PerceptualProcess{T<:Union{AbstractOptimEngine, Missing}} <: AbstractPerceptualProcess{T}
 
     # beliefs about states, prior and observation
     posterior_states::Union{Vector{Vector{Float64}}, Nothing}
@@ -29,12 +28,9 @@ mutable struct PerceptualProcess{T<:AbstractOptimEngine} <: AbstractPerceptualPr
         A_learning::Union{Nothing, Learn_A} = nothing,
         B_learning::Union{Nothing, Learn_B} = nothing,
         D_learning::Union{Nothing, Learn_D} = nothing,
-        optim_engine::AbstractOptimEngine = missing,
+        optim_engine::Union{AbstractOptimEngine, Missing} = FixedPointIteration(),
         verbose::Bool = true
     )
-
-        # compare_generative_perceptual(generative_model, A_learning, B_learning, D_learning)
-        # create_learning_priors(A_learning, B_learning, D_learning) # use in agent creation instead
 
         info_struct = PerceptualProcessInfo(A_learning, B_learning, D_learning, optim_engine)
 

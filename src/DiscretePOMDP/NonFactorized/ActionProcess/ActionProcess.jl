@@ -91,55 +91,55 @@ mutable struct ActionProcess <: AbstractActionProcess
     end
 end
 
-function predict_states_observations(agent::AIFModel)
+# function predict_states_observations(agent::AIFModel)
 
-    all_predicted_states = get_expected_states(agent.perceptual_process.posterior_states, agent.generative_model.B, agent.action_process.policies)
-    all_predicted_observations = get_expected_obs(all_predicted_states, agent.generative_model.A)
+#     all_predicted_states = get_expected_states(agent.perceptual_process.posterior_states, agent.generative_model.B, agent.action_process.policies)
+#     all_predicted_observations = get_expected_obs(all_predicted_states, agent.generative_model.A)
 
-    agent.action_process.predicted_states = all_predicted_states
-    agent.action_process.predicted_observations = all_predicted_observations
+#     agent.action_process.predicted_states = all_predicted_states
+#     agent.action_process.predicted_observations = all_predicted_observations
 
-end
+# end
 
-function action_distribution(agent::AIFModel; act::Bool = false)
+# function action_distribution(agent::AIFModel; act::Bool = false)
 
-    # Get posterior over policies and expected free energies
-    q_pi, G = update_posterior_policies(
-        qs = agent.perceptual_process.posterior_states,
-        A = agent.generative_model.A,
-        C = agent.generative_model.C,
-        policies = agent.action_process.policies,
-        qs_pi_all = agent.action_process.predicted_states,
-        qo_pi_all = agent.action_process.predicted_observations,
-        use_utility = agent.action_process.use_utility,
-        use_states_info_gain = agent.action_process.use_states_info_gain,
-        use_param_info_gain = agent.action_process.use_param_info_gain,
-        A_learning = agent.perceptual_process.A_learning,
-        B_learning = agent.perceptual_process.B_learning,
-        E = agent.action_process.E,
-        gamma = agent.action_process.gamma
-    )
+#     # Get posterior over policies and expected free energies
+#     q_pi, G = update_posterior_policies(
+#         qs = agent.perceptual_process.posterior_states,
+#         A = agent.generative_model.A,
+#         C = agent.generative_model.C,
+#         policies = agent.action_process.policies,
+#         qs_pi_all = agent.action_process.predicted_states,
+#         qo_pi_all = agent.action_process.predicted_observations,
+#         use_utility = agent.action_process.use_utility,
+#         use_states_info_gain = agent.action_process.use_states_info_gain,
+#         use_param_info_gain = agent.action_process.use_param_info_gain,
+#         A_learning = agent.perceptual_process.A_learning,
+#         B_learning = agent.perceptual_process.B_learning,
+#         E = agent.action_process.E,
+#         gamma = agent.action_process.gamma
+#     )
 
-    agent.action_process.posterior_policies = q_pi
-    agent.action_process.expected_free_energy = G
+#     agent.action_process.posterior_policies = q_pi
+#     agent.action_process.expected_free_energy = G
 
-    # If action is enabled, sample an action from the posterior policies
-    if act
-        # Sample action from the posterior policies
-        action = sample_action(
-            q_pi = q_pi, 
-            policies = agent.action_process.policies, 
-            n_controls = agent.generative_model.info.controls_per_factor; 
-            action_selection=agent.action_process.info.action_selection, 
-            alpha=agent.action_process.info.alpha
-        )
+#     # If action is enabled, sample an action from the posterior policies
+#     if act
+#         # Sample action from the posterior policies
+#         action = sample_action(
+#             q_pi = q_pi, 
+#             policies = agent.action_process.policies, 
+#             n_controls = agent.generative_model.info.controls_per_factor; 
+#             action_selection=agent.action_process.info.action_selection, 
+#             alpha=agent.action_process.info.alpha
+#         )
 
-        agent.action_process.previous_action = action
-        return q_pi, G, action
-    else
-        return q_pi, G
-    end
+#         agent.action_process.previous_action = action
+#         return q_pi, G, action
+#     else
+#         return q_pi, G
+#     end
 
-end
+# end
 
 

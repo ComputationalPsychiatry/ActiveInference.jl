@@ -16,7 +16,7 @@ struct PerceptualProcessInfo
     optim_engine_name::String
     optim_engine_type::Type
 
-    function PerceptualProcessInfo(A_learning::Union{Learn_A, Nothing}, B_learning::Union{Learn_B, Nothing}, D_learning::Union{Learn_D, Nothing}, optim_engine::AbstractOptimEngine)
+    function PerceptualProcessInfo(A_learning::Union{Learn_A, Nothing}, B_learning::Union{Learn_B, Nothing}, D_learning::Union{Learn_D, Nothing}, optim_engine::Union{AbstractOptimEngine, Missing})
         
         # Check if any learning is enabled
         learning_enabled = !isnothing(A_learning) || !isnothing(B_learning) || !isnothing(D_learning)
@@ -25,8 +25,14 @@ struct PerceptualProcessInfo
         B_learning_enabled = !isnothing(B_learning)
         D_learning_enabled = !isnothing(D_learning)
         
-        optim_engine_name = string(optim_engine)
-        optim_engine_type = typeof(optim_engine)
+        # Handle missing optim_engine
+        if optim_engine === missing
+            optim_engine_name = "Missing"
+            optim_engine_type = Missing
+        else
+            optim_engine_name = string(optim_engine)
+            optim_engine_type = typeof(optim_engine)
+        end
         
         new(learning_enabled, A_learning_enabled, B_learning_enabled, D_learning_enabled, 
             optim_engine_name, optim_engine_type)

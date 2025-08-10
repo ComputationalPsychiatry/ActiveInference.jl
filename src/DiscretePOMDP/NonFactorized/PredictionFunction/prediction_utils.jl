@@ -1,3 +1,5 @@
+```Util functions for prediction in Discrete POMDPs ```
+
 """ Get Expected States """
 function get_expected_states(qs::Vector{Vector{T}} where T <: Real, B, policy::Matrix{Int64})
     n_steps, n_factors = size(policy)
