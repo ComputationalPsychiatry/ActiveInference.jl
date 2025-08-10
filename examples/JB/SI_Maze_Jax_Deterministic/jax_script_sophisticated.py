@@ -19,6 +19,7 @@ from pymdp.planning.si import tree_search
 from generative_model import MAZE, PREFERENCES, A, B, C, D
 from maze_env import SIMazeEnv
 
+import debugger
 
 def count_nodes(tree):
     return len(tree.nodes)
@@ -59,7 +60,7 @@ def run_simulation(horizon, num_iterations):
     planning_mibs = []
 
     start_sim = time.perf_counter()
-
+    observations = []
     for t in range(num_iterations):
         qs = agent.infer_states(observation, empirical_prior)
         q_pi, tree, elapsed_time, mem_mib = benchmark_search(search_fn, agent, qs, rng_key)
@@ -70,12 +71,14 @@ def run_simulation(horizon, num_iterations):
         empirical_prior = [jnp.asarray(empirical_prior[0])]
         empirical_prior[0] = empirical_prior[0].reshape(1, 81)
         observation = env.step(action[0])
+        observations.append([int(observation[0].argmax()), int(observation[1].argmax())])
         planning_times.append(elapsed_time)
         planning_mibs.append(mem_mib)
 
     end_sim = time.perf_counter()
     sim_time = end_sim - start_sim
-    last_obs = [int(observation[0].argmax()),int(observation[1].argmax()),int(observation[2].argmax())]
+    #assert False
+    last_obs = [int(observation[0].argmax()), int(observation[1].argmax())]
     node_count = count_nodes(tree)
 
     # Save total simulation summary
@@ -87,6 +90,8 @@ def run_simulation(horizon, num_iterations):
     #df_total.to_csv(f"si_jax_total_time_{horizon}.csv", index=False)
     print(sim_time)
     print(f"Last observation: {last_obs}")
+    print("\nobservations= \n{}\n".format(observations))
+
     # Save per-iteration planning times and memory
     df_planning = pd.DataFrame({
         "si_jax_planning_time": planning_times,
@@ -95,7 +100,7 @@ def run_simulation(horizon, num_iterations):
     #df_planning.to_csv(f"si_jax_planning_{horizon}.csv", index=False)
 
 #for horizon in range(2, 14):
-for horizon in range(2, 5):
+for horizon in range(7, 10):
     print(f"Running horizon {horizon}...")
     run_simulation(horizon, 10)
     print(f"Finished {horizon}.\n")
