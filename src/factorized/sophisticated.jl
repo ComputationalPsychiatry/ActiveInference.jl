@@ -852,7 +852,7 @@ function recurse(
                 continue
             end
                         
-            if q_pi_children[ii] < policy_prune_threshold
+            if q_pi_children[ii] < policy_prune_threshold #|| G_children[ii] 
                 pruned = true
                 child.pruned = true  # record that child is pruned 
                 child.G -= prune_penalty
@@ -872,7 +872,8 @@ function recurse(
         end
 
         if all(G_children .<= -prune_penalty/2)
-            @infiltrate; @assert false
+            #@infiltrate; @assert false
+            break
         end
 
         if agent.settings.SI_use_pymdp_methods
@@ -908,8 +909,9 @@ function recurse(
         end
     end
 
-
-    if level == model.policies.policy_length
+    #entropy = -sum(LEF.xlogx.(q_pi_children))
+    #@infiltrate; @assert false
+    if level == model.policies.policy_length  #|| entropy > .699
         if agent.settings.verbose
             println("returning terminal path")
         end

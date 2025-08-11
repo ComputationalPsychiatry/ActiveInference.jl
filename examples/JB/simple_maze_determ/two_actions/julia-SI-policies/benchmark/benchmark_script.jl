@@ -105,7 +105,7 @@ function run_simulation(horizon, num_iterations)
     
     settings = @set settings.use_param_info_gain = false
     settings = @set settings.SI_observation_prune_threshold = 1/16  
-    settings = @set settings.SI_policy_prune_threshold = 1/16
+    settings = @set settings.SI_policy_prune_threshold = .46 #1/16
     settings = @set settings.verbose = false
     settings = @set settings.SI_use_pymdp_methods = false
     settings = @set settings.action_selection = :deterministic

@@ -139,14 +139,21 @@ last, info, env = rollout(
     T,
     key,
     max_depth=12,
-    max_nodes = 10000,
-    max_branching = 10,
+    max_nodes = 1000,
+    max_branching = 2,
     policy_prune_threshold = 1/ 16,
     observation_prune_threshold = 1 / 16,
-    entropy_stop_threshold = 0.5,
-    efe_stop_threshold = 5,
-    kl_threshold= 1e-2,
     prune_penalty = 512,
+    
+    #entropy_stop_threshold = 0.5,
+    #efe_stop_threshold = 5,
+    #kl_threshold= 1e-2,
+
+    #entropy_stop_threshold = 0,  # must be < 1 or wrong answers
+    #efe_stop_threshold = 5000000,  # must be ~> 5
+    #kl_threshold= 0,
+
+    
     )
 
 print("\nobservations loc= \n{}\n".format(info["observation"][0][:,0,0]))
