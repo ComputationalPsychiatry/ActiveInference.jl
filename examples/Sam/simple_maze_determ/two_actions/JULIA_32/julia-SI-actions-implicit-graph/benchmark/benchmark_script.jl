@@ -203,7 +203,7 @@ function run()
     
     
     n_sim_steps = 10
-    for horizon in 12:12
+    for horizon in 2:13
         println("Running horizon $(horizon)...")
         run_simulation(horizon, n_sim_steps)
         println("\nFinished policy len $(horizon).\n")
