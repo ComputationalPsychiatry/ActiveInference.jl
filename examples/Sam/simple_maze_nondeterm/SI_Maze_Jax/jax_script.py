@@ -1,0 +1,126 @@
+import os
+os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=1"
+
+
+import jax
+from jax import jit
+import jax.numpy as jnp
+import numpy as np
+import jax.random as random
+import seaborn as sns
+import matplotlib.pyplot as plt
+from pymdp.agent import Agent
+from pymdp.planning.si import *
+from pymdp.maths import MINVAL
+
+import pandas as pd
+import time
+import tracemalloc
+
+from pymdp.agent import Agent
+from pymdp.planning.si import si_policy_search
+from pymdp.planning.si import tree_search
+from generative_model import MAZE, PREFERENCES, A, B, C, D
+from maze_env import SIMazeEnv
+
+import debugger
+
+def count_nodes(tree):
+    return len(tree.nodes)
+
+# search function benchmarking
+def benchmark_search(search_fn, *args):
+    tracemalloc.start()
+    start = time.perf_counter()
+    #assert False
+    q_pi, tree = search_fn(*args)
+    end = time.perf_counter()
+    current, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    return q_pi, tree, end - start, peak / (1024 * 1024)
+
+
+def run_simulation(horizon, num_iterations):
+
+    # Reinitialize everything
+    search_fn = si_policy_search(
+        max_depth=horizon,
+        policy_prune_threshold=1/16,
+        policy_prune_topk=-1,
+        observation_prune_threshold=0.5001,
+        entropy_prune_threshold=0.5,
+        prune_penalty=512,
+        gamma=1,
+    )
+
+    #search_fn = jit(lambda agent, qs, horizon: tree_search(agent, qs, horizon))
+
+    agent = Agent(A=A, B=B, C=C, D=D, policy_len=1, sampling_mode="full", gamma=1.0, alpha=1.0)
+    env = SIMazeEnv(MAZE, PREFERENCES, start_state=17)
+    rng_key = random.PRNGKey(seed=42)
+    empirical_prior = agent.D
+    observation = env.get_observation()
+    empirical_prior[0] = empirical_prior[0].reshape(1, 81)
+
+    planning_times = []
+    planning_mibs = []
+
+    start_sim = time.perf_counter()
+
+    infer_states = jit(lambda obs, prior: agent.infer_states(obs, prior))
+    #infer_policies = jit(lambda qs : agent.infer_policies(qs))
+
+    for t in range(num_iterations):
+        qs = agent.infer_states(observation, empirical_prior)
+        q_pi, tree, elapsed_time, mem_mib = benchmark_search(search_fn, agent, qs, rng_key)
+        #q_pi, tree, elapsed_time, mem_mib = benchmark_search(search_fn, agent, qs, horizon)
+        q_pi = q_pi.reshape((1, -1))
+        action = agent.sample_action(q_pi)
+        empirical_prior = agent.update_empirical_prior(action, qs)
+        empirical_prior = [jnp.asarray(empirical_prior[0])]
+        empirical_prior[0] = empirical_prior[0].reshape(1, 81)
+        observation = env.step(action[0])
+        planning_times.append(elapsed_time)
+        planning_mibs.append(mem_mib)
+        '''
+        for horizon 4:
+            qs[0].shape = (1,1,81)
+            q_pi[0].shape = (2,)
+            action.shape = (1,1)
+            1. empirical_prior = tuple of len=2
+                empirical_prior[0][0].shape = (1,81)
+                empirical_prior[1][0].shape = (1,1,81)
+            2. empirical_prior[0].shape = (1,1,81)
+            3. empirical_prior[0].shape = (1,81)
+            observation[0].shape = (1,81)
+        '''
+
+
+        assert False
+
+    end_sim = time.perf_counter()
+    sim_time = end_sim - start_sim
+    last_obs = [int(observation[0].argmax()),int(observation[1].argmax()),int(observation[2].argmax())]
+    node_count = count_nodes(tree)
+
+    # Save total simulation summary
+    df_total = pd.DataFrame({
+        f"si_jax_time_{horizon}": [sim_time],
+        f"si_jax_nodes_{horizon}": [node_count],
+        f"si_jax_last_obs_{horizon}": [str(last_obs)]
+    })
+    df_total.to_csv(f"si_jax_total_time_{horizon}.csv", index=False)
+
+    # Save per-iteration planning times and memory
+    df_planning = pd.DataFrame({
+        "si_jax_planning_time": planning_times,
+        "si_jax_planning_MiB": planning_mibs
+    })
+    df_planning.to_csv(f"si_jax_planning_{horizon}.csv", index=False)
+
+#for horizon in range(2, 14):
+#for horizon in range(2, 5):
+for horizon in range(4, 5):
+    print(f"Running horizon {horizon}...")
+    run_simulation(horizon, 10)
+    print(f"Finished {horizon}.\n")
