@@ -6,7 +6,6 @@ abstract type ContinuousActions<:AbstractActionType end
 abstract type MixedActions<:AbstractActionType end
 abstract type NoActions<:AbstractActionType end
 
-
 abstract type AbstractObservationType end
 abstract type DiscreteObservations<:AbstractObservationType end
 abstract type ContinuousObservations<:AbstractObservationType end
@@ -44,13 +43,13 @@ struct AIFModel{
     PP <: AbstractPerceptualProcess,
     AP <: AbstractActionProcess
 }
-    ## Generative Model ##
+    ## Generative Model
     generative_model::GM
 
-    ## Perceptual process ##
+    ## Perceptual process
     perceptual_process::PP
     
-    ## Action process ##
+    ## Action process 
     action_process::AP
 
 end
@@ -95,11 +94,26 @@ function planning(
 
 end
 
+function selection(
+    model::AIFModel{AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType}, AbstractPerceptualProcess{AbstractOptimEngine}, AbstractActionProcess},
+    selection_type::Union{Val{:stochastic}, Val{:deterministic}} = Val(:stochastic)
+)
 
+    @error "Please create an action function utilizing concrete type.
+            The current model is: $(typeof(model))"
 
+end
 
+function store_beliefs!(
+    model::AIFModel{AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType}, AbstractPerceptualProcess{AbstractOptimEngine}, AbstractActionProcess}
+)
 
-function active_inference(agent::AIFModel, observation::Vector{Int64})
+    @error "Please create a store_beliefs! function utilizing concrete type.
+            The current model is: $(typeof(model))"
+
+end
+
+function active_inference(model::AIFModel, observation::Vector{Int64})
 
     agent.perception()
 
@@ -116,7 +130,7 @@ function active_inference(agent::AIFModel, observation::Vector{Int64})
     return action_distribution
 end
 
-function active_inference_action(agent::AIFModel, observation::Vector{Int64})
+function active_inference_action(model::AIFModel, observation::Vector{Int64})
 
     # Perform perception process
     agent.perception(agent, observation)

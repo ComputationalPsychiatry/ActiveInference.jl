@@ -24,9 +24,7 @@ mutable struct ActionProcess <: AbstractActionProcess
     policies::Union{Vector{Matrix{Int64}}, Nothing}
 
     # Fields containing predictions, actions, and posterior policies
-    predicted_states::Union{Vector{Vector{Vector{Vector{Float64}}}}, Nothing}
-    predicted_observations::Union{Vector{Vector{Vector{Vector{Float64}}}}, Nothing}
-    previous_action::Union{Vector{Int}, Nothing}
+    action::Union{Vector{Int}, Nothing}
     posterior_policies::Union{Vector{Float64}, Nothing}
     expected_free_energy::Union{Vector{Float64}, Nothing}
 
@@ -42,9 +40,7 @@ mutable struct ActionProcess <: AbstractActionProcess
         E::Union{Vector{T}, Nothing} where {T <: Real} = nothing,
         policy_length::Int = 2,
         policies::Union{Vector{Matrix{Int64}}, Nothing} = nothing,
-        predicted_states::Union{Vector{Vector{Float64}}, Nothing} = nothing,
-        predicted_observations::Union{Vector{Int}, Nothing} = nothing,
-        previous_action::Union{Vector{Int}, Nothing} = nothing,
+        action::Union{Vector{Int}, Nothing} = nothing,
         posterior_policies::Union{Vector{Float64}, Nothing} = nothing,
         expected_free_energy::Union{Vector{Float64}, Nothing} = nothing,
         action_selection::String = "stochastic",
@@ -80,9 +76,7 @@ mutable struct ActionProcess <: AbstractActionProcess
             E, 
             policy_length, 
             policies, 
-            predicted_states, 
-            predicted_observations, 
-            previous_action, 
+            action, 
             posterior_policies, 
             expected_free_energy, 
             action_selection,
@@ -90,56 +84,3 @@ mutable struct ActionProcess <: AbstractActionProcess
         )
     end
 end
-
-# function predict_states_observations(agent::AIFModel)
-
-#     all_predicted_states = get_expected_states(agent.perceptual_process.posterior_states, agent.generative_model.B, agent.action_process.policies)
-#     all_predicted_observations = get_expected_obs(all_predicted_states, agent.generative_model.A)
-
-#     agent.action_process.predicted_states = all_predicted_states
-#     agent.action_process.predicted_observations = all_predicted_observations
-
-# end
-
-# function action_distribution(agent::AIFModel; act::Bool = false)
-
-#     # Get posterior over policies and expected free energies
-#     q_pi, G = update_posterior_policies(
-#         qs = agent.perceptual_process.posterior_states,
-#         A = agent.generative_model.A,
-#         C = agent.generative_model.C,
-#         policies = agent.action_process.policies,
-#         qs_pi_all = agent.action_process.predicted_states,
-#         qo_pi_all = agent.action_process.predicted_observations,
-#         use_utility = agent.action_process.use_utility,
-#         use_states_info_gain = agent.action_process.use_states_info_gain,
-#         use_param_info_gain = agent.action_process.use_param_info_gain,
-#         A_learning = agent.perceptual_process.A_learning,
-#         B_learning = agent.perceptual_process.B_learning,
-#         E = agent.action_process.E,
-#         gamma = agent.action_process.gamma
-#     )
-
-#     agent.action_process.posterior_policies = q_pi
-#     agent.action_process.expected_free_energy = G
-
-#     # If action is enabled, sample an action from the posterior policies
-#     if act
-#         # Sample action from the posterior policies
-#         action = sample_action(
-#             q_pi = q_pi, 
-#             policies = agent.action_process.policies, 
-#             n_controls = agent.generative_model.info.controls_per_factor; 
-#             action_selection=agent.action_process.info.action_selection, 
-#             alpha=agent.action_process.info.alpha
-#         )
-
-#         agent.action_process.previous_action = action
-#         return q_pi, G, action
-#     else
-#         return q_pi, G
-#     end
-
-# end
-
-

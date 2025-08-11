@@ -10,8 +10,12 @@ mutable struct PerceptualProcess{T<:Union{AbstractOptimEngine, Missing}} <: Abst
     # beliefs about states, prior and observation
     posterior_states::Union{Vector{Vector{Float64}}, Nothing}
     previous_posterior_states::Union{Vector{Vector{Float64}}, Nothing}
-    prior::Union{Vector{Vector{Float64}}, Nothing}
-    current_observation::Union{Vector{Int}, Nothing}
+    prior_qs_prediction::Union{Vector{Vector{Float64}}, Nothing}
+    observation::Union{Vector{Int}, Nothing}
+
+    # Fields containing predictions from the prediction function
+    predicted_states::Union{Vector{Vector{Vector{Vector{Float64}}}}, Nothing}
+    predicted_observations::Union{Vector{Vector{Vector{Vector{Float64}}}}, Nothing}
 
     # learning structs
     A_learning::Union{Nothing, Learn_A}
@@ -37,7 +41,7 @@ mutable struct PerceptualProcess{T<:Union{AbstractOptimEngine, Missing}} <: Abst
         # Show process information if verbose
         show_info(info_struct; verbose=verbose)
 
-        new{typeof(optim_engine)}(nothing, nothing, nothing, nothing, A_learning, B_learning, D_learning, info_struct, optim_engine)
+        new{typeof(optim_engine)}(nothing, nothing, nothing, nothing, nothing, nothing, A_learning, B_learning, D_learning, info_struct, optim_engine)
     end
 end
 

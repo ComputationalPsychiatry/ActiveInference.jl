@@ -1,16 +1,16 @@
-""" Update the agent's beliefs over states and observations """
-function update_parameters(agent::AIFModel)
+""" Update the model's beliefs over states and observations """
+function update_parameters(model::AIFModel)
 
-    if agent.perceptual_process.info.A_learning_enabled == true
-        update_A(agent)
+    if model.perceptual_process.info.A_learning_enabled == true
+        update_A(model)
     end
 
-    if agent.perceptual_process.info.B_learning_enabled == true
-        update_B(agent)
+    if model.perceptual_process.info.B_learning_enabled == true
+        update_B(model)
     end
 
-    if agent.perceptual_process.info.D_learning_enabled == true
-        update_D(agent)
+    if model.perceptual_process.info.D_learning_enabled == true
+        update_D(model)
     end
     
 end
@@ -101,63 +101,63 @@ function update_state_prior_dirichlet(pD, qs::Vector{Vector{T}} where T <: Real,
 end
 
 """ Update A-matrix """
-function update_A(agent::AIFModel)
+function update_A(model::AIFModel)
 
     qA = update_obs_likelihood_dirichlet(
-        agent.perceptual_process.A_learning.prior, 
-        agent.generative_model.A, 
-        agent.perceptual_process.current_observation, 
-        agent.perceptual_process.posterior_states, 
-        agent.perceptual_process.A_learning.learning_rate, 
-        agent.perceptual_process.A_learning.forgetting_rate, 
-        agent.perceptual_process.A_learning.modalities_to_learn
+        model.perceptual_process.A_learning.prior, 
+        model.generative_model.A, 
+        model.perceptual_process.current_observation, 
+        model.perceptual_process.posterior_states, 
+        model.perceptual_process.A_learning.learning_rate, 
+        model.perceptual_process.A_learning.forgetting_rate, 
+        model.perceptual_process.A_learning.modalities_to_learn
     )
     
-    agent.perceptual_process.A_learning.prior = deepcopy(qA)
-    agent.generative_model.A = deepcopy(normalize_arrays(qA))
+    model.perceptual_process.A_learning.prior = deepcopy(qA)
+    model.generative_model.A = deepcopy(normalize_arrays(qA))
 
 end
 
 """ Update B-matrix """
-function update_B(agent::AIFModel)
+function update_B(model::AIFModel)
 
     # only update B if a previous posterior state exists or is not nothing
-    if !isnothing(agent.perceptual_process.previous_posterior_states)
+    if !isnothing(model.perceptual_process.previous_posterior_states)
 
         qB = update_state_likelihood_dirichlet(
-            agent.perceptual_process.B_learning.prior, 
-            agent.generative_model.B, 
-            agent.action_process.previous_action, 
-            agent.perceptual_process.posterior_states, 
-            agent.perceptual_process.previous_posterior_states, 
-            agent.perceptual_process.B_learning.learning_rate, 
-            agent.perceptual_process.B_learning.forgetting_rate, 
-            agent.perceptual_process.B_learning.factors_to_learn
+            model.perceptual_process.B_learning.prior, 
+            model.generative_model.B, 
+            model.action_process.previous_action, 
+            model.perceptual_process.posterior_states, 
+            model.perceptual_process.previous_posterior_states, 
+            model.perceptual_process.B_learning.learning_rate, 
+            model.perceptual_process.B_learning.forgetting_rate, 
+            model.perceptual_process.B_learning.factors_to_learn
         )
 
-        agent.perceptual_process.B_learning.prior = deepcopy(qB)
-        agent.generative_model.B = deepcopy(normalize_arrays(qB))
+        model.perceptual_process.B_learning.prior = deepcopy(qB)
+        model.generative_model.B = deepcopy(normalize_arrays(qB))
     else
         qB = nothing
     end
 end
 
 """ Update D-matrix """
-function update_D(agent::AIFModel)
+function update_D(model::AIFModel)
 
     # only update D if a previous posterior state does not exists and is nothing
-    if isnothing(agent.perceptual_process.previous_posterior_states)
+    if isnothing(model.perceptual_process.previous_posterior_states)
 
         qD = update_state_prior_dirichlet(
-            agent.perceptual_process.D_learning.prior, 
-            agent.perceptual_process.posterior_states, 
-            agent.perceptual_process.D_learning.learning_rate, 
-            agent.perceptual_process.D_learning.forgetting_rate, 
-            agent.perceptual_process.D_learning.factors_to_learn
+            model.perceptual_process.D_learning.prior, 
+            model.perceptual_process.posterior_states, 
+            model.perceptual_process.D_learning.learning_rate, 
+            model.perceptual_process.D_learning.forgetting_rate, 
+            model.perceptual_process.D_learning.factors_to_learn
         )
 
-        agent.perceptual_process.D_learning.prior = deepcopy(qD)
-        agent.generative_model.D = deepcopy(normalize_arrays(qD))
+        model.perceptual_process.D_learning.prior = deepcopy(qD)
+        model.generative_model.D = deepcopy(normalize_arrays(qD))
     else
         qD = nothing
     end

@@ -32,21 +32,26 @@ include("PerceptualProcess/PerceptualProcess.jl")
 # Include action process type and files
 include("ActionProcess/utils/ActionProcessInfoStruct.jl")
 include("ActionProcess/ActionProcess.jl")
-include("ActionProcess/utils/action_selection.jl")
 
-# Include agent initialization
-include("AgentInitialization/AgentInit.jl")
+# Include model initialization
+include("ModelInitialization/ModelInit.jl")
 
 # Include perception function
 include("PerceptionFunction/fixed_point_iteration.jl")
 
 # Include prediction function
 include("PredictionFunction/prediction_utils.jl")
-include("PredictionFunction/prediction.jl")
+include("PredictionFunction/prediction_function.jl")
 
 # Include planning function
 include("PlanningFunction/planning_function.jl")
 include("PlanningFunction/planning_utils.jl")
+
+# Include selection function
+include("SelectionFunction/selection_function.jl")
+
+# Include storage function
+include("StoreBeliefsFunction/store_beliefs_function.jl")
 
 # Include utility functions
 include("../../utils/maths.jl")

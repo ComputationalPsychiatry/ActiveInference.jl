@@ -15,7 +15,7 @@ end
 function fill_missing_parameters(generative_model::GenerativeModel, perceptual_process::PerceptualProcess, action_process::ActionProcess)
 
     # Provide the prior over states from the generative model to the perceptual_process
-    perceptual_process.prior = generative_model.D
+    perceptual_process.prior_qs_prediction = generative_model.D
 
     # Create Prior over learned parameters if concentration parameter is given.
     create_learning_priors(
@@ -67,7 +67,7 @@ function create_learning_priors(
 
 end
 
-""" Function to create the policies of the agent based on the generative model."""
+""" Function to create the policies of the model based on the generative model."""
 function construct_policies(n_controls::Vector{Int}, policy_length::Int)
 
     # Create a vector of possible actions for each time step

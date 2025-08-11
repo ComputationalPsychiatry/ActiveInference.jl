@@ -1,89 +1,67 @@
-# function ActiveInferenceCore.perception(
-#     agent::AIFModel{GenerativeModel, PerceptualProcess{FixedPointIteration}, ActionProcess},
-#     observation::Vector{Int}
-# )
-#     println("Hello, this is FPI")
-#     # Set the current observation in the perceptual process
-#     agent.perceptual_process.current_observation = observation
-
-#     # Set the current posterior_states to the previous_posterior states
-#     agent.perceptual_process.previous_posterior_states = agent.perceptual_process.posterior_states
-
-#     # Infer states with muætiple dispatch on the optimization engine
-#     new_posterior_states = infer_states(agent, agent.perceptual_process.optim_engine)
-#     agent.perceptual_process.posterior_states = new_posterior_states
-
-#     # If learning is enabled, update the beliefs about the parameters
-#     if agent.perceptual_process.info.learning_enabled
-#         update_parameters(agent)
-#     end
-
-# end
-
-""" Update the agents's beliefs over states """
+""" Update the models's beliefs over states """
 function ActiveInferenceCore.perception(
-    agent::AIFModel{GenerativeModel, PerceptualProcess{FixedPointIteration}, ActionProcess},
+    model::AIFModel{GenerativeModel, PerceptualProcess{FixedPointIteration}, ActionProcess},
     observation::Vector{Int}
 )
 
-    if agent.action_process.previous_action !== nothing
-        int_action = round.(Int, agent.action_process.previous_action)
-        prior = get_expected_states(agent.perceptual_process.posterior_states, agent.generative_model.B, reshape(int_action, 1, length(int_action)))[1]
+    if model.action_process.action !== nothing
+        int_action = round.(Int, model.action_process.action)
+        prior_qs_prediction = get_expected_states(model.perceptual_process.posterior_states, model.generative_model.B, reshape(int_action, 1, length(int_action)))[1]
     else
-        prior = agent.perceptual_process.prior
+        prior_qs_prediction = model.perceptual_process.prior_qs_prediction
     end
 
     # make observations into a one-hot encoded vector
     processed_observation = process_observation(
         observation, 
-        agent.generative_model.info.n_modalities, 
-        agent.generative_model.info.n_observations
+        model.generative_model.info.n_modalities, 
+        model.generative_model.info.n_observations
     )
 
     # perform fixed-point iteration
     posterior_states = fixed_point_iteration(;
-        A = agent.generative_model.A,
+        A = model.generative_model.A,
         observation = processed_observation,
-        n_factors = agent.generative_model.info.n_factors,
-        n_states = agent.generative_model.info.n_states,
-        prior = prior,
-        num_iter = agent.perceptual_process.optim_engine.num_iter,
-        dF_tol = agent.perceptual_process.optim_engine.dF_tol
+        n_factors = model.generative_model.info.n_factors,
+        n_states = model.generative_model.info.n_states,
+        prior = prior_qs_prediction,
+        num_iter = model.perceptual_process.optim_engine.num_iter,
+        dF_tol = model.perceptual_process.optim_engine.dF_tol
     )
 
-    return posterior_states
+    return posterior_states, prior_qs_prediction
 end
 
-""" Update the agents's beliefs over states with previous posterior states and action """
+""" Update the models's beliefs over states with previous posterior states and action """
 function ActiveInferenceCore.perception(
-    agent::AIFModel{GenerativeModel, PerceptualProcess{FixedPointIteration}, ActionProcess},
+    model::AIFModel{GenerativeModel, PerceptualProcess{FixedPointIteration}, ActionProcess},
     observation::Vector{Int},
     previous_posterior_states::Union{Nothing, Vector{Vector{Float64}}},
     previous_action::Union{Nothing, Vector{Int}} 
 )
 
     int_action = round.(Int, previous_action)
-    prior = get_expected_states(previous_posterior_states, agent.generative_model.B, reshape(int_action, 1, length(int_action)))[1]
+    prior_qs_prediction = get_expected_states(previous_posterior_states, model.generative_model.B, reshape(int_action, 1, length(int_action)))[1]
 
     # make observations into a one-hot encoded vector
     processed_observation = process_observation(
         observation, 
-        agent.generative_model.info.n_modalities, 
-        agent.generative_model.info.n_observations
+        model.generative_model.info.n_modalities, 
+        model.generative_model.info.n_observations
     )
 
     # perform fixed-point iteration
     posterior_states = fixed_point_iteration(;
-        A = agent.generative_model.A,
+        A = model.generative_model.A,
         observation = processed_observation,
-        n_factors = agent.generative_model.info.n_factors,
-        n_states = agent.generative_model.info.n_states,
-        prior = prior,
-        num_iter = agent.perceptual_process.optim_engine.num_iter,
-        dF_tol = agent.perceptual_process.optim_engine.dF_tol
+        n_factors = model.generative_model.info.n_factors,
+        n_states = model.generative_model.info.n_states,
+        prior = prior_qs_prediction,
+        num_iter = model.perceptual_process.optim_engine.num_iter,
+        dF_tol = model.perceptual_process.optim_engine.dF_tol
     )
 
-    return posterior_states
+    return posterior_states, prior_qs_prediction
 end
 
 """ Run State Inference via Fixed-Point Iteration """
