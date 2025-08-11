@@ -10,7 +10,7 @@ import Test: @inferred
 import Memoization: @memoize
 import Dates
 
-using Base.Threads
+import Base.Threads: @threads
 #using TimerOutputs
 
 using Format

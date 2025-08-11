@@ -70,6 +70,7 @@ function animate!(history, horizon=1)
         scatter!([current_col], [rows-current_row+1], color=:green, markersize=10, markershape=:circle)
     end
     gif(anim, joinpath(folder, "agent_path_$(horizon).gif"), fps=2)
+    
 end
 
 

@@ -10,7 +10,7 @@ import jax.tree_util as jtu
 from pymdp.agent import Agent
 from pymdp import control
 
-import debugger
+#import debugger
 import time
 
 MAZE = np.array([
@@ -37,20 +37,7 @@ LOCATIONS = np.array([
     [ 8, 17, 26, 35, 44, 53, 62, 71, 80]
 ])
 
-PREFERENCES = np.array([
-    [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000],
-    [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 1.000, 0.000],
-    [0.000, 0.000, 0.000, 0.000, 0.000, 0.700, 0.000, 0.825, 0.000],
-    [0.000, 0.000, 0.000, 0.501, 0.000, 0.600, 0.000, 0.700, 0.000],
-    [0.000, 0.300, 0.000, 0.400, 0.000, 0.525, 0.000, 0.625, 0.000],
-    [0.000, 0.200, 0.000, 0.300, 0.000, 0.425, 0.000, 0.575, 0.000],
-    [0.000, 0.150, 0.000, 0.200, 0.000, 0.325, 0.000, 0.501, 0.000],
-    [0.000, 0.100, 0.125, 0.150, 0.175, 0.225, 0.300, 0.400, 0.000],
-    [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
-])
-
 MAZE_vec = MAZE.T.flatten()
-PREFERENCES_vec = PREFERENCES.T.flatten()
 
 A0 = jnp.eye(81)  # Observation modality 0 as identity matrix
 A1 = jnp.vstack([(1 - MAZE_vec), MAZE_vec])  # Observation modality 1
@@ -93,18 +80,23 @@ def construct_B_matrices_jax(maze):
 
 B = [construct_B_matrices_jax(MAZE)]
 
+
+c0 = jnp.array([
+       [-1.  , -1.  , -1.  , -1.  , -1.  , -1.  , -1.  , -1.  , -1.  ],
+       [-1.  , -1.  , -1.  , -1.  , -1.  , -1.  , -1.  ,  1.  , -1.  ],
+       [-1.  , -1.  , -1.  , -1.  , -1.  ,  0.4 , -1.  ,  0.65, -1.  ],
+       [-1.  , -1.  , -1.  ,  0.  , -1.  ,  0.2 , -1.  ,  0.4 , -1.  ],
+       [-1.  , -0.4 , -1.  , -0.2 , -1.  ,  0.05, -1.  ,  0.25, -1.  ],
+       [-1.  , -0.6 , -1.  , -0.4 , -1.  , -0.15, -1.  ,  0.15, -1.  ],
+       [-1.  , -0.7 , -1.  , -0.6 , -1.  , -0.35, -1.  ,  0.  , -1.  ],
+       [-1.  , -0.8 , -0.75, -0.7 , -0.65, -0.55, -0.4 , -0.2 , -1.  ],
+       [-1.  , -1.  , -1.  , -1.  , -1.  , -1.  , -1.  , -1.  , -1.  ]
+])
+
+c0 = c0.T.flatten()
+
 C = [
-     jnp.array([
-    -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,  # column 1
-    -1.0, -1.0, -1.0, -1.0, -0.4, -0.6, -0.7, -0.8, -1.0,  # column 2
-    -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -0.75, -1.0, # column 3
-    -1.0, -1.0, -1.0,  0.0, -0.2, -0.4, -0.6, -0.7, -1.0, # column 4
-    -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -0.65, -1.0,  # column 5
-    -1.0, -1.0,  0.4,  0.2,  0.05, -0.15, -0.35, -0.55, -1.0, # column 6
-    -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -0.4, -1.0,  # column 7
-    -1.0,  1.0,  0.65, 0.4,  0.25, 0.15, 0.0, -0.2, -1.0, # column 8
-    -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0   # column 9
-    ]),
+    c0,
     jnp.zeros(2),
     ]
 
@@ -146,33 +138,19 @@ last, info, env = rollout(
     env,
     T,
     key,
-    max_depth=7,
+    max_depth=12,
     max_nodes = 10000,
     max_branching = 10,
-    policy_prune_threshold = 1/16, #1/ 64,
-    observation_prune_threshold = 1/16, #1 / 64,
-    entropy_stop_threshold = 0, #0.5,
-    efe_stop_threshold = 10000000, #5,
-    kl_threshold=0, #1e-2,
+    policy_prune_threshold = 1/ 16,
+    observation_prune_threshold = 1 / 16,
+    entropy_stop_threshold = 0.5,
+    efe_stop_threshold = 5,
+    kl_threshold= 1e-2,
     prune_penalty = 512,
     )
 
-'''
-expected for a horizon 4 for regular jax agemt:
-    qs[0].shape = (1,1,81)
-    q_pi[0].shape = (2,)
-    action.shape = (1,1)
-    1. empirical_prior = tuple of len=2
-        empirical_prior[0][0].shape = (1,81)
-        empirical_prior[1][0].shape = (1,1,81)
-    2. empirical_prior[0].shape = (1,1,81)
-    3. empirical_prior[0].shape = (1,81)
-    observation[0].shape = (1,81)
-'''
-
-print("\nobservations= \n{}\n".format(info["observation"][0][:,0,0]))
-
-#assert False
+print("\nobservations loc= \n{}\n".format(info["observation"][0][:,0,0]))
+print("\nobservations wall= \n{}\n".format(info["observation"][1][:,0,0]))
 
 #print(info)
 

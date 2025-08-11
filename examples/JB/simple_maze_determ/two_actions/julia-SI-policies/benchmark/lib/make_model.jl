@@ -46,6 +46,7 @@ function make_model(CONFIG)
                 pD = nothing,
                 extra = (
                     MAZE = MAZE,
+                    vec_maze = vec(MAZE),
                 ),
             
             ),

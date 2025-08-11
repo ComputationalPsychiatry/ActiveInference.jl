@@ -48,6 +48,18 @@ function make_policies(model, CONFIG)
     model = @set model.policies.n_policies = number_policies
 
 
+    function action_tests(qs_pi_next, qs_pi_last, model)
+        idx = argmax(qs_pi_next.loc)
+        if model.states.loc.extra.vec_maze[idx] == 1 && qs_pi_next.loc[idx] > .95  
+            # action has taken agent off the paths
+            return false
+        else
+            return true
+        end
+    end
+
+    #model = @set model.policies.action_tests = action_tests
+    
     #@infiltrate; @assert false
     return model
     

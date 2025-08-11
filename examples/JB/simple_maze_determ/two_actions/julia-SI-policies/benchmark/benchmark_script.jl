@@ -12,6 +12,7 @@ import Plots
 import Random
 import Setfield: @set
 import Statistics
+import Dates
 using CSV, DataFrames
 
 using Format
@@ -25,7 +26,7 @@ include("lib/environment.jl")
 
 include("lib/make_A.jl")
 include("lib/make_B.jl")
-include("lib/simulate.jl")
+#include("lib/simulate.jl")
 include("lib/make_policies.jl")
 include("lib/custom_sample_action.jl")
 include("lib/animate.jl")
@@ -171,11 +172,12 @@ function run_simulation(horizon, num_iterations)
         Symbol("policy") => [values(x) for x in agent.history.policy]
         
     )
-    CSV.write(joinpath(folder, "results.csv"), df_total)
+    CSV.write(joinpath(folder, format("results_horz_{}.csv", horizon)), df_total)
 
-    println("Time:", sim_time)
-    println("Last Observation", last_obs)
-@infiltrate; @assert false
+    printfmtln("\nTime: {}", sim_time)
+    printfmtln("Last Observation= {}\n", last_obs)
+    
+    #@infiltrate; @assert false
     return env.history
 end
 
@@ -199,7 +201,7 @@ function run()
     end
     
     
-    n_sim_steps = 3
+    n_sim_steps = 10
     for horizon in 12:12
         println("Running horizon $(horizon)...")
         run_simulation(horizon, n_sim_steps)
@@ -207,12 +209,6 @@ function run()
     end
 
     animate!(env.history[2:n_sim_steps+2], CONFIG.policy_length)
-
-    results = (
-        folder = folder,
-        obs = 2,
-        sim_time = 2,
-    )
 
     @infiltrate; @assert false
 

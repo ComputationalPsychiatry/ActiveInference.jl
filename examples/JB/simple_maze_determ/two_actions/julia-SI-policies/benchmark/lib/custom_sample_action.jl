@@ -28,7 +28,7 @@ function custom_sample_action!(agent, step_i)
     end
     printfmtln("\ntime policy selection= {}\n", Dates.time() - t00)
 
-    policy = IterTools.nth(policies, ii)
+    policy = policies[ii]
     policy = (; zip([x.name for x in agent.model.actions], policy)...)  # requried to save in agent.history
     
     action_ids = collect(zip(policy...))[1]
@@ -36,22 +36,23 @@ function custom_sample_action!(agent, step_i)
     
     push!(agent.history.action, action)  # required
 
-    if true
+    if false
         printfmtln("\nAction at time {}: {}, ipolicy={}, q_pi= {}, G={}, policy= {}", 
             step_i, action, ii, q_pi[ii], G[ii], policy
         )
 
-        printfmtln("\ncounts of q_pi values:")
-        for (k,v) in StatsBase.countmap(round.(q_pi, digits=4))
-            if ismissing(k)
-                printfmtln("    {}:  {}", "missing", v)
-            else
-                printfmtln("    {:.4E}:  {}", k, v)
+        if false
+            printfmtln("\ncounts of q_pi values:")
+            for (k,v) in StatsBase.countmap(round.(q_pi, digits=4))
+                if ismissing(k)
+                    printfmtln("    {}:  {}", "missing", v)
+                else
+                    printfmtln("    {:.4E}:  {}", k, v)
+                end
             end
         end
         
-        
-        if true 
+        if false 
             printfmtln("\nutility= {}, sum= {}", agent.utility[ii, :], round(sum(skipmissing(agent.utility[ii, :])), digits=4))
 
             printfmtln("\ninfo_gain= {}, sum= {}\n", agent.info_gain[ii, :], round(sum(skipmissing(agent.info_gain[ii, :])), digits=4))

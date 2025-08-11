@@ -12,7 +12,8 @@ import Random
 import UUIDs
 
 import ActiveInference.ActiveInferenceFactorized as AI 
-import Base.Threads: @threads, ReentrantLock
+
+import Base.Threads: @threads
 
 using Format
 using Infiltrator
@@ -157,7 +158,6 @@ function update_posterior_policies!(
     end
 
 
-
     #@infiltrate; @assert false
     nv = Graphs.nv(siGraph) 
     push!(agent.history.graph_initial_node_count, nv)
@@ -186,6 +186,8 @@ function update_posterior_policies!(
                     @assert length(siGraph[node_label].policy[1]) == siGraph[node_label].level
                 end
             catch e
+                parents = collect(MGN.inneighbor_labels(siGraph, node_label))
+                parents2 = [MGN.code_for(siGraph, p) for p in parents]
                 @infiltrate; @assert false
             end
         end
@@ -654,10 +656,11 @@ function recurse(
         agent::AI.Agent{T2}, 
         ObsLabel::Union{Nothing, Base.UUID}, 
         action_names::Vector{Symbol}, 
-        rng::Random.Xoshiro
+        rng::Random.Xoshiro,
     ) where {T2<:AbstractFloat}
     
     # todo: induction, info_gain_A, info_gain_B, info_gain_D are not yet handled
+    
 
     model = agent.model
     observation_prune_threshold = agent.settings.SI_observation_prune_threshold
@@ -683,13 +686,11 @@ function recurse(
         @infiltrate; @assert false
     end
 
-    n_actions = length(model.policies.action_iterator)
     children = []
-    lk = ReentrantLock()    
-    #for (idx, action) in enumerate(model.policies.action_iterator)  
-    @threads for idx in 1:n_actions
-        action = model.policies.action_iterator[idx]
     
+    # for (idx, action) in enumerate(model.policies.action_iterator)  
+    for idx in 1:length(model.policies.action_iterator)
+        action = model.policies.action_iterator[idx]
         # action is a tuple of integers
         policy1 = (; zip(action_names, Tuple.(action))...)  # a policy of length 1
         
@@ -709,10 +710,8 @@ function recurse(
             if filtered
                 # bad policy for given states
                 ActionLabel = UUIDs.uuid1(rng) 
-                lock(lk) do
-                    siGraph[ActionLabel] = AI.BadPath("BadPath")
-                    siGraph[ObsLabel, ActionLabel] = AI.GraphEdge()
-                end
+                siGraph[ActionLabel] = AI.BadPath("BadPath")
+                siGraph[ObsLabel, ActionLabel] = AI.GraphEdge()
                 #@infiltrate; @assert false
                 continue
             end
@@ -720,10 +719,8 @@ function recurse(
             if earlystop
                 # early stop, will be true for all actions
                 ActionLabel = UUIDs.uuid1(rng) 
-                lock(lk) do
-                    siGraph[ActionLabel] = AI.EarlyStop("EarlyStop")
-                    siGraph[ObsLabel, ActionLabel] = AI.GraphEdge()
-                end
+                siGraph[ActionLabel] = AI.EarlyStop("EarlyStop")
+                siGraph[ObsLabel, ActionLabel] = AI.GraphEdge()
                 #@infiltrate; @assert false  
                 continue  
             end
@@ -771,7 +768,7 @@ function recurse(
         #    @infiltrate; @assert false
         #end
 
-        # add to graph 
+        # create new child node
         #@infiltrate; @assert false
         ActionChild = AI.ActionNode{T2}(
             qs,  # parent qs
@@ -800,9 +797,7 @@ function recurse(
         #printfmtln("level= {}, policy= {}", ActionChild.level, ActionChild.policy)
         @assert length(policy[1]) == level
 
-        lock(lk) do
-            push!(children, ActionChild)  # children are ActionNodes
-        end
+        push!(children, ActionChild)  # children are ActionNodes
 
         #if agent.sim_step == 2 && level == 2 && policy == (move = (2, 1),)
         #    @infiltrate; @assert false
@@ -816,8 +811,8 @@ function recurse(
     end  
     
     if length(children) == 0
-        @infiltrate; @assert false
-        return  (G_children=nothing, q_pi_children=nothing) # no children, no change to graph
+        #@infiltrate; @assert false
+        return  (G_children=[], q_pi_children=[])  # no children, no change to graph
     end
 
 
@@ -901,6 +896,10 @@ function recurse(
         for child in children
             ActionLabel = UUIDs.uuid1(rng) 
             push!(action_labels, ActionLabel)  # keep record of node labels
+            
+            if MGN.haskey(siGraph, ActionLabel)
+                @infiltrate; @assert false
+            end 
             siGraph[ActionLabel] = child  # copy first?
         
             # edge will always be unique
@@ -927,17 +926,22 @@ function recurse(
 
     obs_names = [x.name for x in model.obs]
     
-    # do standard inference?
+    
+    # ----------------------------------------------------
+    # do standard inference? -- no threads
     if agent.settings.policy_inference_method == :standard
+        # use this for :standard inference with :explicit or :implicit graph
+        # make only a single Obs node
+        # do not call update_posterior_states to get qs_next, use original
+        @infiltrate; @assert false
         for (idx, ActionChild) in enumerate(children)
+            
             if ActionChild.pruned
                 # make no ObsNode children for this ActionNode
                 continue
             end
-        
-            # use this for :standard inference with :explicit or :implicit graph
-            # make only a single Obs node
-            # do not call update_posterior_states to get qs_next, use original
+
+            qo_next = ActionChild.qo_pi
             qs_next = ActionChild.qs_pi  
             prob = 1.0
             obs = (; zip(obs_names, zeros(length(obs_names)))...)  # dummy obs
@@ -957,8 +961,10 @@ function recurse(
                 ActionChild.policy,
             )
 
-            ObsLabel2 = UUIDs.uuid1(rng) 
+             
             if !isnothing(siGraph)
+                ObsLabel2 = UUIDs.uuid1(rng)
+
                 siGraph[ObsLabel2] = ObsParent2
                 siGraph[action_labels[idx], ObsLabel2] = AI.GraphEdge()
             end
@@ -968,15 +974,13 @@ function recurse(
             end
             
             #@infiltrate; @assert false
-            G_grandchildren, q_pi_grandchildren  = recurse(siGraph, ObsParent2, agent, ObsLabel2, action_names, rng)
-            if !isnothing(G_grandchildren)
-                G_weighted = sum(G_grandchildren .* q_pi_grandchildren) * prob
-                G_children[idx] += G_weighted
-            end
-        
-            if agent.settings.verbose
-                printfmtln("        level= {}, ending observation loop, idx={}, obs cnt= {}", level, idx, 1)            
-            end
+            G_grandchildren, q_pi_grandchildren  = recurse(siGraph, ObsParent2, agent, ObsLabel, action_names, rng)
+            G_weighted = sum(G_grandchildren .* q_pi_grandchildren) * prob
+            G_children[idx] += G_weighted
+        end
+
+        if agent.settings.verbose
+            printfmtln("        level= {}, ending observation loop, idx={}, obs cnt= {}", level, idx, 1)            
         end
         
         if agent.settings.verbose
@@ -985,26 +989,31 @@ function recurse(
 
         # todo: no logE??
         q_pi_children = LEF.softmax(G_children * agent.parameters.gamma)
+                
         return (G_children=G_children, q_pi_children=q_pi_children)  # return the (pruned) children after generating futher children
     end
 
 
+    # ----------------------------------------------------
+    # do regular SI, threaded setup
+    ObsParent2s = []
+    for idx in 1:length(children)
+        
+        ActionChild = children[idx]
+        ActionLabel = action_labels[idx]
 
-    # do regular SI
-    for (idx, ActionChild) in enumerate(children)
         if ActionChild.pruned
             # make no ObsNode children for this ActionNode
             continue
         end
 
+        # do regular SI
         qo_next = ActionChild.qo_pi
         
-        lk = ReentrantLock()    
-        ObsParent2s = []
-        @threads for i_observation in 1:length(observation_iterator)
+        for i_observation in 1:length(observation_iterator)
             
-            observation2 = observation_iterator[i_observation]  
-            
+            observation2 = observation_iterator[i_observation]
+
             n = length(observation2)
             probs = zeros(n)
             for i in 1:length(observation2)
@@ -1014,9 +1023,11 @@ function recurse(
 
             # ignore low probability observations in the search tree
             if prob < observation_prune_threshold
-                #    printfmtln("        level= {}, observation= {}, probs= {}, prob= {}", 
-                #    level, observation2, round.(probs, sigdigits=3), round(prob, sigdigits=3)
-                #)
+                if false
+                    printfmtln("        level= {}, observation= {}, probs= {}, prob= {}", 
+                        level, observation2, round.(probs, sigdigits=3), round(prob, sigdigits=3)
+                    )
+                end
                 continue
             end
 
@@ -1057,29 +1068,38 @@ function recurse(
             #if obs == (loc_obs = 17, wall_obs = 1) && ActionChild.policy == (move = (1,),)
             #    @infiltrate; @assert false
             #end
-
-            lock(lk) do
-                push!(ObsParent2s, ObsParent2)
-            end
+            
+            push!(ObsParent2s, (ObsParent2, prob))
         end
 
-
-        cnt = length(ObsParent2s)
+        #@infiltrate; @assert false
+        # call recurse, not threaded
         max_prob = 0
-        for ObsParent2 in ObsParent2s 
-            prob = ObsParent2.prob
-            
+        cnt = length(ObsParent2s)
+
+        for (ObsParent2, prob) in ObsParent2s 
+
             if prob > max_prob
                 max_prob = prob
             end
 
             #printfmtln("    level= {}, policy= {}", ObsParent.level, ObsParent.policy)
             
-            ObsLabel2 = UUIDs.uuid1(rng) # needed with and without a graph
-
+            ObsLabel2 = UUIDs.uuid1(rng)  # need with and without graph
             if !isnothing(siGraph)
+                if MGN.haskey(siGraph, ObsLabel2)
+                    @infiltrate; @assert false
+                end 
+                
                 siGraph[ObsLabel2] = ObsParent2
-                siGraph[action_labels[idx], ObsLabel2] = AI.GraphEdge()
+                siGraph[ActionLabel, ObsLabel2] = AI.GraphEdge()
+                
+                parents = collect(MGN.inneighbor_labels(siGraph, ObsLabel2))
+                parents2 = [MGN.code_for(siGraph, p) for p in parents]
+                if length(parents) > 1
+                    @infiltrate; @assert false
+                end
+                #Graphs.indegree(siGraph, ii) == 1
             end
             
             if agent.settings.verbose
@@ -1088,11 +1108,10 @@ function recurse(
         
             #@infiltrate; @assert false
             G_grandchildren, q_pi_grandchildren  = recurse(siGraph, ObsParent2, agent, ObsLabel2, action_names, rng)
-            if !isnothing(G_grandchildren)
-                G_weighted = sum(G_grandchildren .* q_pi_grandchildren) * prob
-                G_children[idx] += G_weighted
-            end
+            G_weighted = sum(G_grandchildren .* q_pi_grandchildren) * prob
+            G_children[idx] += G_weighted
         end
+
 
         if agent.settings.verbose
             printfmtln("        level= {}, ending observation loop, idx={}, obs cnt= {}", level, idx, cnt)            
@@ -1112,14 +1131,16 @@ function recurse(
         end
         
         #@infiltrate; @assert false
-    end
 
+    end
     if agent.settings.verbose
         printfmtln("    level = {}, ending idx loop", level)
     end
 
     # todo: no logE??
     q_pi_children = LEF.softmax(G_children * agent.parameters.gamma)
+    
+    
     return (G_children=G_children, q_pi_children=q_pi_children)  # return the (pruned) children after generating futher children
         
 end
