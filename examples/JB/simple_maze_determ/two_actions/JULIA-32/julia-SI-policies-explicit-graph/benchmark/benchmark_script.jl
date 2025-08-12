@@ -53,8 +53,10 @@ function benchmark_planning(agent, observation)
     return elapsed_time, allocated_mib
 end
 
+
 # Main simulation function
 function run_simulation(horizon, num_iterations)
+
     policy_length = horizon 
     grid_dims = (9,9)
     grid_size = prod(grid_dims)
@@ -105,7 +107,7 @@ function run_simulation(horizon, num_iterations)
     
     settings = @set settings.use_param_info_gain = false
     settings = @set settings.SI_observation_prune_threshold = 1/16  
-    settings = @set settings.SI_policy_prune_threshold = 1/16
+    settings = @set settings.SI_policy_prune_threshold = 0.48 #1/16
     settings = @set settings.verbose = false
     settings = @set settings.SI_use_pymdp_methods = false
     settings = @set settings.action_selection = :deterministic
@@ -202,7 +204,7 @@ function run()
     
     
     n_sim_steps = 10
-    for horizon in 2:13
+    for horizon in 10:15 
         println("Running horizon $(horizon)...")
         run_simulation(horizon, n_sim_steps)
         println("\nFinished policy len $(horizon).\n")

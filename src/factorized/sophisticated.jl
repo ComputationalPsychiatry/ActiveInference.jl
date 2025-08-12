@@ -381,12 +381,12 @@ function update_posterior_policies!(
         printfmtln("\nWarning: max level ({}) < n_steps ({})\n", max_level, n_steps)
     end
     
+    # every graph can return EFE over actions
+    agent.q_pi_actions[:] = q_pi_grandchildren
+    agent.G_actions[:] = G_grandchildren
+
     # choose a postprocessing method
-    if agent.settings.EFE_over == :actions
-        # marginal EFE
-        agent.q_pi_actions[:] = q_pi_grandchildren
-        agent.G_actions[:] = G_grandchildren
-    else
+    if agent.settings.EFE_over == :policies
         do_EFE_over_policies(siGraph, agent, leaves, T2)
     end
 
@@ -969,7 +969,7 @@ function recurse(
                 printfmtln("\n        level= {}, calling sophisticated", level)
             end
             
-            #@infiltrate; @assert false
+            
             G_grandchildren, q_pi_grandchildren  = recurse(siGraph, ObsParent2, agent, ObsLabel2, action_names, rng)
             if !isnothing(G_grandchildren)
                 G_weighted = sum(G_grandchildren .* q_pi_grandchildren) * prob
@@ -979,6 +979,7 @@ function recurse(
             if agent.settings.verbose
                 printfmtln("        level= {}, ending observation loop, idx={}, obs cnt= {}", level, idx, 1)            
             end
+            #@infiltrate; @assert false
         end
         
         if agent.settings.verbose
@@ -987,6 +988,8 @@ function recurse(
 
         # todo: no logE??
         q_pi_children = LEF.softmax(G_children * agent.parameters.gamma)
+        
+        #@infiltrate; @assert false
         return (G_children=G_children, q_pi_children=q_pi_children)  # return the (pruned) children after generating futher children
     end
 

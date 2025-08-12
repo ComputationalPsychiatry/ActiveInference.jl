@@ -27,8 +27,13 @@ function custom_sample_action!(agent, step_i)
         ii = idx[ii]
     end
     printfmtln("\ntime policy selection= {}\n", Dates.time() - t00)
+    #@infiltrate; @assert false
+    if agent.settings.EFE_over == :actions
+        policy = Tuple.(policies[ii])
+    else
+        policy = policies[ii]
+    end
 
-    policy = policies[ii]
     policy = (; zip([x.name for x in agent.model.actions], policy)...)  # requried to save in agent.history
     
     action_ids = collect(zip(policy...))[1]
