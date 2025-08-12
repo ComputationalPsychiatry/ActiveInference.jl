@@ -1,62 +1,9 @@
 using Plots
 
-MAZE = [
-    1 1 1 1 1 1 1 1;
-    1 0 0 0 0 0 0 1;
-    1 1 1 0 1 1 0 1;
-    1 1 0 0 0 1 0 1;
-    1 1 0 1 0 0 0 1;
-    1 1 0 1 1 1 0 1;
-    1 0 0 0 0 0 0 1;
-    1 0 1 1 1 1 1 1
-]
-
-PREFERENCES_matrix = [
-    0.434315  0.5       0.552786  0.587689  0.6      0.587689  0.552786  0.5;
-    0.5       0.575736  0.639445  0.683772  0.7      0.683772  0.639445  0.575736;
-    0.552786  0.639445  0.717157  0.776393  0.8      0.776393  0.717157  0.639445;
-    0.587689  0.683772  0.776393  0.858579  0.9      0.858579  0.776393  0.683772;
-    0.6       0.7       0.8       0.9       1.0      0.9       0.8       0.7;
-    0.587689  0.683772  0.776393  0.858579  0.9      0.858579  0.776393  0.683772;
-    0.552786  0.639445  0.717157  0.776393  0.78819  0.776393  0.717157  0.639445;
-    0.5       0.575736  0.639445  0.683772  0.7      0.683772  0.639445  0.575736
-]
-
-for i in 1:size(MAZE, 1)
-    for j in 1:size(MAZE, 2)
-        if MAZE[i, j] == 1
-            PREFERENCES_matrix[i, j] = 0.4
-        else
-            PREFERENCES_matrix[i, j] = PREFERENCES_matrix[i, j]
-        end
-    end
-end
-
-hm = heatmap(
-    reverse(PREFERENCES_matrix, dims=1);
-    aspect_ratio=1,
-    legend=false,
-    color=cgrad(:Reds, rev=true),
-    axis=false,
-    frame=false,
-    size=(800, 600),
-    title=""
-)
-rows, cols = size(MAZE)
-
-for r in 1:rows
-    for c in 1:cols
-        index = (c-1) * rows + r
-        annotate!(c, rows-r+1, text(string(index), :center, 8, :grey2))
-    end
-end
-
-hm
-
 
 function animate!(history, horizon=1)
 
-        MAZE = [
+    MAZE = [
         1 1 1 1 1 1 1 1;
         1 0 0 0 0 0 0 1;
         1 1 1 0 1 1 0 1;
