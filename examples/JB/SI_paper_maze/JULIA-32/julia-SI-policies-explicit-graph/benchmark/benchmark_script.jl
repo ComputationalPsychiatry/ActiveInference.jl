@@ -2,7 +2,7 @@
 # @infiltrate; @assert false
 module Benchmark
 
-folder = "./JULIA/julia-SI-policies-explicit-graph"
+folder = "./paper_maze/JULIA/julia-SI-policies-explicit-graph"
 
 
 import Plots
@@ -11,6 +11,7 @@ import Setfield: @set
 import Statistics
 import Dates
 using CSV, DataFrames
+import Distributions
 
 using Format
 using Infiltrator
@@ -84,8 +85,10 @@ function run_simulation(horizon, num_iterations)
     model.preferences.loc_pref.C[:] =  vec(PREFERENCES_matrix)
     start_idx = start_id = findfirst(x -> x == CONFIG.start_cell, model.states.loc.labels)
     model.states.loc.D[start_idx] = 1
+    
     parameters = AI.get_parameters()
-    parameters = @set parameters.gamma = 1.0
+    parameters = @set parameters.gamma = 16.0
+    
     model = make_policies(model, CONFIG)
     
     settings = AI.get_settings()
@@ -97,10 +100,10 @@ function run_simulation(horizon, num_iterations)
     
     settings = @set settings.use_param_info_gain = false
     settings = @set settings.SI_observation_prune_threshold = 1/16  
-    settings = @set settings.SI_policy_prune_threshold = 1/16
+    settings = @set settings.SI_policy_prune_threshold = .005
     settings = @set settings.verbose = false
     settings = @set settings.SI_use_pymdp_methods = false
-    settings = @set settings.action_selection = :deterministic
+    settings = @set settings.action_selection = :stochastic #:deterministic
      
     
     global env = init_env(model, CONFIG.start_cell)
@@ -145,26 +148,50 @@ function run_simulation(horizon, num_iterations)
     #node_count = count_nodes()
     
     # Save total simulation summary (matching Python column names exactly)
-    df_total = DataFrame(
-        Symbol("folder") => repeat([folder], num_iterations),
-        Symbol("n_sim_steps") => repeat([num_iterations], num_iterations),
-        Symbol("horizon") => repeat([horizon], num_iterations),
-        Symbol("sim_time") => repeat([sim_time], num_iterations),
-        
-        # for graph experiments only
-        Symbol("graph_initial_node_count") => agent.history.graph_initial_node_count,  
-        Symbol("graph_final_node_count") => agent.history.graph_final_node_count,  
-        Symbol("graph_min_level") => agent.history.graph_min_level, 
-        Symbol("graph_max_level") => agent.history.graph_max_level, 
+    if length(agent.history.graph_initial_node_count) > 0
+    
+        # Save total simulation summary (matching Python column names exactly)
+        df_total = DataFrame(
+            Symbol("folder") => repeat([folder], num_iterations),
+            Symbol("n_sim_steps") => repeat([num_iterations], num_iterations),
+            Symbol("horizon") => repeat([horizon], num_iterations),
+            Symbol("sim_time") => repeat([sim_time], num_iterations),
+            
+            # for graph experiments only
+            Symbol("graph_initial_node_count") => agent.history.graph_initial_node_count,  
+            Symbol("graph_final_node_count") => agent.history.graph_final_node_count,  
+            Symbol("graph_min_level") => agent.history.graph_min_level, 
+            Symbol("graph_max_level") => agent.history.graph_max_level, 
 
-        Symbol("action") => [x.move for x in agent.history.action],
-        Symbol("observation") => [x.loc_obs for x in agent.history.observation],
-        Symbol("G") => agent.history.G,
-        Symbol("q_pi") => agent.history.q_pi,
-        Symbol("policy") => [values(x) for x in agent.history.policy]
-        
-    )
-    #CSV.write(joinpath(folder, format("results_horz_{}.csv", horizon)), df_total)
+            Symbol("action") => [x.move for x in agent.history.action],
+            Symbol("observation") => [x.loc_obs for x in agent.history.observation],
+            Symbol("G") => agent.history.G,
+            Symbol("q_pi") => agent.history.q_pi,
+            Symbol("policy") => [values(x) for x in agent.history.policy]
+        )
+    else
+
+        # Save total simulation summary (matching Python column names exactly)
+        df_total = DataFrame(
+            Symbol("folder") => repeat([folder], num_iterations),
+            Symbol("n_sim_steps") => repeat([num_iterations], num_iterations),
+            Symbol("horizon") => repeat([horizon], num_iterations),
+            Symbol("sim_time") => repeat([sim_time], num_iterations),
+            
+            # for graph experiments only
+            #Symbol("graph_initial_node_count") => agent.history.graph_initial_node_count,  
+            #Symbol("graph_final_node_count") => agent.history.graph_final_node_count,  
+            #Symbol("graph_min_level") => agent.history.graph_min_level, 
+            #Symbol("graph_max_level") => agent.history.graph_max_level, 
+
+            Symbol("action") => [x.move for x in agent.history.action],
+            Symbol("observation") => [x.loc_obs for x in agent.history.observation],
+            Symbol("G") => agent.history.G,
+            Symbol("q_pi") => agent.history.q_pi,
+            Symbol("policy") => [values(x) for x in agent.history.policy]
+        )
+    end
+    CSV.write(joinpath(folder, format("results_horz_{}.csv", horizon)), df_total)
 
     printfmtln("\nTime: {}", sim_time)
     printfmtln("Last Observation= {}\n", last_obs)
@@ -192,7 +219,7 @@ function run()
     
     
     n_sim_steps = 10
-    for horizon in 2:13
+    for horizon in 5:5
         println("Running horizon $(horizon)...")
         run_simulation(horizon, n_sim_steps)
         println("\nFinished policy len $(horizon).\n")
