@@ -53,8 +53,10 @@ function benchmark_planning(agent, observation)
     return elapsed_time, allocated_mib
 end
 
+
 # Main simulation function
 function run_simulation(horizon, num_iterations)
+
     policy_length = horizon 
     grid_dims = (9,9)
     grid_size = prod(grid_dims)
@@ -105,7 +107,7 @@ function run_simulation(horizon, num_iterations)
     
     settings = @set settings.use_param_info_gain = false
     settings = @set settings.SI_observation_prune_threshold = 1/16  
-    settings = @set settings.SI_policy_prune_threshold = 1/16
+    settings = @set settings.SI_policy_prune_threshold = 0.48 #1/16
     settings = @set settings.verbose = false
     settings = @set settings.SI_use_pymdp_methods = false
     settings = @set settings.action_selection = :deterministic
@@ -153,25 +155,49 @@ function run_simulation(horizon, num_iterations)
     #node_count = count_nodes()
     
     # Save total simulation summary (matching Python column names exactly)
-    df_total = DataFrame(
-        Symbol("folder") => repeat([folder], num_iterations),
-        Symbol("n_sim_steps") => repeat([num_iterations], num_iterations),
-        Symbol("horizon") => repeat([horizon], num_iterations),
-        Symbol("sim_time") => repeat([sim_time], num_iterations),
-        
-        # for graph experiments only
-        Symbol("graph_initial_node_count") => agent.history.graph_initial_node_count,  
-        Symbol("graph_final_node_count") => agent.history.graph_final_node_count,  
-        Symbol("graph_min_level") => agent.history.graph_min_level, 
-        Symbol("graph_max_level") => agent.history.graph_max_level, 
+    if length(agent.history.graph_initial_node_count) > 0
+    
+        # Save total simulation summary (matching Python column names exactly)
+        df_total = DataFrame(
+            Symbol("folder") => repeat([folder], num_iterations),
+            Symbol("n_sim_steps") => repeat([num_iterations], num_iterations),
+            Symbol("horizon") => repeat([horizon], num_iterations),
+            Symbol("sim_time") => repeat([sim_time], num_iterations),
+            
+            # for graph experiments only
+            Symbol("graph_initial_node_count") => agent.history.graph_initial_node_count,  
+            Symbol("graph_final_node_count") => agent.history.graph_final_node_count,  
+            Symbol("graph_min_level") => agent.history.graph_min_level, 
+            Symbol("graph_max_level") => agent.history.graph_max_level, 
 
-        Symbol("action") => [x.move for x in agent.history.action],
-        Symbol("observation") => [x.loc_obs for x in agent.history.observation],
-        Symbol("G") => agent.history.G,
-        Symbol("q_pi") => agent.history.q_pi,
-        Symbol("policy") => [values(x) for x in agent.history.policy]
-        
-    )
+            Symbol("action") => [x.move for x in agent.history.action],
+            Symbol("observation") => [x.loc_obs for x in agent.history.observation],
+            Symbol("G") => agent.history.G,
+            Symbol("q_pi") => agent.history.q_pi,
+            Symbol("policy") => [values(x) for x in agent.history.policy]
+        )
+    else
+
+        # Save total simulation summary (matching Python column names exactly)
+        df_total = DataFrame(
+            Symbol("folder") => repeat([folder], num_iterations),
+            Symbol("n_sim_steps") => repeat([num_iterations], num_iterations),
+            Symbol("horizon") => repeat([horizon], num_iterations),
+            Symbol("sim_time") => repeat([sim_time], num_iterations),
+            
+            # for graph experiments only
+            #Symbol("graph_initial_node_count") => agent.history.graph_initial_node_count,  
+            #Symbol("graph_final_node_count") => agent.history.graph_final_node_count,  
+            #Symbol("graph_min_level") => agent.history.graph_min_level, 
+            #Symbol("graph_max_level") => agent.history.graph_max_level, 
+
+            Symbol("action") => [x.move for x in agent.history.action],
+            Symbol("observation") => [x.loc_obs for x in agent.history.observation],
+            Symbol("G") => agent.history.G,
+            Symbol("q_pi") => agent.history.q_pi,
+            Symbol("policy") => [values(x) for x in agent.history.policy]
+        )
+    end
     CSV.write(joinpath(folder, format("results_horz_{}.csv", horizon)), df_total)
 
     printfmtln("\nTime: {}", sim_time)
@@ -202,7 +228,7 @@ function run()
     
     
     n_sim_steps = 10
-    for horizon in 2:13
+    for horizon in 2:15
         println("Running horizon $(horizon)...")
         run_simulation(horizon, n_sim_steps)
         println("\nFinished policy len $(horizon).\n")
