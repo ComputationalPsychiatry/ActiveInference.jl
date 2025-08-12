@@ -1,8 +1,6 @@
-import jax
-import jax.numpy as jnp
 import numpy as np
-import jax.random as random
-import seaborn as sns
+from pymdp import utils
+
 
 MAZE = np.array([
     [1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -28,63 +26,58 @@ LOCATIONS = np.array([
     [ 8, 17, 26, 35, 44, 53, 62, 71, 80]
 ])
 
-PREFERENCES = np.array([
-    [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000],
-    [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 1.000, 0.000],
-    [0.000, 0.000, 0.000, 0.000, 0.000, 0.700, 0.000, 0.825, 0.000],
-    [0.000, 0.000, 0.000, 0.501, 0.000, 0.600, 0.000, 0.700, 0.000],
-    [0.000, 0.300, 0.000, 0.400, 0.000, 0.525, 0.000, 0.625, 0.000],
-    [0.000, 0.200, 0.000, 0.300, 0.000, 0.425, 0.000, 0.575, 0.000],
-    [0.000, 0.150, 0.000, 0.200, 0.000, 0.325, 0.000, 0.501, 0.000],
-    [0.000, 0.100, 0.125, 0.150, 0.175, 0.225, 0.300, 0.400, 0.000],
-    [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
-])
 
+A0 = np.zeros((81, 81))
+A1 = np.zeros((2, 81))
+A = np.array([A0, A1], dtype=object)
+# A-matrices
+A[0] = np.eye(81)
 MAZE_vec = MAZE.T.flatten()
+A[1] = np.vstack([(1 - MAZE_vec), MAZE_vec])
 
-A0 = jnp.eye(81)  # Observation modality 0 as identity matrix
-A1 = jnp.vstack([(1 - MAZE_vec), MAZE_vec])  # Observation modality 1
+# B-matrices
+B = np.empty((1,), dtype=object)
+B[0] = np.zeros((81, 81, 2)) 
 
-A = [A0, A1]
-
-def construct_B_matrices_jax(maze):
+def construct_B_matrices(maze):
     nrows, ncols = maze.shape
     nstates = nrows * ncols
-    nactions = 2  # Only UP (0) and RIGHT (1)
+    nactions = 2  # UP, RIGHT
 
-    B = jnp.zeros((nstates, nstates, nactions))
-
-    def state_idx(row, col):
-        return col * nrows + row
+    B = np.zeros((nstates, nstates, nactions), dtype=float)
 
     for row in range(nrows):
         for col in range(ncols):
-            s = state_idx(row, col)
+            s = col * nrows + row  # Convert 2D index to 1D index
 
-            if maze[row, col] == 1:  # Walls
-                B = B.at[s, s, :].set(1.0)
+            if maze[row, col] == 1:
+                # Walls: self-loop for all actions
+                for a in range(nactions):
+                    B[s, s, a] = 1.0
                 continue
 
-            # --- UP ---
+            # --- UP (action 0) ---
             if row > 0 and maze[row - 1, col] == 0:
-                s2 = state_idx(row - 1, col)
-                B = B.at[s2, s, 0].set(1.0)
+                s2 = col * nrows + (row - 1)
+                B[s2, s, 0] = 1.0
             else:
-                B = B.at[s, s, 0].set(1.0)
+                B[s, s, 0] = 1.0
 
-            # --- RIGHT ---
+            # --- RIGHT (action 1) ---
             if col < ncols - 1 and maze[row, col + 1] == 0:
-                s2 = state_idx(row, col + 1)
-                B = B.at[s2, s, 1].set(1.0)
+                s2 = (col + 1) * nrows + row
+                B[s2, s, 1] = 1.0
             else:
-                B = B.at[s, s, 1].set(1.0)
+                B[s, s, 1] = 1.0
 
     return B
 
-B = [construct_B_matrices_jax(MAZE)]
+B[0] = construct_B_matrices(MAZE)
 
-C = [
-     jnp.array([
+# C-vectors
+C_vector = utils.obj_array_uniform([81,2]) 
+C = np.empty((2,), dtype=object)
+C[0] = np.array([
     -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,  # column 1
     -1.0, -1.0, -1.0, -1.0, -0.4, -0.6, -0.7, -0.8, -1.0,  # column 2
     -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -0.75, -1.0, # column 3
@@ -94,11 +87,9 @@ C = [
     -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -0.4, -1.0,  # column 7
     -1.0,  1.0,  0.65, 0.4,  0.25, 0.15, 0.0, -0.2, -1.0, # column 8
     -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0   # column 9
-    ]),
-    jnp.zeros(2),
-    ]
+    ])
+C[1] = np.zeros(2)
 
-def onehot(index, size):
-    return jnp.eye(size)[index]
-
-D = [onehot(17, 81)]
+# D-vector
+D = np.empty((1,), dtype=object)
+D[0] = utils.onehot(17, 81)

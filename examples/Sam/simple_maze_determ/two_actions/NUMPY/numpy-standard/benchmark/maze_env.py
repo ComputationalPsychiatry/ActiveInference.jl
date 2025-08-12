@@ -1,11 +1,3 @@
-import jax
-import jax.numpy as jnp
-import numpy as np
-import jax.random as random
-
-def onehot(index, size):
-    return jnp.eye(size)[index]
-
 class SIMazeEnv:
     ACTIONS = {
         0: (-1, 0),  # UP
@@ -38,8 +30,5 @@ class SIMazeEnv:
 
     def get_observation(self):
         pos_index = self._get_state_index()
-
-        obs_position = jnp.expand_dims(onehot(pos_index, self.nrows * self.ncols), axis=0)  # Shape: (1, 81)
-        obs_context = jnp.expand_dims(onehot(self.maze[self.agent_row, self.agent_col], 2), axis=0)  # Shape: (1, 2)
-
-        return [obs_position,  obs_context]
+        modality_2 = self.maze[self.agent_row, self.agent_col]
+        return [pos_index, modality_2]
