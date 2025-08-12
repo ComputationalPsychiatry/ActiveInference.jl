@@ -1,5 +1,5 @@
 function ActiveInferenceCore.store_beliefs!(
-    model::AIFModel{GenerativeModel, PerceptualProcess{T}, ActionProcess};
+    model::AIFModel{GenerativeModel, PP, ActionProcess};
     observation::Vector{Int},
     qs::Vector{Vector{Float64}},
     prior_qs_prediction::Vector{Vector{Float64}},
@@ -8,7 +8,7 @@ function ActiveInferenceCore.store_beliefs!(
     q_pi::Vector{Float64},
     G::Vector{Float64},
     action::Vector{N}
-) where {T <: AbstractOptimEngine, N <: Real}
+) where {PP <: AbstractPerceptualProcess, N <: Real}
 
     # Store beliefs in the perceptual process struct
     model.perceptual_process.posterior_states = qs

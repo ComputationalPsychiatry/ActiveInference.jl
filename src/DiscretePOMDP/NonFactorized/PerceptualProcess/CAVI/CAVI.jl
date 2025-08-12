@@ -2,10 +2,10 @@
 In this script, we define a the perceptual inference process for the DiscretePOMDP.
 """
 
-using ..ActiveInferenceCore: AbstractPerceptualProcess, AbstractOptimEngine
+using ..ActiveInferenceCore: AbstractPerceptualProcess
 
 #Struct for containing current beliefs and optimization engine
-mutable struct PerceptualProcess{T<:Union{AbstractOptimEngine, Missing}} <: AbstractPerceptualProcess{T}
+mutable struct CAVI <: AbstractPerceptualProcess
 
     # beliefs about states, prior and observation
     posterior_states::Union{Vector{Vector{Float64}}, Nothing}
@@ -23,25 +23,27 @@ mutable struct PerceptualProcess{T<:Union{AbstractOptimEngine, Missing}} <: Abst
     D_learning::Union{Nothing, Learn_D}
 
     # Struct for containing the "meta" information, such as whether to update parameters etc
-    info::PerceptualProcessInfo
+    info::CAVIInfo
 
-    # Optimization engine for state inference
-    optim_engine::Union{T, Missing}
+    # Settings
+    num_iter::Int
+    dF_tol::Float64
 
-    function PerceptualProcess(;
+    function CAVI(;
         A_learning::Union{Nothing, Learn_A} = nothing,
         B_learning::Union{Nothing, Learn_B} = nothing,
         D_learning::Union{Nothing, Learn_D} = nothing,
-        optim_engine::Union{AbstractOptimEngine, Missing} = FixedPointIteration(),
+        num_iter::Int = 10,
+        dF_tol::Float64 = 1e-3,
         verbose::Bool = true
     )
 
-        info_struct = PerceptualProcessInfo(A_learning, B_learning, D_learning, optim_engine)
+        info_struct = CAVIInfo(A_learning, B_learning, D_learning)
 
         # Show process information if verbose
         show_info(info_struct; verbose=verbose)
 
-        new{typeof(optim_engine)}(nothing, nothing, nothing, nothing, nothing, nothing, A_learning, B_learning, D_learning, info_struct, optim_engine)
+        new(nothing, nothing, nothing, nothing, nothing, nothing, A_learning, B_learning, D_learning, info_struct, num_iter, dF_tol)
     end
 end
 

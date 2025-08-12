@@ -1,10 +1,10 @@
 ``` sample action from posterior over policies ```
 function ActiveInferenceCore.selection(
-    model::AIFModel{GenerativeModel, PerceptualProcess{T}, ActionProcess},
+    model::AIFModel{GenerativeModel, PP, ActionProcess},
     q_pi::Union{Vector{Float64}, Nothing};
     action_selection::Union{Val{:stochastic}, Val{:deterministic}} = Val(:stochastic),
     alpha::Float64 = 16.0
-) where T<:AbstractOptimEngine
+) where PP <: AbstractPerceptualProcess
 
     n_controls = model.generative_model.info.controls_per_factor
     num_factors = length(n_controls)

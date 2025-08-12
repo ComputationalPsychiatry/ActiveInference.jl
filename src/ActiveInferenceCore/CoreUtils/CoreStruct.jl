@@ -30,9 +30,7 @@ abstract type AbstractGenerativeModel{
 abstract type AbstractOptimEngine end
 
 # Perceptual Process abstract type
-abstract type AbstractPerceptualProcess{
-    TypeOptimEngine<:Union{AbstractOptimEngine, Missing}
-} end
+abstract type AbstractPerceptualProcess end
 
 ### Action process types ###
 abstract type AbstractActionProcess end
@@ -56,7 +54,7 @@ end
 
 function AIFModel(
     generative_model::AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType},
-    perceptual_process::AbstractPerceptualProcess{AbstractOptimEngine},
+    perceptual_process::AbstractPerceptualProcess,
     action_process::AbstractActionProcess
 )
 
@@ -68,7 +66,7 @@ function AIFModel(
 end
 
 function perception(
-    model::AIFModel{AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType}, AbstractPerceptualProcess{AbstractOptimEngine}, AbstractActionProcess},
+    model::AIFModel{AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType}, AbstractPerceptualProcess, AbstractActionProcess},
     observation::Vector{Real}
 ) 
     @error "Please create a perception function utilizing concrete type.
@@ -77,7 +75,7 @@ function perception(
 end
 
 function prediction(
-    model::AIFModel{AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType}, AbstractPerceptualProcess{AbstractOptimEngine}, AbstractActionProcess}
+    model::AIFModel{AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType}, AbstractPerceptualProcess, AbstractActionProcess}
 )
 
     @error "Please create a prediction function utilizing concrete type.
@@ -86,7 +84,7 @@ function prediction(
 end
 
 function planning(
-    model::AIFModel{AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType}, AbstractPerceptualProcess{AbstractOptimEngine}, AbstractActionProcess}
+    model::AIFModel{AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType}, AbstractPerceptualProcess, AbstractActionProcess}
 )
 
     @error "Please create an action function utilizing concrete type.
@@ -95,7 +93,7 @@ function planning(
 end
 
 function selection(
-    model::AIFModel{AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType}, AbstractPerceptualProcess{AbstractOptimEngine}, AbstractActionProcess},
+    model::AIFModel{AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType}, AbstractPerceptualProcess, AbstractActionProcess},
     selection_type::Union{Val{:stochastic}, Val{:deterministic}} = Val(:stochastic)
 )
 
@@ -105,7 +103,7 @@ function selection(
 end
 
 function store_beliefs!(
-    model::AIFModel{AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType}, AbstractPerceptualProcess{AbstractOptimEngine}, AbstractActionProcess}
+    model::AIFModel{AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType}, AbstractPerceptualProcess, AbstractActionProcess}
 )
 
     @error "Please create a store_beliefs! function utilizing concrete type.

@@ -2,7 +2,7 @@
 InfoStruct for tracking perceptual process configuration and learning settings.
 """
 
-struct PerceptualProcessInfo
+struct CAVIInfo
 
     # Learning flag - whether any parameters are being learned
     learning_enabled::Bool
@@ -13,10 +13,9 @@ struct PerceptualProcessInfo
     D_learning_enabled::Bool
     
     # Optimization engine information
-    optim_engine_name::String
-    optim_engine_type::Type
+    perceptual_process_name::String
 
-    function PerceptualProcessInfo(A_learning::Union{Learn_A, Nothing}, B_learning::Union{Learn_B, Nothing}, D_learning::Union{Learn_D, Nothing}, optim_engine::Union{AbstractOptimEngine, Missing})
+    function CAVIInfo(A_learning::Union{Learn_A, Nothing}, B_learning::Union{Learn_B, Nothing}, D_learning::Union{Learn_D, Nothing})
         
         # Check if any learning is enabled
         learning_enabled = !isnothing(A_learning) || !isnothing(B_learning) || !isnothing(D_learning)
@@ -25,24 +24,18 @@ struct PerceptualProcessInfo
         B_learning_enabled = !isnothing(B_learning)
         D_learning_enabled = !isnothing(D_learning)
         
-        # Handle missing optim_engine
-        if optim_engine === missing
-            optim_engine_name = "Missing"
-            optim_engine_type = Missing
-        else
-            optim_engine_name = string(optim_engine)
-            optim_engine_type = typeof(optim_engine)
-        end
-        
+        # Perceptual Process
+        perceptual_process_name = "CAVI"
+
         new(learning_enabled, A_learning_enabled, B_learning_enabled, D_learning_enabled, 
-            optim_engine_name, optim_engine_type)
+            perceptual_process_name)
     end
 end
 
 """
-Pretty print function for PerceptualProcessInfo.
+Pretty print function for CAVIInfo.
 """
-function show_info(info::PerceptualProcessInfo; verbose::Bool = true)
+function show_info(info::CAVIInfo; verbose::Bool = true)
     if !verbose
         return
     end
@@ -51,9 +44,9 @@ function show_info(info::PerceptualProcessInfo; verbose::Bool = true)
     println("👁️  Perceptual Process Information")
     println("="^100)
 
-    clean_engine_type = replace(string(info.optim_engine_type), r"ActiveInference\.DiscretePOMDP\.NonFactorized\." => "")
-    
-    println("\n⚙️  Optimization Engine: $clean_engine_type")
+    clean_process_name = replace(string(info.perceptual_process_name), r"ActiveInference\.DiscretePOMDP\.NonFactorized\." => "")
+
+    println("\n⚙️  Perceptual Process: $clean_process_name")
     
     println("\n📊 Learning Configuration:")
 

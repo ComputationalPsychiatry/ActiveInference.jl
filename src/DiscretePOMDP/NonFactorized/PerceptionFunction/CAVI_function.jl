@@ -1,6 +1,6 @@
 """ Update the models's beliefs over states """
 function ActiveInferenceCore.perception(
-    model::AIFModel{GenerativeModel, PerceptualProcess{FixedPointIteration}, ActionProcess},
+    model::AIFModel{GenerativeModel, CAVI, ActionProcess},
     observation::Vector{Int}
 )
 
@@ -19,14 +19,14 @@ function ActiveInferenceCore.perception(
     )
 
     # perform fixed-point iteration
-    posterior_states = fixed_point_iteration(;
+    posterior_states = cavi(;
         A = model.generative_model.A,
         observation = processed_observation,
         n_factors = model.generative_model.info.n_factors,
         n_states = model.generative_model.info.n_states,
         prior = prior_qs_prediction,
-        num_iter = model.perceptual_process.optim_engine.num_iter,
-        dF_tol = model.perceptual_process.optim_engine.dF_tol
+        num_iter = model.perceptual_process.num_iter,
+        dF_tol = model.perceptual_process.dF_tol
     )
 
     return posterior_states, prior_qs_prediction
@@ -34,7 +34,7 @@ end
 
 """ Update the models's beliefs over states with previous posterior states and action """
 function ActiveInferenceCore.perception(
-    model::AIFModel{GenerativeModel, PerceptualProcess{FixedPointIteration}, ActionProcess},
+    model::AIFModel{GenerativeModel, CAVI, ActionProcess},
     observation::Vector{Int},
     previous_posterior_states::Union{Nothing, Vector{Vector{Float64}}},
     previous_action::Union{Nothing, Vector{Int}} 
@@ -51,7 +51,7 @@ function ActiveInferenceCore.perception(
     )
 
     # perform fixed-point iteration
-    posterior_states = fixed_point_iteration(;
+    posterior_states = cavi(;
         A = model.generative_model.A,
         observation = processed_observation,
         n_factors = model.generative_model.info.n_factors,
@@ -65,7 +65,7 @@ function ActiveInferenceCore.perception(
 end
 
 """ Run State Inference via Fixed-Point Iteration """
-function fixed_point_iteration(;
+function cavi(;
     A::Vector{Array{T,N}} where {T <: Real, N}, observation::Vector{Vector{Float64}}, n_factors::Int64, n_states::Vector{Int64},
     prior::Union{Nothing, Vector{Vector{T}}} where T <: Real = nothing, 
     num_iter::Int=num_iter, dF::Float64=1.0, dF_tol::Float64=dF_tol

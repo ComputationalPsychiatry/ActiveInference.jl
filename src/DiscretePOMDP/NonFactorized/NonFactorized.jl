@@ -22,12 +22,10 @@ include("GenerativeModel/utils/create_matrix_templates.jl")
 include("GenerativeModel/GenerativeModel.jl")
 
 # Include the perceptual process type and files
-include("PerceptualProcess/learning/LearningStructs.jl")
-include("PerceptualProcess/learning/learning_update_functions.jl")
-include("PerceptualProcess/utils/OptimEngines.jl")
-include("PerceptualProcess/utils/PerceptualProcessInfoStruct.jl")
-include("PerceptualProcess/utils/utils.jl")
-include("PerceptualProcess/PerceptualProcess.jl")
+include("PerceptualProcess/CAVI/learning/LearningStructs.jl")
+include("PerceptualProcess/CAVI/learning/learning_update_functions.jl")
+include("PerceptualProcess/CAVI/CAVIInfoStruct.jl")
+include("PerceptualProcess/CAVI/CAVI.jl")
 
 # Include action process type and files
 include("ActionProcess/utils/ActionProcessInfoStruct.jl")
@@ -35,9 +33,10 @@ include("ActionProcess/ActionProcess.jl")
 
 # Include model initialization
 include("ModelInitialization/ModelInit.jl")
+include("ModelInitialization/fill_missing_parameters/CAVI_init.jl")
 
 # Include perception function
-include("PerceptionFunction/fixed_point_iteration.jl")
+include("PerceptionFunction/CAVI_function.jl")
 
 # Include prediction function
 include("PredictionFunction/prediction_utils.jl")
@@ -58,7 +57,7 @@ include("../../utils/maths.jl")
 include("../../utils/utils.jl")
 
 # Export main types and functions
-export GenerativeModel, PerceptualProcess, ActionProcess
+export GenerativeModel, CAVI, ActionProcess
 export Learn_A, Learn_B, Learn_D
 # export perception
 

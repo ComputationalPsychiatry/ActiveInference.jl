@@ -1,11 +1,11 @@
 ``` Planning function for action distribution in a discrete POMDP model ```
 
 function ActiveInferenceCore.planning(
-    model::AIFModel{GenerativeModel, PerceptualProcess{T}, ActionProcess}, 
+    model::AIFModel{GenerativeModel, PP, ActionProcess}, 
     posterior_states::Vector{Vector{Float64}},
     predicted_states::Vector{Vector{Vector{Vector{Float64}}}},
     predicted_observations::Vector{Vector{Vector{Vector{Float64}}}}
-) where T<:AbstractOptimEngine
+) where PP <: AbstractPerceptualProcess
 
     # Get posterior over policies and expected free energies
     q_pi, G = update_posterior_policies(
