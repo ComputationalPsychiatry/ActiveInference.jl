@@ -13,6 +13,8 @@ import Random
 import Setfield: @set
 import Statistics
 import Dates
+import Distributions
+
 using CSV, DataFrames
 
 using Format
@@ -93,7 +95,7 @@ function run_simulation(horizon, num_iterations)
     start_idx = start_id = findfirst(x -> x == CONFIG.start_cell, model.states.loc.labels)
     model.states.loc.D[start_idx] = 1
     parameters = AI.get_parameters()
-    parameters = @set parameters.gamma = 1.0
+    parameters = @set parameters.gamma = 16.0
     model = make_policies(model, CONFIG)
     
     settings = AI.get_settings()
@@ -105,10 +107,10 @@ function run_simulation(horizon, num_iterations)
     
     settings = @set settings.use_param_info_gain = false
     settings = @set settings.SI_observation_prune_threshold = 1/16  
-    settings = @set settings.SI_policy_prune_threshold = 1/16
+    settings = @set settings.SI_policy_prune_threshold = 0.2 #1/16
     settings = @set settings.verbose = false
     settings = @set settings.SI_use_pymdp_methods = false
-    settings = @set settings.action_selection = :deterministic
+    settings = @set settings.action_selection = :stochastic  #:deterministic
      
     
     global env = init_env(model, CONFIG.start_cell)
@@ -226,7 +228,7 @@ function run()
     
     
     n_sim_steps = 10
-    for horizon in 7:7 #2:13
+    for horizon in 2:15
         println("Running horizon $(horizon)...")
         run_simulation(horizon, n_sim_steps)
         println("\nFinished policy len $(horizon).\n")

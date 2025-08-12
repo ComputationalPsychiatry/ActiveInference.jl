@@ -155,25 +155,49 @@ function run_simulation(horizon, num_iterations)
     #node_count = count_nodes()
     
     # Save total simulation summary (matching Python column names exactly)
-    df_total = DataFrame(
-        Symbol("folder") => repeat([folder], num_iterations),
-        Symbol("n_sim_steps") => repeat([num_iterations], num_iterations),
-        Symbol("horizon") => repeat([horizon], num_iterations),
-        Symbol("sim_time") => repeat([sim_time], num_iterations),
-        
-        # for graph experiments only
-        Symbol("graph_initial_node_count") => agent.history.graph_initial_node_count,  
-        Symbol("graph_final_node_count") => agent.history.graph_final_node_count,  
-        Symbol("graph_min_level") => agent.history.graph_min_level, 
-        Symbol("graph_max_level") => agent.history.graph_max_level, 
+    if length(agent.history.graph_initial_node_count) > 0
+    
+        # Save total simulation summary (matching Python column names exactly)
+        df_total = DataFrame(
+            Symbol("folder") => repeat([folder], num_iterations),
+            Symbol("n_sim_steps") => repeat([num_iterations], num_iterations),
+            Symbol("horizon") => repeat([horizon], num_iterations),
+            Symbol("sim_time") => repeat([sim_time], num_iterations),
+            
+            # for graph experiments only
+            Symbol("graph_initial_node_count") => agent.history.graph_initial_node_count,  
+            Symbol("graph_final_node_count") => agent.history.graph_final_node_count,  
+            Symbol("graph_min_level") => agent.history.graph_min_level, 
+            Symbol("graph_max_level") => agent.history.graph_max_level, 
 
-        Symbol("action") => [x.move for x in agent.history.action],
-        Symbol("observation") => [x.loc_obs for x in agent.history.observation],
-        Symbol("G") => agent.history.G,
-        Symbol("q_pi") => agent.history.q_pi,
-        Symbol("policy") => [values(x) for x in agent.history.policy]
-        
-    )
+            Symbol("action") => [x.move for x in agent.history.action],
+            Symbol("observation") => [x.loc_obs for x in agent.history.observation],
+            Symbol("G") => agent.history.G,
+            Symbol("q_pi") => agent.history.q_pi,
+            Symbol("policy") => [values(x) for x in agent.history.policy]
+        )
+    else
+
+        # Save total simulation summary (matching Python column names exactly)
+        df_total = DataFrame(
+            Symbol("folder") => repeat([folder], num_iterations),
+            Symbol("n_sim_steps") => repeat([num_iterations], num_iterations),
+            Symbol("horizon") => repeat([horizon], num_iterations),
+            Symbol("sim_time") => repeat([sim_time], num_iterations),
+            
+            # for graph experiments only
+            #Symbol("graph_initial_node_count") => agent.history.graph_initial_node_count,  
+            #Symbol("graph_final_node_count") => agent.history.graph_final_node_count,  
+            #Symbol("graph_min_level") => agent.history.graph_min_level, 
+            #Symbol("graph_max_level") => agent.history.graph_max_level, 
+
+            Symbol("action") => [x.move for x in agent.history.action],
+            Symbol("observation") => [x.loc_obs for x in agent.history.observation],
+            Symbol("G") => agent.history.G,
+            Symbol("q_pi") => agent.history.q_pi,
+            Symbol("policy") => [values(x) for x in agent.history.policy]
+        )
+    end
     CSV.write(joinpath(folder, format("results_horz_{}.csv", horizon)), df_total)
 
     printfmtln("\nTime: {}", sim_time)
@@ -204,7 +228,7 @@ function run()
     
     
     n_sim_steps = 10
-    for horizon in 10:15 
+    for horizon in 2:15
         println("Running horizon $(horizon)...")
         run_simulation(horizon, n_sim_steps)
         println("\nFinished policy len $(horizon).\n")
