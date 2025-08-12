@@ -11,17 +11,24 @@ from pymdp.maths import MINVAL
 import pandas as pd
 import time
 import tracemalloc
+import os 
 
 from pymdp.agent import Agent
 from generative_model import MAZE, PREFERENCES, A, B, C, D
 from maze_env import SIMazeEnv
+import debugger
+
+folder = "./two_actions/JAX-ALPHA/jax-alpha-standard/benchmark"
+
 
 # Simulated entire simulation loop (no tree, no nodes)
 def run_simulation(policy_len, num_iterations):
+    os.makedirs(folder, exist_ok=True) 
+    
     agent = Agent(A=A, B=B, C=C, D=D, policy_len=policy_len, sampling_mode="full", gamma=1.0, alpha=1.0)
     infer_states = jax.jit(lambda obs, prior: agent.infer_states(obs, prior))
     infer_policies = jax.jit(lambda qs: agent.infer_policies(qs))
-    env = SIMazeEnv(MAZE, PREFERENCES, start_state=17)
+    env = SIMazeEnv(MAZE, start_state=17)
 
 
     def benchmark_infer_policies(qs):
@@ -40,7 +47,8 @@ def run_simulation(policy_len, num_iterations):
 
     planning_times = []
     planning_mibs = []
-
+    actions = []
+    observations = []
     start_sim = time.perf_counter()
 
     for t in range(num_iterations):
@@ -48,33 +56,50 @@ def run_simulation(policy_len, num_iterations):
         q_pi, G, elapsed_time, mem_mib = benchmark_infer_policies(qs)
         q_pi = q_pi.reshape((1, -1))
         action = agent.sample_action(q_pi)
+        
+        actions.append(int(action[0][0]))
         empirical_prior = agent.update_empirical_prior(action, qs)
         empirical_prior = [jnp.asarray(empirical_prior[0])]
         empirical_prior[0] = empirical_prior[0].reshape(1, 81)
         observation = env.step(action[0])
+        observations.append(int(observation[0].argmax()))
         planning_times.append(elapsed_time)
         planning_mibs.append(mem_mib)
 
     end_sim = time.perf_counter()
     sim_time = end_sim - start_sim
+    
+    
+    print("\nobservations= {}\n".format(observations))
+    print("sim time= {}\n".format(sim_time))
+    
+    
+    
     last_obs = [int(observation[0].argmax()), int(observation[1].argmax())]
     # Save total simulation summary (no nodes)
-    df_total = pd.DataFrame({
-        f"std_jax_time_{policy_len}": [sim_time],
-        f"std_jax_last_obs_{policy_len}": [str(last_obs)]
-    })
-    #df_total.to_csv(f"std_jax_jit_total_time_{policy_len}.csv", index=False)
-    print(sim_time)
-    print(f"Last observation: {last_obs}")
-    # Save per-iteration planning times and memory
-    df_planning = pd.DataFrame({
-        "std_jax_planning_time": planning_times,
-        "std_jax_planning_MiB": planning_mibs
-    })
-    #df_planning.to_csv(f"std_jax_jit_planning_{policy_len}.csv", index=False)
-
-
-for horizon in range(2, 19):
-    print(f"Running horizon {horizon}...")
-    run_simulation(horizon, 10)
-    print(f"Finished {horizon}.\n")
+    
+    df = pd.DataFrame({
+        "folder" : np.repeat(folder, 10),
+        "n_sim_steps":  np.repeat(10, 10),
+        "horizon": np.repeat(policy_len, 10),
+        "sim_time": np.repeat(sim_time, 10),
+        
+        # for graph experiments only
+        #"graph_final_node_count": node_count,  
+        
+        "action": actions,
+        "observation": observations,
+        #Symbol("G") => agent.history.G,
+        #Symbol("q_pi") => agent.history.q_pi,
+        #Symbol("policy") => [values(x) for x in agent.history.policy]
+    }
+    )
+    df.to_csv(os.path.join(folder, "results_horz_{}.csv".format(policy_len)))
+    
+    #assert False
+    
+def run():
+    for horizon in range(2, 16):
+        print(f"Running horizon {horizon}...")
+        run_simulation(horizon, 10)
+        print(f"Finished {horizon}.\n")
