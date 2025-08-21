@@ -4,8 +4,13 @@ In this script, we define a the perceptual inference process for the DiscretePOM
 
 using ..ActiveInferenceCore: AbstractPerceptualProcess
 
+# Learning marker structs
+abstract type LearningState end
+struct Learning <: LearningState end
+struct NoLearning <: LearningState end
+
 #Struct for containing current beliefs and optimization engine
-mutable struct CAVI <: AbstractPerceptualProcess
+mutable struct CAVI{L <: LearningState} <: AbstractPerceptualProcess
 
     # beliefs about states, prior and observation
     posterior_states::Union{Vector{Vector{Float64}}, Nothing}
@@ -43,7 +48,10 @@ mutable struct CAVI <: AbstractPerceptualProcess
         # Show process information if verbose
         show_info(info_struct; verbose=verbose)
 
-        new(nothing, nothing, nothing, nothing, nothing, nothing, A_learning, B_learning, D_learning, info_struct, num_iter, dF_tol)
+        L = info_struct.learning_enabled ? Learning : NoLearning
+        
+
+        new{L}(nothing, nothing, nothing, nothing, nothing, nothing, A_learning, B_learning, D_learning, info_struct, num_iter, dF_tol)
     end
 end
 

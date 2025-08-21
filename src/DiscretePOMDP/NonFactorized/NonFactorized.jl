@@ -23,7 +23,6 @@ include("GenerativeModel/GenerativeModel.jl")
 
 # Include the perceptual process type and files
 include("PerceptualProcess/CAVI/learning/LearningStructs.jl")
-include("PerceptualProcess/CAVI/learning/learning_update_functions.jl")
 include("PerceptualProcess/CAVI/CAVIInfoStruct.jl")
 include("PerceptualProcess/CAVI/CAVI.jl")
 
@@ -36,7 +35,9 @@ include("ModelInitialization/ModelInit.jl")
 include("ModelInitialization/fill_missing_parameters/CAVI_init.jl")
 
 # Include perception function
-include("PerceptionFunction/CAVI_function.jl")
+include("PerceptionFunction/CAVI_perception/CAVI_function.jl")
+include("PerceptionFunction/CAVI_perception/Learning/CAVI_learning.jl")
+include("PerceptionFunction/CAVI_perception/Learning/learning_update_functions.jl")
 
 # Include prediction function
 include("PredictionFunction/prediction_utils.jl")

@@ -1,6 +1,6 @@
 """ Update the models's beliefs over states """
 function ActiveInferenceCore.perception(
-    model::AIFModel{GenerativeModel, CAVI, ActionProcess},
+    model::AIFModel{GenerativeModel, CAVI{NoLearning}, ActionProcess},
     observation::Vector{Int}
 )
 
