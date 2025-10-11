@@ -19,7 +19,7 @@ struct ActionProcessInfo
     gamma::Real
 
     # Only if action is enabled
-    action_selection::String
+    action_selection::Symbol
     alpha::Real
 
     function ActionProcessInfo(
@@ -30,7 +30,7 @@ struct ActionProcessInfo
         policies::Union{Vector{Matrix{Int64}}, Nothing},
         E::Union{Vector{T}, Nothing} where {T <: Real},
         gamma::Real,
-        action_selection::String,
+        action_selection::Symbol,
         alpha::Real
     )
         

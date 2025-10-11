@@ -12,8 +12,8 @@ function ActiveInferenceCore.perception(
 
     # make observations into a one-hot encoded vector
     processed_observation = process_observation(
-        observation, 
-        model.generative_model.info.n_modalities, 
+        observation,
+        model.generative_model.info.n_modalities,
         model.generative_model.info.n_observations
     )
 
@@ -28,7 +28,9 @@ function ActiveInferenceCore.perception(
         dF_tol = model.perceptual_process.dF_tol
     )
 
-    return posterior_states, prior_qs_prediction
+    learning_posterior = update_parameters(model, observation, posterior_states)
+
+    return (posterior_states = posterior_states, prior_qs_prediction = prior_qs_prediction, learning_posterior = learning_posterior)
 end
 
 """ Update the models's beliefs over states with previous posterior states and action """

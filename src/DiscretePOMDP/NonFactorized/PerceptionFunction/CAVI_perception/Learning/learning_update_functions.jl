@@ -1,18 +1,32 @@
 """ Update the model's beliefs over states and observations """
-function update_parameters(model::AIFModel)
+function update_parameters(
+    model::AIFModel, 
+    current_observation::Vector{Int},
+    posterior_states::Vector{Vector{Float64}}
+)
 
     if model.perceptual_process.info.A_learning_enabled == true
-        update_A(model)
+        A_updated, qA = update_A(model, current_observation, posterior_states)
+    else
+        A_updated = nothing
+        qA = nothing
     end
 
     if model.perceptual_process.info.B_learning_enabled == true
-        update_B(model)
+        B_updated, qB = update_B(model, posterior_states)
+    else
+        B_updated = nothing
+        qB = nothing
     end
 
     if model.perceptual_process.info.D_learning_enabled == true
-        update_D(model)
+        D_updated, qD = update_D(model, posterior_states)
+    else
+        D_updated = nothing
+        qD = nothing
     end
-    
+
+    return (A_updated = A_updated, qA = qA, B_updated = B_updated, qB = qB, D_updated = D_updated, qD = qD)
 end
 
 """ Update obs likelihood matrix """
@@ -101,25 +115,30 @@ function update_state_prior_dirichlet(pD, qs::Vector{Vector{T}} where T <: Real,
 end
 
 """ Update A-matrix """
-function update_A(model::AIFModel)
+function update_A(
+    model::AIFModel, 
+    current_observation::Vector{Int}, 
+    posterior_states::Vector{Vector{Float64}}
+)
 
     qA = update_obs_likelihood_dirichlet(
         model.perceptual_process.A_learning.prior, 
         model.generative_model.A, 
-        model.perceptual_process.current_observation, 
-        model.perceptual_process.posterior_states, 
+        current_observation, 
+        posterior_states, 
         model.perceptual_process.A_learning.learning_rate, 
         model.perceptual_process.A_learning.forgetting_rate, 
         model.perceptual_process.A_learning.modalities_to_learn
     )
     
-    model.perceptual_process.A_learning.prior = deepcopy(qA)
-    model.generative_model.A = deepcopy(normalize_arrays(qA))
-
+    qA = deepcopy(qA)
+    A_updated = normalize_arrays(deepcopy(qA))
+    
+    return A_updated, qA
 end
 
 """ Update B-matrix """
-function update_B(model::AIFModel)
+function update_B(model::AIFModel, posterior_states::Vector{Vector{Float64}})
 
     # only update B if a previous posterior state exists or is not nothing
     if !isnothing(model.perceptual_process.previous_posterior_states)
@@ -128,37 +147,43 @@ function update_B(model::AIFModel)
             model.perceptual_process.B_learning.prior, 
             model.generative_model.B, 
             model.action_process.previous_action, 
-            model.perceptual_process.posterior_states, 
+            posterior_states, 
             model.perceptual_process.previous_posterior_states, 
             model.perceptual_process.B_learning.learning_rate, 
             model.perceptual_process.B_learning.forgetting_rate, 
             model.perceptual_process.B_learning.factors_to_learn
         )
 
-        model.perceptual_process.B_learning.prior = deepcopy(qB)
-        model.generative_model.B = deepcopy(normalize_arrays(qB))
+        qB = deepcopy(qB)
+        B_updated = normalize_arrays(deepcopy(qB))
     else
         qB = nothing
+        B_updated = nothing
     end
+
+    return B_updated, qB
 end
 
 """ Update D-matrix """
-function update_D(model::AIFModel)
+function update_D(model::AIFModel, posterior_states::Vector{Vector{Float64}})
 
     # only update D if a previous posterior state does not exists and is nothing
     if isnothing(model.perceptual_process.previous_posterior_states)
 
         qD = update_state_prior_dirichlet(
             model.perceptual_process.D_learning.prior, 
-            model.perceptual_process.posterior_states, 
+            posterior_states, 
             model.perceptual_process.D_learning.learning_rate, 
             model.perceptual_process.D_learning.forgetting_rate, 
             model.perceptual_process.D_learning.factors_to_learn
         )
 
-        model.perceptual_process.D_learning.prior = deepcopy(qD)
-        model.generative_model.D = deepcopy(normalize_arrays(qD))
+        qD = deepcopy(qD)
+        D_updated = normalize_arrays(deepcopy(qD))
     else
         qD = nothing
+        D_updated = nothing
     end
+
+    return D_updated, qD
 end

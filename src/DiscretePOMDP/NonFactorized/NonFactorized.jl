@@ -12,7 +12,7 @@ using ...ActiveInference.Distributions: Multinomial
 
 # Import from parent modules
 using ...ActiveInferenceCore
-import ...ActiveInferenceCore: AbstractGenerativeModel, AbstractPerceptualProcess, AbstractActionProcess, AbstractOptimEngine, DiscreteActions, DiscreteObservations, DiscreteStates, AIFModel
+import ...ActiveInferenceCore: AbstractGenerativeModel, AbstractPerceptualProcess, AbstractActionProcess, DiscreteActions, DiscreteObservations, DiscreteStates, AIFModel
 
 
 # Include generative model type and files

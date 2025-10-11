@@ -29,7 +29,7 @@ mutable struct ActionProcess <: AbstractActionProcess
     expected_free_energy::Union{Vector{Float64}, Nothing}
 
     # Field for action selection
-    action_selection::String
+    action_selection::Symbol
     alpha::Real
 
     function ActionProcess(;
@@ -43,7 +43,7 @@ mutable struct ActionProcess <: AbstractActionProcess
         action::Union{Vector{Int}, Nothing} = nothing,
         posterior_policies::Union{Vector{Float64}, Nothing} = nothing,
         expected_free_energy::Union{Vector{Float64}, Nothing} = nothing,
-        action_selection::String = "stochastic",
+        action_selection::Symbol = :stochastic,
         alpha::Real = 16.0,
         verbose::Bool = true
     )
@@ -63,8 +63,8 @@ mutable struct ActionProcess <: AbstractActionProcess
 
         show_info(info, verbose=verbose)
 
-        if action_selection != "stochastic" && action_selection != "deterministic"
-            error("action_selection must be either 'stochastic' or 'deterministic'")
+        if action_selection != :stochastic && action_selection != :deterministic
+            error("action_selection must be either ':stochastic' or ':deterministic'")
         end
 
         new(

@@ -25,10 +25,6 @@ abstract type AbstractGenerativeModel{
     TypeState<:AbstractStateType,
 } end
 
-### Perceptual process types ###
-# Optimization engine abstract type
-abstract type AbstractOptimEngine end
-
 # Perceptual Process abstract type
 abstract type AbstractPerceptualProcess end
 
@@ -111,33 +107,39 @@ function store_beliefs!(
 
 end
 
-function active_inference(model::AIFModel, observation::Vector{Int64})
-
-    agent.perception()
-
+function active_inference(model::T, observation::Vector{Int64}) where T <: AIFModel
 
     # Perform perception process
-    agent.perception(agent, observation)
+    inference_posterior = perception(model, observation)
 
-    # Store new beliefs
-    agent.prediction(agent)
+    # Perform prediction process
+    predictions = prediction(model, inference_posterior)
 
     # Perform action process
-    action_distribution, G = agent.action(agent)
+    action_posterior = planning(model, predictions, inference_posterior)
 
-    return action_distribution
+    # Store beliefs
+    store_beliefs!(model, action_posterior, predictions, inference_posterior, observation)
+
+    return action_posterior
 end
 
-function active_inference_action(model::AIFModel, observation::Vector{Int64})
+function active_inference_action(model::T, observation::Vector{Int64}) where T <: AIFModel
 
     # Perform perception process
-    agent.perception(agent, observation)
+    inference_posterior = perception(model, observation)
 
-    # Store new beliefs
-    agent.prediction(agent)
+    # Perform prediction process
+    predictions = prediction(model, inference_posterior)
 
     # Perform action process
-    action_distribution, G, action = agent.action(agent, act = true)
+    action_posterior = planning(model, predictions, inference_posterior)
+
+    # Perform action selection
+    action = selection(model, action_posterior)
+
+    # Store beliefs
+    store_beliefs!(model, action, action_posterior, predictions, inference_posterior, observation)
 
     return action
 end

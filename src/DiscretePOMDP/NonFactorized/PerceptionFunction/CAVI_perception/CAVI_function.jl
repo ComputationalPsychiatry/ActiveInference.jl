@@ -29,12 +29,12 @@ function ActiveInferenceCore.perception(
         dF_tol = model.perceptual_process.dF_tol
     )
 
-    return posterior_states, prior_qs_prediction
+    return (posterior_states = posterior_states, prior_qs_prediction = prior_qs_prediction)
 end
 
 """ Update the models's beliefs over states with previous posterior states and action """
 function ActiveInferenceCore.perception(
-    model::AIFModel{GenerativeModel, CAVI, ActionProcess},
+    model::AIFModel{GenerativeModel, CAVI{NoLearning}, ActionProcess},
     observation::Vector{Int},
     previous_posterior_states::Union{Nothing, Vector{Vector{Float64}}},
     previous_action::Union{Nothing, Vector{Int}} 
@@ -61,7 +61,7 @@ function ActiveInferenceCore.perception(
         dF_tol = model.perceptual_process.optim_engine.dF_tol
     )
 
-    return posterior_states, prior_qs_prediction
+    return (posterior_states = posterior_states, prior_qs_prediction = prior_qs_prediction)
 end
 
 """ Run State Inference via Fixed-Point Iteration """
