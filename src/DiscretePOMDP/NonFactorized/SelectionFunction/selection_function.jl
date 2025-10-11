@@ -1,7 +1,7 @@
 ``` sample action from posterior over policies ```
 function ActiveInferenceCore.selection(
     model::AIFModel{GenerativeModel, CAVI{L}, ActionProcess},
-    action_posterior::NamedTuple{(:q_pi, :G), Tuple{Vector{Float64}, Vector{Float64}}};
+    action_posterior::NamedTuple{(:q_pi, :G, :predictions), Tuple{Vector{Float64}, Vector{Float64}, NamedTuple{(:all_predicted_states, :all_predicted_observations), Tuple{Vector{Vector{Vector{Vector{Float64}}}}, Vector{Vector{Vector{Vector{Float64}}}}}}}};
     alpha::Float64 = 16.0
 ) where {L}
 

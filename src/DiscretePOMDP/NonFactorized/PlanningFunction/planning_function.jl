@@ -2,9 +2,10 @@
 
 function ActiveInferenceCore.planning(
     model::AIFModel{GenerativeModel, CAVI{NoLearning}, ActionProcess},
-    predictions::NamedTuple{(:all_predicted_states, :all_predicted_observations), Tuple{Vector{Vector{Vector{Vector{Float64}}}}, Vector{Vector{Vector{Vector{Float64}}}}}},
     posterior::NamedTuple{(:posterior_states, :prior_qs_prediction), Tuple{Vector{Vector{Float64}}, Vector{Vector{Float64}}}}
 )
+
+    predictions = prediction(model, posterior)
 
     # Get posterior over policies and expected free energies
     q_pi, G =  update_posterior_policies(
@@ -23,12 +24,11 @@ function ActiveInferenceCore.planning(
         gamma = model.action_process.gamma
     )
 
-    return (q_pi = q_pi, G = G)
+    return (q_pi = q_pi, G = G, predictions = predictions)
 end
 
 function ActiveInferenceCore.planning(
     model::AIFModel{GenerativeModel, CAVI{Learning}, ActionProcess},
-    predictions::NamedTuple{(:all_predicted_states, :all_predicted_observations), Tuple{Vector{Vector{Vector{Vector{Float64}}}}, Vector{Vector{Vector{Vector{Float64}}}}}},
     posterior::NamedTuple{
         (:posterior_states, :prior_qs_prediction, :learning_posterior),
         Tuple{
@@ -49,6 +49,8 @@ function ActiveInferenceCore.planning(
     T_qD <: Union{Vector{Vector{Float64}}, Nothing}
 }
 
+    predictions = prediction(model, posterior)
+
     A = posterior.learning_posterior.A_updated !== nothing ? posterior.learning_posterior.A_updated : model.generative_model.A
 
     # Get posterior over policies and expected free energies
@@ -68,5 +70,5 @@ function ActiveInferenceCore.planning(
         gamma = model.action_process.gamma
     )
 
-    return (q_pi = q_pi, G = G)
+    return (q_pi = q_pi, G = G, predictions = predictions)
 end

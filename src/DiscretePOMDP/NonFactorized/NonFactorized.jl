@@ -46,6 +46,7 @@ include("PredictionFunction/prediction_function.jl")
 # Include planning function
 include("PlanningFunction/planning_function.jl")
 include("PlanningFunction/planning_utils.jl")
+include("PlanningFunction/prediction_utils.jl")
 
 # Include selection function
 include("SelectionFunction/selection_function.jl")

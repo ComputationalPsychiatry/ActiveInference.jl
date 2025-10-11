@@ -112,14 +112,11 @@ function active_inference(model::T, observation::Vector{Int64}) where T <: AIFMo
     # Perform perception process
     inference_posterior = perception(model, observation)
 
-    # Perform prediction process
-    predictions = prediction(model, inference_posterior)
-
     # Perform action process
-    action_posterior = planning(model, predictions, inference_posterior)
+    action_posterior = planning(model, inference_posterior)
 
     # Store beliefs
-    store_beliefs!(model, action_posterior, predictions, inference_posterior, observation)
+    store_beliefs!(model, action_posterior, inference_posterior, observation)
 
     return action_posterior
 end
@@ -129,17 +126,14 @@ function active_inference_action(model::T, observation::Vector{Int64}) where T <
     # Perform perception process
     inference_posterior = perception(model, observation)
 
-    # Perform prediction process
-    predictions = prediction(model, inference_posterior)
-
     # Perform action process
-    action_posterior = planning(model, predictions, inference_posterior)
+    action_posterior = planning(model, inference_posterior)
 
     # Perform action selection
     action = selection(model, action_posterior)
 
     # Store beliefs
-    store_beliefs!(model, action, action_posterior, predictions, inference_posterior, observation)
+    store_beliefs!(model, action, action_posterior, inference_posterior, observation)
 
     return action
 end

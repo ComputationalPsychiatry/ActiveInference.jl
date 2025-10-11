@@ -4,8 +4,7 @@
 function ActiveInferenceCore.store_beliefs!(
     model::AIFModel{GenerativeModel, CAVI{NoLearning}, ActionProcess},
     action_selection::NamedTuple{(:selected_policy,), Tuple{Vector{T}}},
-    action_posterior::NamedTuple{(:q_pi, :G), Tuple{Vector{Float64}, Vector{Float64}}},
-    predictions::NamedTuple{(:all_predicted_states, :all_predicted_observations), Tuple{Vector{Vector{Vector{Vector{Float64}}}}, Vector{Vector{Vector{Vector{Float64}}}}}},
+    action_posterior::NamedTuple{(:q_pi, :G, :predictions), Tuple{Vector{Float64}, Vector{Float64}, NamedTuple{(:all_predicted_states, :all_predicted_observations), Tuple{Vector{Vector{Vector{Vector{Float64}}}}, Vector{Vector{Vector{Vector{Float64}}}}}}}},
     posterior::NamedTuple{(:posterior_states, :prior_qs_prediction), Tuple{Vector{Vector{Float64}}, Vector{Vector{Float64}}}},
     observation::Vector{Int}
 ) where T <: Real
@@ -15,8 +14,8 @@ function ActiveInferenceCore.store_beliefs!(
     model.perceptual_process.prior_qs_prediction = posterior.prior_qs_prediction
     model.perceptual_process.observation = observation
 
-    model.perceptual_process.predicted_states = predictions.all_predicted_states
-    model.perceptual_process.predicted_observations = predictions.all_predicted_observations
+    model.perceptual_process.predicted_states = action_posterior.predictions.all_predicted_states
+    model.perceptual_process.predicted_observations = action_posterior.predictions.all_predicted_observations
 
     # Store beliefs in the action process struct
     model.action_process.posterior_policies = action_posterior.q_pi
@@ -29,8 +28,7 @@ end
 function ActiveInferenceCore.store_beliefs!(
     model::AIFModel{GenerativeModel, CAVI{Learning}, ActionProcess},
     action_selection::NamedTuple{(:selected_policy,), Tuple{Vector{T}}},
-    action_posterior::NamedTuple{(:q_pi, :G), Tuple{Vector{Float64}, Vector{Float64}}},
-    predictions::NamedTuple{(:all_predicted_states, :all_predicted_observations), Tuple{Vector{Vector{Vector{Vector{Float64}}}}, Vector{Vector{Vector{Vector{Float64}}}}}},
+    action_posterior::NamedTuple{(:q_pi, :G, :predictions), Tuple{Vector{Float64}, Vector{Float64}, NamedTuple{(:all_predicted_states, :all_predicted_observations), Tuple{Vector{Vector{Vector{Vector{Float64}}}}, Vector{Vector{Vector{Vector{Float64}}}}}}}},
         posterior::NamedTuple{
         (:posterior_states, :prior_qs_prediction, :learning_posterior),
         Tuple{
@@ -58,19 +56,19 @@ function ActiveInferenceCore.store_beliefs!(
     model.perceptual_process.prior_qs_prediction = posterior.prior_qs_prediction
     model.perceptual_process.observation = observation
 
-    model.perceptual_process.predicted_states = predictions.all_predicted_states
-    model.perceptual_process.predicted_observations = predictions.all_predicted_observations
+    model.perceptual_process.predicted_states = action_posterior.predictions.all_predicted_states
+    model.perceptual_process.predicted_observations = action_posterior.predictions.all_predicted_observations
 
     # Store learning beliefs
-    if model.perceptual_process.A_learning !== nothing
+    if model.perceptual_process.A_learning !== nothing && posterior.learning_posterior.A_updated !== nothing
         model.perceptual_process.A_learning.prior = posterior.learning_posterior.qA
         model.generative_model.A = posterior.learning_posterior.A_updated
     end
-    if model.perceptual_process.B_learning !== nothing
+    if model.perceptual_process.B_learning !== nothing && posterior.learning_posterior.B_updated !== nothing
         model.perceptual_process.B_learning.prior = posterior.learning_posterior.qB
         model.generative_model.B = posterior.learning_posterior.B_updated
     end
-    if model.perceptual_process.D_learning !== nothing
+    if model.perceptual_process.D_learning !== nothing && posterior.learning_posterior.D_updated !== nothing
         model.perceptual_process.D_learning.prior = posterior.learning_posterior.qD
         model.generative_model.D = posterior.learning_posterior.D_updated
     end
@@ -85,8 +83,7 @@ end
 # Without Learning - minus action selection
 function ActiveInferenceCore.store_beliefs!(
     model::AIFModel{GenerativeModel, CAVI{NoLearning}, ActionProcess},
-    action_posterior::NamedTuple{(:q_pi, :G), Tuple{Vector{Float64}, Vector{Float64}}},
-    predictions::NamedTuple{(:all_predicted_states, :all_predicted_observations), Tuple{Vector{Vector{Vector{Vector{Float64}}}}, Vector{Vector{Vector{Vector{Float64}}}}}},
+    action_posterior::NamedTuple{(:q_pi, :G, :predictions), Tuple{Vector{Float64}, Vector{Float64}, NamedTuple{(:all_predicted_states, :all_predicted_observations), Tuple{Vector{Vector{Vector{Vector{Float64}}}}, Vector{Vector{Vector{Vector{Float64}}}}}}}},
     posterior::NamedTuple{(:posterior_states, :prior_qs_prediction), Tuple{Vector{Vector{Float64}}, Vector{Vector{Float64}}}},
     observation::Vector{Int}
 )
@@ -96,8 +93,8 @@ function ActiveInferenceCore.store_beliefs!(
     model.perceptual_process.prior_qs_prediction = posterior.prior_qs_prediction
     model.perceptual_process.observation = observation
 
-    model.perceptual_process.predicted_states = predictions.all_predicted_states
-    model.perceptual_process.predicted_observations = predictions.all_predicted_observations
+    model.perceptual_process.predicted_states = action_posterior.predictions.all_predicted_states
+    model.perceptual_process.predicted_observations = action_posterior.predictions.all_predicted_observations
 
     # Store beliefs in the action process struct
     model.action_process.posterior_policies = action_posterior.q_pi
@@ -108,8 +105,8 @@ end
 # With Learning - minus action selection
 function ActiveInferenceCore.store_beliefs!(
     model::AIFModel{GenerativeModel, CAVI{Learning}, ActionProcess},
-    action_posterior::NamedTuple{(:q_pi, :G), Tuple{Vector{Float64}, Vector{Float64}}},
-    predictions::NamedTuple{(:all_predicted_states, :all_predicted_observations), Tuple{Vector{Vector{Vector{Vector{Float64}}}}, Vector{Vector{Vector{Vector{Float64}}}}}},
+    action_posterior::NamedTuple{(:q_pi, :G, :predictions), Tuple{Vector{Float64}, Vector{Float64}, NamedTuple{(:all_predicted_states, :all_predicted_observations), Tuple{Vector{Vector{Vector{Vector{Float64}}}}, Vector{Vector{Vector{Vector{Float64}}}}}}}},
+    # predictions::NamedTuple{(:all_predicted_states, :all_predicted_observations), Tuple{Vector{Vector{Vector{Vector{Float64}}}}, Vector{Vector{Vector{Vector{Float64}}}}}},
         posterior::NamedTuple{
         (:posterior_states, :prior_qs_prediction, :learning_posterior),
         Tuple{
@@ -136,8 +133,8 @@ function ActiveInferenceCore.store_beliefs!(
     model.perceptual_process.prior_qs_prediction = posterior.prior_qs_prediction
     model.perceptual_process.observation = observation
 
-    model.perceptual_process.predicted_states = predictions.all_predicted_states
-    model.perceptual_process.predicted_observations = predictions.all_predicted_observations
+    model.perceptual_process.predicted_states = action_posterior.predictions.all_predicted_states
+    model.perceptual_process.predicted_observations = action_posterior.predictions.all_predicted_observations
 
     # Store learning beliefs
     if model.perceptual_process.A_learning !== nothing
