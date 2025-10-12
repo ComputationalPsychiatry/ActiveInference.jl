@@ -193,7 +193,7 @@ end
 function infer_states!(aif::POMDPActiveInference, obs::Vector{Int64})
     if !isempty(aif.states.action)
         int_action = round.(Int, aif.states.action)
-        aif.states.prior = get_expected_states(aif.states.qs_current, aif.parameters.B, reshape(int_action, 1, length(int_action)))[1]
+        aif.states.prior = get_states_prediction(aif.states.qs_current, aif.parameters.B, reshape(int_action, 1, length(int_action)))[1]
     else
         aif.states.prior = aif.parameters.D
     end

@@ -2,7 +2,7 @@
 function fill_missing_parameters(generative_model::GenerativeModel, perceptual_process::CAVI, action_process::ActionProcess)
 
     # Provide the prior over states from the generative model to the perceptual_process
-    perceptual_process.prior_qs_prediction = generative_model.D
+    perceptual_process.prediction_states = generative_model.D
 
     # Create Prior over learned parameters if concentration parameter is given.
     create_learning_priors(

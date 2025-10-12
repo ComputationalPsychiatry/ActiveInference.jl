@@ -15,7 +15,7 @@ mutable struct CAVI{L <: LearningState} <: AbstractPerceptualProcess
     # beliefs about states, prior and observation
     posterior_states::Union{Vector{Vector{Float64}}, Nothing}
     previous_posterior_states::Union{Vector{Vector{Float64}}, Nothing}
-    prior_qs_prediction::Union{Vector{Vector{Float64}}, Nothing}
+    prediction_states::Union{Vector{Vector{Float64}}, Nothing}
     observation::Union{Vector{Int}, Nothing}
 
     # Fields containing predictions from the prediction function

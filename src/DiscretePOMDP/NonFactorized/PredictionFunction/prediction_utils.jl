@@ -1,7 +1,7 @@
 # ```Util functions for prediction in Discrete POMDPs ```
 
 # """ Get Expected States """
-# function get_expected_states(qs::Vector{Vector{T}} where T <: Real, B, policy::Matrix{Int64})
+# function get_states_prediction(qs::Vector{Vector{T}} where T <: Real, B, policy::Matrix{Int64})
 #     n_steps, n_factors = size(policy)
 
 #     # initializing posterior predictive density as a list of beliefs over time
@@ -30,7 +30,7 @@
 # policy: Vector{Matrix{Int64}}
 
 # """
-# function get_expected_states(qs::Vector{Vector{Float64}}, B, policy::Vector{Matrix{Int64}})
+# function get_states_prediction(qs::Vector{Vector{Float64}}, B, policy::Vector{Matrix{Int64}})
     
 #     # Extracting the number of steps (policy_length) and factors from the first policy
 #     n_steps, n_factors = size(policy[1])

@@ -3,7 +3,7 @@
 #### State Inference #### 
 
 """ Get Expected States """
-function get_expected_states(qs::Vector{Vector{T}} where T <: Real, B, policy::Matrix{Int64})
+function get_states_prediction(qs::Vector{Vector{T}} where T <: Real, B, policy::Matrix{Int64})
     n_steps, n_factors = size(policy)
 
     # initializing posterior predictive density as a list of beliefs over time
@@ -32,7 +32,7 @@ B: Vector{Array{<:Real}} \n
 policy: Vector{Matrix{Int64}}
 
 """
-function get_expected_states(qs::Vector{Vector{Float64}}, B, policy::Vector{Matrix{Int64}})
+function get_states_prediction(qs::Vector{Vector{Float64}}, B, policy::Vector{Matrix{Int64}})
     
     # Extracting the number of steps (policy_length) and factors from the first policy
     n_steps, n_factors = size(policy[1])
@@ -284,7 +284,7 @@ function update_posterior_policies(
     lnE = capped_log(E)
 
     for (idx, policy) in enumerate(policies)
-        qs_pi = get_expected_states(qs, B, policy)
+        qs_pi = get_states_prediction(qs, B, policy)
         qo_pi = get_expected_obs(qs_pi, A)
 
         # Calculate expected utility
@@ -501,7 +501,7 @@ end
 """ Calculate State-Action Prediction Error """
 function calculate_SAPE(aif::POMDPActiveInference)
 
-    qs_pi_all = get_expected_states(aif.qs_current, aif.B, aif.policies)
+    qs_pi_all = get_states_prediction(aif.qs_current, aif.B, aif.policies)
     qs_bma = bayesian_model_average(qs_pi_all, aif.Q_pi)
 
     if length(aif.states["bayesian_model_averages"]) != 0

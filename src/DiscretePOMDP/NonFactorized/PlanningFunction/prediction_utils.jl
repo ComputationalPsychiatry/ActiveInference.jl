@@ -1,20 +1,20 @@
 """ Function for predicting states and observations based on the agent's perceptual process and generative model. """
 
-function ActiveInferenceCore.prediction(
+function ActiveInferenceCore.policy_predictions(
     model::AIFModel{GenerativeModel, CAVI{NoLearning}, ActionProcess}, 
-    posterior::NamedTuple{(:posterior_states, :prior_qs_prediction), Tuple{Vector{Vector{Float64}}, Vector{Vector{Float64}}}}
+    posterior::NamedTuple{(:posterior_states, :prediction_states), Tuple{Vector{Vector{Float64}}, Vector{Vector{Float64}}}}
 )
 
-    all_predicted_states = get_expected_states(posterior.posterior_states, model.generative_model.B, model.action_process.policies)
+    all_predicted_states = get_states_prediction(posterior.posterior_states, model.generative_model.B, model.action_process.policies)
     all_predicted_observations = get_expected_obs(all_predicted_states, model.generative_model.A)
 
     return (all_predicted_states = all_predicted_states, all_predicted_observations = all_predicted_observations)
 end
 
-function ActiveInferenceCore.prediction(
+function ActiveInferenceCore.policy_predictions(
     model::AIFModel{GenerativeModel, CAVI{Learning}, ActionProcess}, 
     posterior::NamedTuple{
-        (:posterior_states, :prior_qs_prediction, :learning_posterior),
+        (:posterior_states, :prediction_states, :learning_posterior),
         Tuple{
             Vector{Vector{Float64}},
             Vector{Vector{Float64}},
@@ -36,7 +36,7 @@ function ActiveInferenceCore.prediction(
     A = posterior.learning_posterior.A_updated !== nothing ? posterior.learning_posterior.A_updated : model.generative_model.A
     B = posterior.learning_posterior.B_updated !== nothing ? posterior.learning_posterior.B_updated : model.generative_model.B
 
-    all_predicted_states = get_expected_states(posterior.posterior_states, B, model.action_process.policies)
+    all_predicted_states = get_states_prediction(posterior.posterior_states, B, model.action_process.policies)
     all_predicted_observations = get_expected_obs(all_predicted_states, A)
 
     return (all_predicted_states = all_predicted_states, all_predicted_observations = all_predicted_observations)
@@ -50,7 +50,7 @@ end
 ```Util functions for prediction in Discrete POMDPs ```
 
 """ Get Expected States """
-function get_expected_states(qs::Vector{Vector{T}} where T <: Real, B, policy::Matrix{Int64})
+function get_states_prediction(qs::Vector{Vector{T}} where T <: Real, B, policy::Matrix{Int64})
     n_steps, n_factors = size(policy)
 
     # initializing posterior predictive density as a list of beliefs over time
@@ -79,7 +79,7 @@ B: Vector{Array{<:Real}} \n
 policy: Vector{Matrix{Int64}}
 
 """
-function get_expected_states(qs::Vector{Vector{Float64}}, B, policy::Vector{Matrix{Int64}})
+function get_states_prediction(qs::Vector{Vector{Float64}}, B, policy::Vector{Matrix{Int64}})
     
     # Extracting the number of steps (policy_length) and factors from the first policy
     n_steps, n_factors = size(policy[1])

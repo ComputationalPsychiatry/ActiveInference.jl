@@ -219,7 +219,7 @@ end
 Calculates the Bayesian Model Average (BMA) which is used for the State Action Prediction Error (SAPE).
 It is a weighted average of the expected states for all policies weighted by the posterior over policies.
 The `qs_pi_all` should be the collection of expected states given all policies. Can be retrieved with the
-`get_expected_states` function.
+`get_states_prediction` function.
 
 `qs_pi_all`: Vector{Any} \n
 `q_pi`: Vector{Float64}

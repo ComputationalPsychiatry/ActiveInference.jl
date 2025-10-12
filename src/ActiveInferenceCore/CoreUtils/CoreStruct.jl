@@ -70,11 +70,11 @@ function perception(
 
 end
 
-function prediction(
+function policy_predictions(
     model::AIFModel{AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType}, AbstractPerceptualProcess, AbstractActionProcess}
 )
 
-    @error "Please create a prediction function utilizing concrete type.
+    @error "Please create a policy_predictions function utilizing concrete type.
             The current model is: $(typeof(model))"
 
 end

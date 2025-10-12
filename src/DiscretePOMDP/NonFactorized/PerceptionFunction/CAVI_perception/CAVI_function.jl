@@ -7,9 +7,11 @@ function ActiveInferenceCore.perception(
 
     if model.action_process.previous_action !== nothing
         int_action = round.(Int, action)
-        prior_qs_prediction = get_expected_states(model.perceptual_process.posterior_states, model.generative_model.B, reshape(int_action, 1, length(int_action)))[1]
+        prediction_states = get_states_prediction(model.perceptual_process.posterior_states, model.generative_model.B, reshape(int_action, 1, length(int_action)))[1]
+        prediction_obs = get_expected_obs(prediction_states, model.generative_model.A)
     else
-        prior_qs_prediction = model.perceptual_process.prior_qs_prediction
+        prediction_states = model.perceptual_process.prediction_states
+        prediction_obs = get_expected_obs(prediction_states, model.generative_model.A)
     end
 
     # make observations into a one-hot encoded vector
@@ -25,12 +27,12 @@ function ActiveInferenceCore.perception(
         observation = processed_observation,
         n_factors = model.generative_model.info.n_factors,
         n_states = model.generative_model.info.n_states,
-        prior = prior_qs_prediction,
+        prior = prediction_states,
         num_iter = model.perceptual_process.num_iter,
         dF_tol = model.perceptual_process.dF_tol
     )
 
-    return (posterior_states = posterior_states, prior_qs_prediction = prior_qs_prediction)
+    return (posterior_states = posterior_states, prediction_states = prediction_states)
 end
 
 """ Update the models's beliefs over states with previous posterior states and action """
@@ -42,7 +44,7 @@ function ActiveInferenceCore.perception(
 )
 
     int_action = round.(Int, previous_action)
-    prior_qs_prediction = get_expected_states(previous_posterior_states, model.generative_model.B, reshape(int_action, 1, length(int_action)))[1]
+    prediction_states = get_states_prediction(previous_posterior_states, model.generative_model.B, reshape(int_action, 1, length(int_action)))[1]
 
     # make observations into a one-hot encoded vector
     processed_observation = process_observation(
@@ -57,12 +59,12 @@ function ActiveInferenceCore.perception(
         observation = processed_observation,
         n_factors = model.generative_model.info.n_factors,
         n_states = model.generative_model.info.n_states,
-        prior = prior_qs_prediction,
+        prior = prediction_states,
         num_iter = model.perceptual_process.optim_engine.num_iter,
         dF_tol = model.perceptual_process.optim_engine.dF_tol
     )
 
-    return (posterior_states = posterior_states, prior_qs_prediction = prior_qs_prediction)
+    return (posterior_states = posterior_states, prediction_states = prediction_states)
 end
 
 """ Run State Inference via Fixed-Point Iteration """
