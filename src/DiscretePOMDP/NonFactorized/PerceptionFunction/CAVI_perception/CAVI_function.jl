@@ -1,11 +1,12 @@
 """ Update the models's beliefs over states """
 function ActiveInferenceCore.perception(
     model::AIFModel{GenerativeModel, CAVI{NoLearning}, ActionProcess},
-    observation::Vector{Int}
+    observation::Vector{Int},
+    action::Union{Nothing, Vector{Real}}
 )
 
-    if model.action_process.action !== nothing
-        int_action = round.(Int, model.action_process.action)
+    if model.action_process.previous_action !== nothing
+        int_action = round.(Int, action)
         prior_qs_prediction = get_expected_states(model.perceptual_process.posterior_states, model.generative_model.B, reshape(int_action, 1, length(int_action)))[1]
     else
         prior_qs_prediction = model.perceptual_process.prior_qs_prediction

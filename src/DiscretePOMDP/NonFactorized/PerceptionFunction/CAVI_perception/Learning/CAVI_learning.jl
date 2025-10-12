@@ -1,10 +1,11 @@
 function ActiveInferenceCore.perception(
     model::AIFModel{GenerativeModel, CAVI{Learning}, ActionProcess},
-    observation::Vector{Int}
+    observation::Vector{Int},
+    action::Union{Nothing, Vector{Int}} = nothing
 )
 
-    if model.action_process.action !== nothing
-        int_action = round.(Int, model.action_process.action)
+    if model.action_process.previous_action !== nothing
+        int_action = round.(Int, action)
         prior_qs_prediction = get_expected_states(model.perceptual_process.posterior_states, model.generative_model.B, reshape(int_action, 1, length(int_action)))[1]
     else
         prior_qs_prediction = model.perceptual_process.prior_qs_prediction
@@ -28,7 +29,7 @@ function ActiveInferenceCore.perception(
         dF_tol = model.perceptual_process.dF_tol
     )
 
-    learning_posterior = update_parameters(model, observation, posterior_states)
+    learning_posterior = update_parameters(model, observation, posterior_states, action)
 
     return (posterior_states = posterior_states, prior_qs_prediction = prior_qs_prediction, learning_posterior = learning_posterior)
 end

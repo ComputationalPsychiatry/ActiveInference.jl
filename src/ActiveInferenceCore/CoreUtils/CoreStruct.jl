@@ -107,33 +107,34 @@ function store_beliefs!(
 
 end
 
-function active_inference(model::T, observation::Vector{Int64}) where T <: AIFModel
+
+function active_inference(model::T, observation::Vector{Int64}, previous_action::Union{Nothing, Vector{Int64}}) where T <: AIFModel
 
     # Perform perception process
-    inference_posterior = perception(model, observation)
+    inference_posterior = perception(model, observation, previous_action)
 
     # Perform action process
-    action_posterior = planning(model, inference_posterior)
+    policy_posterior = planning(model, inference_posterior)
+
+    # Perform action selection
+    action_posterior = selection(model, policy_posterior)
 
     # Store beliefs
-    store_beliefs!(model, action_posterior, inference_posterior, observation)
+    store_beliefs!(model, action_posterior, policy_posterior, inference_posterior, previous_action, observation)
 
     return action_posterior
 end
 
-function active_inference_action(model::T, observation::Vector{Int64}) where T <: AIFModel
+# function active_inference(model::T, observation::Vector{Int64}) where T <: AIFModel
 
-    # Perform perception process
-    inference_posterior = perception(model, observation)
+#     # Perform perception process
+#     inference_posterior = perception(model, observation)
 
-    # Perform action process
-    action_posterior = planning(model, inference_posterior)
+#     # Perform action process
+#     action_posterior = planning(model, inference_posterior)
 
-    # Perform action selection
-    action = selection(model, action_posterior)
+#     # Store beliefs
+#     store_beliefs!(model, action_posterior, inference_posterior, observation)
 
-    # Store beliefs
-    store_beliefs!(model, action, action_posterior, inference_posterior, observation)
-
-    return action
-end
+#     return action_posterior
+# end

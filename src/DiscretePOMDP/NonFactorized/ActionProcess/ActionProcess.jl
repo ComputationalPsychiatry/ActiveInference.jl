@@ -24,7 +24,8 @@ mutable struct ActionProcess <: AbstractActionProcess
     policies::Union{Vector{Matrix{Int64}}, Nothing}
 
     # Fields containing predictions, actions, and posterior policies
-    action::Union{Vector{Int}, Nothing}
+    previous_action::Union{Vector{Int}, Nothing}
+    action_posterior::Union{Vector{Vector{T}}, Nothing} where T <: Real
     posterior_policies::Union{Vector{Float64}, Nothing}
     expected_free_energy::Union{Vector{Float64}, Nothing}
 
@@ -40,7 +41,8 @@ mutable struct ActionProcess <: AbstractActionProcess
         E::Union{Vector{T}, Nothing} where {T <: Real} = nothing,
         policy_length::Int = 2,
         policies::Union{Vector{Matrix{Int64}}, Nothing} = nothing,
-        action::Union{Vector{Int}, Nothing} = nothing,
+        previous_action::Union{Vector{Int}, Nothing} = nothing,
+        action_posterior::Union{Vector{Vector{T}}, Nothing} where T <: Real = nothing,
         posterior_policies::Union{Vector{Float64}, Nothing} = nothing,
         expected_free_energy::Union{Vector{Float64}, Nothing} = nothing,
         action_selection::Symbol = :stochastic,
@@ -76,7 +78,8 @@ mutable struct ActionProcess <: AbstractActionProcess
             E, 
             policy_length, 
             policies, 
-            action, 
+            previous_action, 
+            action_posterior, 
             posterior_policies, 
             expected_free_energy, 
             action_selection,

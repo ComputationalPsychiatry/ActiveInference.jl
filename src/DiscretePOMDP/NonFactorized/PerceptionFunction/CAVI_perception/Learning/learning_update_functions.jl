@@ -2,7 +2,8 @@
 function update_parameters(
     model::AIFModel, 
     current_observation::Vector{Int},
-    posterior_states::Vector{Vector{Float64}}
+    posterior_states::Vector{Vector{Float64}},
+    previous_action::Union{Nothing, Vector{Int}} = nothing
 )
 
     if model.perceptual_process.info.A_learning_enabled == true
@@ -13,7 +14,7 @@ function update_parameters(
     end
 
     if model.perceptual_process.info.B_learning_enabled == true
-        B_updated, qB = update_B(model, posterior_states)
+        B_updated, qB = update_B(model, posterior_states, previous_action)
     else
         B_updated = nothing
         qB = nothing
@@ -53,7 +54,7 @@ function update_A(
 end
 
 """ Update B-matrix """
-function update_B(model::AIFModel, posterior_states::Vector{Vector{Float64}})
+function update_B(model::AIFModel, posterior_states::Vector{Vector{Float64}}, previous_action::Union{Nothing, Vector{Int}})
 
     # only update B if a previous posterior state exists or is not nothing
     if !isnothing(model.perceptual_process.posterior_states)
@@ -61,7 +62,7 @@ function update_B(model::AIFModel, posterior_states::Vector{Vector{Float64}})
         qB = update_state_likelihood_dirichlet(
             model.perceptual_process.B_learning.prior, 
             model.generative_model.B, 
-            model.action_process.action, 
+            previous_action, 
             posterior_states, 
             model.perceptual_process.posterior_states, 
             model.perceptual_process.B_learning.learning_rate, 
