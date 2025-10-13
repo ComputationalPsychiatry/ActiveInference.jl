@@ -1,5 +1,8 @@
 ### Generative model types ###
 # Abstract types for defining the types of actions, observations, and states a generative model can handle.
+
+using ActionModels
+
 abstract type AbstractActionType end
 abstract type DiscreteActions<:AbstractActionType end
 abstract type ContinuousActions<:AbstractActionType end
@@ -36,7 +39,7 @@ struct AIFModel{
     GM <: AbstractGenerativeModel,
     PP <: AbstractPerceptualProcess,
     AP <: AbstractActionProcess
-}
+} <: ActionModels.AbstractSubmodelAttributes
     ## Generative Model
     generative_model::GM
 

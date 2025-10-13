@@ -14,6 +14,8 @@ Retrieves all states from an AIF agent.
 using ActionModels
 
 
+#=
+
 # Retrieve multiple states
 function ActionModels.get_states(aif::POMDPActiveInference, target_states::Vector{String})
     states = Dict{String, Any}()
@@ -58,3 +60,4 @@ function ActionModels.get_states(aif::POMDPActiveInference)
 end
 
 
+=#

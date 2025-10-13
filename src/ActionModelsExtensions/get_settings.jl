@@ -11,6 +11,7 @@ Retrieves a single target setting from an AIF agent.
 Retrieves all settings from an AIF agent.
 
 """
+#=
 
 # Retrieves multiple target settings
 function get_settings(aif::POMDPActiveInference, target_settings::Vector{String})
@@ -54,3 +55,5 @@ function get_settings(aif::POMDPActiveInference)
 
     return settings_dict
 end
+
+=#

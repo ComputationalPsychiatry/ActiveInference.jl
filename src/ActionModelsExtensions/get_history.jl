@@ -13,7 +13,7 @@ Retrieves history of all states from an AIF agent.
 
 using ActionModels
 
-
+#=
 # Retrieve multiple states history
 function ActionModels.get_history(aif::POMDPActiveInference, target_states::Vector{String})
 
@@ -60,3 +60,4 @@ function ActionModels.get_history(aif::POMDPActiveInference)
 
     return history_dict
 end
+=#

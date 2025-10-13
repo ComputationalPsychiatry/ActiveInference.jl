@@ -1,17 +1,48 @@
 """ Update the models's beliefs over states """
+
+function ActiveInferenceCore.perception(
+    model::AIFModel{GenerativeModel, P, ActionProcess},
+    observation::Vector{Int},
+    action::Union{Nothing, Vector{Int}}
+) where {P<:AbstractPerceptualProcess}
+
+    if model.action_process.previous_action !== nothing
+        int_action = round.(Int, action)
+        prediction_states = get_states_prediction(model.perceptual_process.posterior_states, model.generative_model.B, reshape(int_action, 1, length(int_action)))[1]
+    else
+        prediction_states = model.perceptual_process.prediction_states
+    end
+
+    # make observations into a one-hot encoded vector
+    processed_observation = process_observation(
+        observation, 
+        model.generative_model.info.n_modalities, 
+        model.generative_model.info.n_observations
+    )
+
+    posterior_states = model.perceptual_process.inference_function(
+        model,
+        prediction_states,
+        processed_observation
+    )
+
+    return (posterior_states = posterior_states, prediction_states = prediction_states)
+end
+
+
 function ActiveInferenceCore.perception(
     model::AIFModel{GenerativeModel, CAVI{NoLearning}, ActionProcess},
     observation::Vector{Int},
-    action::Union{Nothing, Vector{Real}}
+    action::Union{Nothing, Vector{Int}}
 )
 
     if model.action_process.previous_action !== nothing
         int_action = round.(Int, action)
         prediction_states = get_states_prediction(model.perceptual_process.posterior_states, model.generative_model.B, reshape(int_action, 1, length(int_action)))[1]
-        prediction_obs = get_expected_obs(prediction_states, model.generative_model.A)
+        #prediction_obs = get_expected_obs(prediction_states, model.generative_model.A)
     else
         prediction_states = model.perceptual_process.prediction_states
-        prediction_obs = get_expected_obs(prediction_states, model.generative_model.A)
+        #prediction_obs = get_expected_obs(prediction_states, model.generative_model.A)
     end
 
     # make observations into a one-hot encoded vector

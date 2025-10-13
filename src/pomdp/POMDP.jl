@@ -14,7 +14,7 @@ Outputs:
 """
 
 ### Action Model:  Returns probability distributions for actions per factor
-
+#=
 function action_pomdp!(agent::Agent, obs::Vector{Int64})
 
     ### Get parameters 
@@ -257,3 +257,5 @@ end
 function action_pomdp!(agent::Agent, obs::Int64)
     action_pomdp!(agent::Agent, [obs])
 end
+
+=#

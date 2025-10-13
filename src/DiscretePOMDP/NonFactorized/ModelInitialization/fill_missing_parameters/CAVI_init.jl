@@ -1,4 +1,34 @@
 #### Below are functions for filling out missing parameters ####
+
+function fill_missing_parameters(generative_model::GenerativeModel, perceptual_process::AbstractPerceptualProcess, action_process::ActionProcess)
+
+    # Provide the prior over states from the generative model to the perceptual_process
+    perceptual_process.prediction_states = generative_model.D
+
+    # Create Prior over learned parameters if concentration parameter is given.
+    create_learning_priors(
+        generative_model,
+        perceptual_process.A_learning,
+        perceptual_process.B_learning,
+        perceptual_process.D_learning
+    )
+
+    # Create policies if not provided
+    if isnothing(action_process.policies)
+        
+        action_process.policies = construct_policies(
+            generative_model.info.controls_per_factor, 
+            action_process.policy_length
+        )
+        
+    end
+
+    # Create a default E parameter based on policy length from action_process
+    n_policies = length(action_process.policies)
+    action_process.E = fill(1.0 / n_policies, n_policies);
+
+end 
+
 function fill_missing_parameters(generative_model::GenerativeModel, perceptual_process::CAVI, action_process::ActionProcess)
 
     # Provide the prior over states from the generative model to the perceptual_process

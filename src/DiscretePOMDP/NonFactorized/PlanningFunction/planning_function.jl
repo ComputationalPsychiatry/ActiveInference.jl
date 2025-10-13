@@ -1,6 +1,34 @@
 ``` Planning function for action distribution in a discrete POMDP model ```
 
 function ActiveInferenceCore.planning(
+    model::AIFModel{GenerativeModel, P, ActionProcess},
+    posterior::NamedTuple{(:posterior_states, :prediction_states), Tuple{Vector{Vector{Float64}}, Vector{Vector{Float64}}}}
+) where {P <: AbstractPerceptualProcess}
+
+    predictions = policy_predictions(model, posterior)
+
+    # Get posterior over policies and expected free energies
+    q_pi, G =  update_posterior_policies(
+        qs = posterior.posterior_states,
+        A = model.generative_model.A,
+        C = model.generative_model.C,
+        policies = model.action_process.policies,
+        qs_pi_all = predictions.all_predicted_states,
+        qo_pi_all = predictions.all_predicted_observations,
+        use_utility = model.action_process.use_utility,
+        use_states_info_gain = model.action_process.use_states_info_gain,
+        use_param_info_gain = model.action_process.use_param_info_gain,
+        A_learning = nothing,
+        B_learning = nothing,
+        E = model.action_process.E,
+        gamma = model.action_process.gamma
+    )
+
+    return (q_pi = q_pi, G = G, predictions = predictions)
+end
+
+
+function ActiveInferenceCore.planning(
     model::AIFModel{GenerativeModel, CAVI{NoLearning}, ActionProcess},
     posterior::NamedTuple{(:posterior_states, :prediction_states), Tuple{Vector{Vector{Float64}}, Vector{Vector{Float64}}}}
 )

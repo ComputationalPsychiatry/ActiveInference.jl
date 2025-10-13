@@ -8,7 +8,7 @@ Set a single parameter in the AIF agent
 Set multiple parameters in the AIF agent
 
 """
-
+#=
 using ActionModels
 
 # Setting a single parameter
@@ -60,3 +60,4 @@ function ActionModels.set_parameters!(aif::POMDPActiveInference, parameters::Dic
         set_parameters!(aif, target_param, param_value)
     end
 end
+=#

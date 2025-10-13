@@ -5,6 +5,8 @@ Resets an AIF type agent to its initial state
 
 """
 
+#=
+
 using ActionModels
 
 function ActionModels.reset!(aif::POMDPActiveInference)
@@ -19,3 +21,5 @@ function ActionModels.reset!(aif::POMDPActiveInference)
     aif.history = construct_history_struct(aif.states)
     return nothing
 end
+
+=#

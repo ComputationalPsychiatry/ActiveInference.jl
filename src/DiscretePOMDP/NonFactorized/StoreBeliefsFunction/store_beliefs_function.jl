@@ -1,4 +1,30 @@
 # Without Learning + With action selection
+
+function ActiveInferenceCore.store_beliefs!(
+    model::AIFModel{GenerativeModel, P, ActionProcess},
+    action_posterior::NamedTuple{(:posterior,), Tuple{Vector{Vector{T}}}},
+    policy_posterior::NamedTuple{(:q_pi, :G, :predictions), Tuple{Vector{Float64}, Vector{Float64}, NamedTuple{(:all_predicted_states, :all_predicted_observations), Tuple{Vector{Vector{Vector{Vector{Float64}}}}, Vector{Vector{Vector{Vector{Float64}}}}}}}},
+    posterior::NamedTuple{(:posterior_states, :prediction_states), Tuple{Vector{Vector{Float64}}, Vector{Vector{Float64}}}},
+    previous_action::Union{Nothing, Vector{Int}},
+    observation::Vector{Int}
+) where {T <: Real, P <: AbstractPerceptualProcess}
+
+    # Store beliefs in the perceptual process struct
+    model.perceptual_process.posterior_states = posterior.posterior_states
+    model.perceptual_process.prediction_states = posterior.prediction_states
+    model.perceptual_process.observation = observation
+
+    model.perceptual_process.predicted_states = policy_posterior.predictions.all_predicted_states
+    model.perceptual_process.predicted_observations = policy_posterior.predictions.all_predicted_observations
+
+    # Store beliefs in the action process struct
+    model.action_process.posterior_policies = policy_posterior.q_pi
+    model.action_process.expected_free_energy = policy_posterior.G
+    model.action_process.action_posterior = action_posterior.posterior
+    model.action_process.previous_action = previous_action
+
+end
+
 function ActiveInferenceCore.store_beliefs!(
     model::AIFModel{GenerativeModel, CAVI{NoLearning}, ActionProcess},
     action_posterior::NamedTuple{(:posterior,), Tuple{Vector{Vector{T}}}},

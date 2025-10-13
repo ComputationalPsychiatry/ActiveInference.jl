@@ -1,6 +1,17 @@
 """ Function for predicting states and observations based on the agent's perceptual process and generative model. """
 
 function ActiveInferenceCore.policy_predictions(
+    model::AIFModel{GenerativeModel, P, ActionProcess}, 
+    posterior::NamedTuple{(:posterior_states, :prediction_states), Tuple{Vector{Vector{Float64}}, Vector{Vector{Float64}}}}
+) where {P <: AbstractPerceptualProcess}
+
+    all_predicted_states = get_states_prediction(posterior.posterior_states, model.generative_model.B, model.action_process.policies)
+    all_predicted_observations = get_expected_obs(all_predicted_states, model.generative_model.A)
+
+    return (all_predicted_states = all_predicted_states, all_predicted_observations = all_predicted_observations)
+end
+
+function ActiveInferenceCore.policy_predictions(
     model::AIFModel{GenerativeModel, CAVI{NoLearning}, ActionProcess}, 
     posterior::NamedTuple{(:posterior_states, :prediction_states), Tuple{Vector{Vector{Float64}}, Vector{Vector{Float64}}}}
 )

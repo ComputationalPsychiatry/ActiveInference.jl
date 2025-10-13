@@ -8,6 +8,8 @@ Give a single observation to an AIF agent.
 
 """
 
+#=
+
 using ActionModels
 
 ### Give single observation to the agent
@@ -67,3 +69,5 @@ function ActionModels.give_inputs!(aif::POMDPActiveInference, observations::Vect
 
     return aif.history.action
 end
+
+=#

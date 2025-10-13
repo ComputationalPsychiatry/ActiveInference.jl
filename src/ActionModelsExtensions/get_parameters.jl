@@ -11,7 +11,7 @@ Retrieves a single target parameter from an AIF agent.
 Retrieves all parameters from an AIF agent.
 
 """
-
+#=
 using ActionModels
 
 # Retrieves multiple target parameters
@@ -56,3 +56,4 @@ function ActionModels.get_parameters(aif::POMDPActiveInference)
 
     return parameters_dict
 end
+=#
