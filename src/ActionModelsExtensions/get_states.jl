@@ -1,63 +1,47 @@
-"""
-This extends the "get_states" function of the ActionModels package to work specifically with instances of the AIF type.
-
-    get_states(aif::AIF, target_states::Vector{String})
-Retrieves multiple states from an AIF agent. 
-
-    get_states(aif::AIF, target_state::String)
-Retrieves a single target state from an AIF agent.
-
-    get_states(aif::AIF)
-Retrieves all states from an AIF agent.
-"""
-
-using ActionModels
+using ActiveInference: AIFModel
 
 
-#=
+function ActionModels.get_state_types(::AIFModel)
 
-# Retrieve multiple states
-function ActionModels.get_states(aif::POMDPActiveInference, target_states::Vector{String})
-    states = Dict{String, Any}()
-
-    for target_state in target_states
-        if hasproperty(aif.states, Symbol(target_state))
-            value = getproperty(aif.states, Symbol(target_state))
-            states[target_state] = value
-        else
-            throw(ArgumentError("The specified state '$target_states' does not exist in states."))
-        end
-    end
-
-    return states
+    return (
+        posterior_states = Union{Nothing, Vector{Vector{Float64}}},
+        previous_posterior_states = Union{Nothing, Vector{Vector{Float64}}},
+        observation = Union{Nothing, Vector{Int64}},
+        predicted_states = Union{Nothing, Vector{Vector{Vector{Vector{Float64}}}}},
+        predicted_observations = Union{Nothing, Vector{Vector{Vector{Vector{Float64}}}}},
+        prediction_states = Vector{Vector{Float64}},
+        actions = Union{Nothing, Int64, Vector{Int64}},
+        posterior_policies = Union{Nothing, Vector{Float64}},
+        expected_free_energy = Union{Nothing, Vector{Float64}},
+    )
 end
 
-# Retrieve a single state
-function ActionModels.get_states(aif::POMDPActiveInference, target_state::String)
-    # Check if the state exists in the AIF history struct
-    if hasproperty(aif.states, Symbol(target_state))
-        state_value = getproperty(aif.states, Symbol(target_state))
+function ActionModels.get_states(model::AIFModel, target_state::Union{String, Symbol})
+    # Normalize to Symbol
+    state_sym = target_state isa String ? Symbol(target_state) : target_state
+    # Special case: "actions" maps to action_process.action
+    if state_sym == :actions
+        return getfield(model.action_process, :previous_action)
+    end
 
-        return state_value
+    # Verify it’s a valid field name
+    if !(state_sym in keys(ActionModels.get_state_types(model)))
+        error("State $(state_sym) not found in AIFModel.")
+    end
+
+    # Check perceptual process
+    if fieldname_in_type(typeof(model.perceptual_process), state_sym)
+        return getfield(model.perceptual_process, state_sym)
+
+    # Check action process
+    elseif fieldname_in_type(typeof(model.action_process), state_sym)
+        return getfield(model.action_process, state_sym)
+
     else
-        # If the target state is not found, throw an ArgumentError
-        throw(ArgumentError("The specified parameter '$target_parameter' does not exist in states."))
+        error("State $(state_sym) not found in perceptual_process or action_process.")
     end
 end
 
-
-# Retrieve all states
-function ActionModels.get_states(aif::POMDPActiveInference)
-    states_struct = aif.states
-    states_dict = Dict{String, Any}()
-
-    for field in fieldnames(typeof(states_struct))
-        value = getfield(states_struct, field)
-        states_dict[string(field)] = value
-    end
-
-    return states_dict
+function fieldname_in_type(T::Type, name::Symbol)
+    return name in fieldnames(T)
 end
-
-
-=#

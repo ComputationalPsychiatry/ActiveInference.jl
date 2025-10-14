@@ -8,24 +8,7 @@ using Distributions
 using LogExpFunctions
 using ReverseDiff
 using Parameters
-
-include("utils/maths.jl")
-include("pomdp/struct.jl")
-include("pomdp/struct_utils.jl")
-include("pomdp/learning.jl")
-include("utils/utils.jl")
-include("pomdp/inference.jl")
-include("ActionModelsExtensions/get_states.jl")
-include("ActionModelsExtensions/get_parameters.jl")
-include("ActionModelsExtensions/get_settings.jl")
-include("ActionModelsExtensions/get_history.jl")
-include("ActionModelsExtensions/set_parameters.jl")
-include("ActionModelsExtensions/reset.jl")
-include("ActionModelsExtensions/give_inputs.jl")
-include("ActionModelsExtensions/set_save_history.jl")
-include("pomdp/POMDP.jl")
-include("utils/helper_functions.jl")
-include("utils/create_matrix_templates.jl")
+using Setfield: @lens, set, get
 
 # Include the AIFCore module first
 include("ActiveInferenceCore/ActiveInferenceCore.jl")
@@ -35,6 +18,26 @@ export AIFModel, active_inference, active_inference_action, perception, policy_p
 # Include the DiscretePOMDP module
 include("DiscretePOMDP/DiscretePOMDP.jl")
 using .DiscretePOMDP
+
+import ActionModels: initialize_attributes
+import ActionModels: store_action!
+
+include("utils/maths.jl")
+include("pomdp/struct.jl")
+include("pomdp/struct_utils.jl")
+include("pomdp/learning.jl")
+include("utils/utils.jl")
+include("pomdp/inference.jl")
+include("ActionModelsExtensions/get_states.jl")
+include("ActionModelsExtensions/model_attributes.jl")
+include("ActionModelsExtensions/reset.jl")
+include("ActionModelsExtensions/set_parameters.jl")
+include("ActionModelsExtensions/store_action.jl")
+include("pomdp/POMDP.jl")
+include("utils/helper_functions.jl")
+include("utils/create_matrix_templates.jl")
+
+
 
 export # utils/create_matrix_templates.jl
         create_matrix_templates,
@@ -66,19 +69,19 @@ export # utils/create_matrix_templates.jl
        sample_action!,
        update_parameters!,
 
-       # POMDP.jl
-       action_pomdp!,
+       get_state_types,
+       get_statesm
+       fieldname_in_type,
+       initialize_attributes,
+       reset!,
+       reset_state!,
+       set_parameters!,
+       store_action!
+
+
 
        # ActionModelsExtensions
-       get_states,
-       get_parameters,
-       get_settings,
-       get_history,
-       set_parameters!,
-       reset!,
-       single_input!,
-       give_inputs!,
-       set_save_history!
+       
 
     module Environments
 
