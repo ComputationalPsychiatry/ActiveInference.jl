@@ -1,3 +1,5 @@
+import OMEinsum as ein
+
 """Normalizes a Categorical probability distribution"""
 function normalize_distribution(distribution)
     distribution .= distribution ./ sum(distribution, dims=1)
@@ -162,6 +164,29 @@ function dot_product(X, x)
     return Y
 end
 
+function dot_product1(
+        X::Union{Array{T, N}, Matrix{T}} where {N}, 
+        xs::Vector{Vector{T}} 
+    ) where {T<:AbstractFloat}
+
+    # xs is a vector of qs vectors for each dependency, in reverse order
+    
+    if isa(X, Matrix{T})
+        @assert length(xs) == 1
+        return X * xs[1]
+    end
+
+    sizes = [collect(x.size) for x in xs]
+    code2 = ein.EinCode([collect(X.size), sizes...], collect(X.size[1:end-length(sizes)]))
+    
+    #=
+    tried code2 = ein.EinCode([collect(X.size), [dep.size[1]]], collect(X.size[1:end-1]))
+    but that did not work
+    =#
+    
+    #@infiltrate; @assert false
+    return code2(X,xs...)
+end
 
 """ Calculate Bayesian Surprise """
 function calculate_bayesian_surprise(A, x)

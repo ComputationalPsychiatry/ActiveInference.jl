@@ -6,13 +6,13 @@ using ..ActiveInferenceCore: AbstractGenerativeModel, AbstractPerceptualProcess,
 
 
 # Include the Factorized submodule
-include("Factorized/Factorized.jl")
-using .Factorized
+include("NonFactorized/NonFactorized.jl")
+using .NonFactorized
 
-# (NOTE SAM: Revisit the NonFactroized version later)
-#Include the NonFactorized submodule
-# include("NonFactorized/NonFactorized.jl")
-# using .NonFactorized
+# (NOTE SAM: Revisit the Factorized version later)
+#Include the Factorized submodule
+# include("Factorized/Factorized.jl")
+# using .Factorized
 
 # Re-export the NonFactorized module's exports so they can be accessed as DiscretePOMDP.GenerativeModel
 # export GenerativeModel, PerceptualProcess, Learn_A, Learn_B, Learn_D
