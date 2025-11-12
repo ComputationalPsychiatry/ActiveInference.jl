@@ -10,6 +10,17 @@ function array_of_any_zeros(shape_list)
 end
 
 """ Creates a onehot encoded vector """
+function onehot(
+        index::Int, 
+        vector_length::Int,
+        float_type::Type
+    )
+
+    vector = zeros(float_type, vector_length)
+    vector[index] = 1.0
+    return vector
+end
+
 function onehot(index::Int, vector_length::Int)
     vector = zeros(vector_length)
     vector[index] = 1.0

@@ -1,5 +1,5 @@
 """ Update the models's beliefs over states """
-
+#=
 function ActiveInferenceCore.perception(
     model::AIFModel{GenerativeModel, P, ActionProcess},
     observation::Vector{Int},
@@ -28,7 +28,7 @@ function ActiveInferenceCore.perception(
 
     return (posterior_states = posterior_states, prediction_states = prediction_states)
 end
-
+=#
 
 function ActiveInferenceCore.perception(
     model::AIFModel{GenerativeModel, CAVI{NoLearning}, ActionProcess},

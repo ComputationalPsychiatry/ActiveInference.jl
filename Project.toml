@@ -1,7 +1,7 @@
 name = "ActiveInference"
 uuid = "688b0e7a-0122-4325-8669-5ff08899a59e"
-authors = ["Jonathan Ehrenreich Laursen", "Samuel William Nehrer"]
 version = "0.1.2"
+authors = ["Jonathan Ehrenreich Laursen", "Samuel William Nehrer"]
 
 [deps]
 ActionModels = "320cf53b-cc3b-4b34-9a10-0ecb113566a3"
@@ -9,6 +9,7 @@ Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 IterTools = "c8e1da08-722c-5040-9ed9-7db0dc04731e"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LogExpFunctions = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
+OMEinsum = "ebe7aa44-baf0-506c-a96f-8464559b3922"
 Parameters = "d96e819e-fc66-5662-9728-84c9c7592b0a"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
@@ -20,6 +21,7 @@ Distributions = "0.25"
 IterTools = "1.10"
 LinearAlgebra = "1"
 LogExpFunctions = "0.3"
+OMEinsum = "0.9.2"
 Parameters = "0.12"
 Random = "1"
 ReverseDiff = "1.15"

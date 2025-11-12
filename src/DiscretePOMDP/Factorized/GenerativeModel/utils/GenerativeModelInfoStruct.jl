@@ -4,6 +4,9 @@ struct GenerativeModelInfo
     abstract_model_type::String
     components::Vector{String}
 
+    observation_modalities::NamedTuple
+    state_factors::NamedTuple
+
     n_modalities::Int
     n_factors::Int
     n_states::Vector{Int}
@@ -32,6 +35,21 @@ struct GenerativeModelInfo
             push!(components, "D")
         end
         
+        # Extract information about observation modalities
+        modalities_pairs_list = []
+        for key in keys(A)
+            x = A[key]
+            push!(modalities_pairs_list, key => (A_dims=x.data.size, A_dim_names=typeof(x).parameters[1]))
+        end
+        observation_modalities = NamedTuple(modalities_pairs_list)
+
+        state_factors_pairs_list = []
+        for key in keys(B)
+            x = B[key]
+            push!(state_factors_pairs_list, key => (B_dims=x.data.size, B_dim_names=typeof(x).parameters[1]))
+        end
+        state_factors = NamedTuple(state_factors_pairs_list)
+
         # Extract dimensional information from A matrix
         n_modalities = length(A)
         n_observations = [size(A_m, 1) for A_m in A]
@@ -55,6 +73,8 @@ struct GenerativeModelInfo
             model_type,
             abstract_model_type,
             components,
+            observation_modalities,
+            state_factors,
             n_modalities,
             n_factors,
             n_states,

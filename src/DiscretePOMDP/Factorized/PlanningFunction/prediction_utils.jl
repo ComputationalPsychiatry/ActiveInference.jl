@@ -13,9 +13,10 @@ end
 
 function ActiveInferenceCore.policy_predictions(
     model::AIFModel{GenerativeModel, CAVI{NoLearning}, ActionProcess}, 
-    posterior::NamedTuple{(:posterior_states, :prediction_states), Tuple{Vector{Vector{Float64}}, Vector{Vector{Float64}}}}
+    posterior::NamedTuple{
+        (:posterior_states, :prediction_states)
+    }
 )
-
     all_predicted_states = get_states_prediction(posterior.posterior_states, model.generative_model.B, model.action_process.policies)
     all_predicted_observations = get_expected_obs(all_predicted_states, model.generative_model.A)
 
@@ -90,7 +91,8 @@ B: Vector{Array{<:Real}} \n
 policy: Vector{Matrix{Int64}}
 
 """
-function get_states_prediction(qs::Vector{Vector{Float64}}, B, policy::Vector{Matrix{Int64}})
+function get_states_prediction(qs::NamedTuple{<:Any, <:NTuple{N, Vector{Float64}} where {N}}, B, policy::Vector{Matrix{Int64}}
+    ) 
     
     # Extracting the number of steps (policy_length) and factors from the first policy
     n_steps, n_factors = size(policy[1])

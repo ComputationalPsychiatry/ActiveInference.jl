@@ -2,7 +2,7 @@
 
 function ActiveInferenceCore.perception(
     model::AIFModel{GenerativeModel, P, ActionProcess},
-    observation::Vector{Int},
+    observation::NamedTuple{<:Any, <:NTuple{N, Int64} where {N}},
     action::Union{Nothing, Vector{Int}}
 ) where {P<:AbstractPerceptualProcess}
 
@@ -13,17 +13,11 @@ function ActiveInferenceCore.perception(
         prediction_states = model.perceptual_process.prediction_states
     end
 
-    # make observations into a one-hot encoded vector
-    processed_observation = process_observation(
-        observation, 
-        model.generative_model.info.n_modalities, 
-        model.generative_model.info.n_observations
-    )
 
     posterior_states = model.perceptual_process.inference_function(
         model,
         prediction_states,
-        processed_observation
+        observation
     )
 
     return (posterior_states = posterior_states, prediction_states = prediction_states)
@@ -32,35 +26,22 @@ end
 
 function ActiveInferenceCore.perception(
     model::AIFModel{GenerativeModel, CAVI{NoLearning}, ActionProcess},
-    observation::Vector{Int},
+    observation::NamedTuple{<:Any, <:NTuple{N, Int64} where {N}},
     action::Union{Nothing, Vector{Int}}
 )
-
     if model.action_process.previous_action !== nothing
         int_action = round.(Int, action)
         prediction_states = get_states_prediction(model.perceptual_process.posterior_states, model.generative_model.B, reshape(int_action, 1, length(int_action)))[1]
-        #prediction_obs = get_expected_obs(prediction_states, model.generative_model.A)
     else
         prediction_states = model.perceptual_process.prediction_states
-        #prediction_obs = get_expected_obs(prediction_states, model.generative_model.A)
     end
-
-    # make observations into a one-hot encoded vector
-    processed_observation = process_observation(
-        observation, 
-        model.generative_model.info.n_modalities, 
-        model.generative_model.info.n_observations
-    )
-
+    
     # perform fixed-point iteration
-    posterior_states = cavi(;
-        A = model.generative_model.A,
-        observation = processed_observation,
-        n_factors = model.generative_model.info.n_factors,
-        n_states = model.generative_model.info.n_states,
-        prior = prediction_states,
-        num_iter = model.perceptual_process.num_iter,
-        dF_tol = model.perceptual_process.dF_tol
+    # perform fixed-point iteration
+    posterior_states = cavi_factorized(
+        model,
+        prediction_states,
+        observation,
     )
 
     return (posterior_states = posterior_states, prediction_states = prediction_states)
@@ -69,7 +50,7 @@ end
 """ Update the models's beliefs over states with previous posterior states and action """
 function ActiveInferenceCore.perception(
     model::AIFModel{GenerativeModel, CAVI{NoLearning}, ActionProcess},
-    observation::Vector{Int},
+    observation::NamedTuple{<:Any, <:NTuple{N, Int64} where {N}},
     previous_posterior_states::Union{Nothing, Vector{Vector{Float64}}},
     previous_action::Union{Nothing, Vector{Int}} 
 )
@@ -77,109 +58,159 @@ function ActiveInferenceCore.perception(
     int_action = round.(Int, previous_action)
     prediction_states = get_states_prediction(previous_posterior_states, model.generative_model.B, reshape(int_action, 1, length(int_action)))[1]
 
-    # make observations into a one-hot encoded vector
-    processed_observation = process_observation(
-        observation, 
-        model.generative_model.info.n_modalities, 
-        model.generative_model.info.n_observations
-    )
-
     # perform fixed-point iteration
-    posterior_states = cavi(;
-        A = model.generative_model.A,
-        observation = processed_observation,
-        n_factors = model.generative_model.info.n_factors,
-        n_states = model.generative_model.info.n_states,
-        prior = prediction_states,
-        num_iter = model.perceptual_process.optim_engine.num_iter,
-        dF_tol = model.perceptual_process.optim_engine.dF_tol
+    posterior_states = cavi_factorized(
+        model,
+        prediction_states,
+        observation,
     )
 
     return (posterior_states = posterior_states, prediction_states = prediction_states)
 end
 
-""" Run State Inference via Fixed-Point Iteration """
-function cavi(;
-    A::Vector{Array{T,N}} where {T <: Real, N}, observation::Vector{Vector{Float64}}, n_factors::Int64, n_states::Vector{Int64},
-    prior::Union{Nothing, Vector{Vector{T}}} where T <: Real = nothing, 
-    num_iter::Int=num_iter, dF::Float64=1.0, dF_tol::Float64=dF_tol
-)
-    # Get joint likelihood
-    likelihood = get_joint_likelihood(A, observation, n_states)
-    likelihood = capped_log(likelihood)
 
-    # Initialize posterior and prior
-    qs = Vector{Vector{Float64}}(undef, n_factors)
-    for factor in 1:n_factors
-        qs[factor] = ones(n_states[factor]) / n_states[factor]
-    end
+""" Run Factorized State Inference via Fixed-Point Iteration """
+function cavi_factorized(
+        model::AIFModel,
+        prediction_states::NamedTuple{<:Any, <:NTuple{N, Vector{T2}} where {N}}, 
+        new_obs::NamedTuple{<:Any, <:NTuple{N, Int64} where {N}},
+    ) where {T2<:AbstractFloat}
+    
+    # qs_prior called log_prior here, as it will be converted to log
+    """
+    Run the fixed point iteration algorithm with sparse dependencies between factors and outcomes 
+    """
+    
+    #=
+    Step 1: Compute marginal log likelihoods for each factor.
+    Likelihood[ii].ndim will be size ndims(A[ii]) -1 (i.e., equal to the number of factors).
+    E.g., if A[ii] is (4,25,3) and prior is (25,), then intermediate result is (4,25,3) , which
+    is summed over dim=1, so (4,25,3) --> (1,25,3) --> (25,3).
+    =#
+    T2_type = Float64 # (Note Sam: hardcoded for now; later make generic over T2)
+    model_info = model.generative_model.info
 
-    # If no prior is provided, create a default prior with uniform distribution
-    if prior === nothing
-        prior = create_matrix_templates(n_states)
+    log_prior = deepcopy(prediction_states)
+
+    obs_names = keys(model_info.observation_modalities)
+    mLLs = [zeros(T2_type, (1, x.A_dims[2:end]...)) for x in model_info.observation_modalities]
+    marginal_LLs = (; zip(obs_names, mLLs)...)
+
+    #log_likelihoods = []
+    for (ii, obs) in enumerate(model_info.observation_modalities)
+        obs_ii = onehot(new_obs[ii], obs.A_dims[1], T2_type) 
+        dims = repeat([1], length(obs.A_dims))
+        dims[1] = obs_ii.size[1]  # e.g., [9,1,1] for 3-dim A with 9 categories
+        obs_ii = reshape(obs_ii, dims...)
+        marginal_LLs[ii][:] = dropdims(sum(model.generative_model.A[ii] .* obs_ii, dims=1), dims=1) # obs_ii is broadcast over dims of A
+        marginal_LLs[ii][:] = capped_log(marginal_LLs[ii])
     end
     
-    # Create a copy of the prior to avoid modifying the original
-    prior = deepcopy(prior)
-    prior = capped_log_array(prior) 
+    # Step 2: Map prior to log space and create initial log-posterior
+    for prior in log_prior
+        prior[:] = capped_log(prior)
+    end
 
-    # Initialize free energy
-    prev_vfe = calc_free_energy(qs, prior, n_factors)
+    # create an uninformed guess at new qs
+    qs_current = deepcopy(log_prior)
+    for qs in qs_current
+        qs[:] = ones(T2_type, length(qs)) / length(qs)
+    end
+    last = deepcopy(qs_current)
 
-    # Single factor condition
-    if n_factors == 1
-        qL = dot_product(likelihood, qs[1])  
-        return [softmax(qL .+ prior[1], dims=1)]
+    #=
+    Step 3: Iterate until convergence
+    A[ii] will be sequentially multiplied by every prior of every state that is a dependency. 
+    Four NamedTuples:
+        - qs_current: holds updates and will be the NT that is eventually returned
+        - last: qs from the last iteration. 
+        - qL: qs, with everything marginalized out except obs ii
+    =#
 
-    # If there are more factors
-    else
-        ### Fixed-Point Iteration ###
-        curr_iter = 0
-        ### Sam NOTE: We need check if ReverseDiff might potantially have issues with this while loop ###
-        while curr_iter < num_iter && dF >= dF_tol
-            qs_all = qs[1]
-            # Loop over each factor starting from the second one
-            for factor in 2:n_factors
-                # Reshape and multiply qs_all with the current factor's qs
-                qs_all = qs_all .* reshape(qs[factor], tuple(ones(Real, factor - 1)..., :, 1))
-            end
-
-            # Compute the log-likelihood
-            LL_tensor = likelihood .* qs_all
-
-            # Update each factor's qs
-            for factor in 1:n_factors
-                # Initialize qL for the current factor
-                qL = zeros(Real, size(qs[factor]))
-
-                # Compute qL for each state in the current factor
-                for i in 1:size(qs[factor], 1)
-                    qL[i] = sum([LL_tensor[indices...] / qs[factor][i] for indices in Iterators.product([1:size(LL_tensor, dim) for dim in 1:n_factors]...) if indices[factor] == i])
-                end
-
-                # If qs is tracked by ReverseDiff, get the value
-                if ReverseDiff.istracked(softmax(qL .+ prior[factor], dims=1))
-                    qs[factor] = ReverseDiff.value(softmax(qL .+ prior[factor], dims=1))
-                else
-                    # Otherwise, proceed as normal
-                    qs[factor] = softmax(qL .+ prior[factor], dims=1)
+    for iter in 1:model.perceptual_process.num_iter
+        #@infiltrate; @assert false
+        #qs_new = Vector{Vector{Float64}}([zeros(x.size) for x in prior])
+        #qs = [LEF.softmax(x) for x in new_log_q]
+        
+        for (ii, state) in enumerate(keys(model_info.state_factors))
+            qL = zeros(T2_type, log_prior[ii].size)
+            
+            for (jj, obs) in enumerate(model_info.observation_modalities)
+                
+                if state in obs.A_dim_names
+                    qL += all_marginal_log_likelihood(
+                        qs_current, 
+                        marginal_LLs[jj], 
+                        ii, 
+                        jj, 
+                        model_info,
+                    )
                 end
             end
-
-            # Recompute free energy
-            vfe = calc_free_energy(qs, prior, n_factors, likelihood)
-
-            # Update stopping condition
-            dF = abs(prev_vfe - vfe)
-            prev_vfe = vfe
-
-            # Increment iteration
-            curr_iter += 1
+            #@infiltrate; @assert false
+            qs_current[ii][:] = softmax(qL .+ log_prior[ii])
         end
 
-        return qs
+        #printfmtln("err= {}", sum.([dd .^2 for dd in collect(values(qs_current)) - collect(values(last))]))
+
+        if all(isapprox.(values(qs_current), values(last), atol=model.perceptual_process.dF_tol))
+            break
+        end
+
+        last = deepcopy(qs_current) 
     end
+    
+    #@infiltrate; @assert false
+    return qs_current
 end
+
+
+function all_marginal_log_likelihood(
+        qs::NamedTuple{<:Any, <:NTuple{N, Vector{T2}} where {N}},
+        LL::Array{T2}, 
+        ii::Int64, 
+        jj::Int64, 
+        model_info::GenerativeModelInfo
+    ) where {T2<:AbstractFloat}
+
+    # returns a new version of qs updated by marginalizing over all dependencies but dependency ii
+    T2_type = Float64 # (Note Sam: hardcoded for now; later make generic over T2)
+    if ndims(LL) == 2 #&& LL.size[2] == 1)
+        # nothing to do, this is just A[obs,:]
+        return dropdims(LL, dims=1)
+    end
+
+    obs_deps = model_info.observation_modalities[jj].A_dim_names[2:end]
+    dep_ids = [findfirst(x -> x == j, keys(model_info.state_factors)) for j in obs_deps]
+
+    A_n = dropdims(copy(LL), dims=1) # (NOTE Sam: this needs to be tested with even more dims)
+
+    # we want to skip dependency ii, so place ii first in A and in dep_ids
+    if dep_ids[1] != ii 
+        dep_ids2 = vcat([ii], findall(x -> x != ii, dep_ids))
+        obs_ids = [findfirst(x -> x == j, dep_ids) for j in dep_ids2]
+        A_n = permutedims(A_n, obs_ids)
+        dep_ids = dep_ids2
+    end
+
+    deps = Vector{Vector{T2_type}}()
+    for idep in reverse(dep_ids[2:end])   
+        push!(deps, qs[idep])
+    end
+
+    A_n = dot_product1(A_n, deps)
+
+    #@infiltrate; @assert false
+    if A_n.size != qs[ii].size
+        error("Size mismatch in all_marginal_log_likelihood: A size $(A_n.size), qs size $(qs[ii].size)")
+    end
+
+    return A_n
+   
+
+end
+
+
 
 
 """ Calculate Free Energy """

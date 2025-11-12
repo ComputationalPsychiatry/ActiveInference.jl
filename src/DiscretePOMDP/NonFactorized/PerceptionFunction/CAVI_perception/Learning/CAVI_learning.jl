@@ -1,4 +1,43 @@
 function ActiveInferenceCore.perception(
+    model::AIFModel{GenerativeModel, P, ActionProcess},
+    observation::Vector{Int},
+    action::Union{Nothing, Vector{Int}} = nothing
+) where {P<:AbstractPerceptualProcess}
+
+    if model.action_process.previous_action !== nothing
+        int_action = round.(Int, action)
+        prediction_states = get_states_prediction(model.perceptual_process.posterior_states, model.generative_model.B, reshape(int_action, 1, length(int_action)))[1]
+    else
+        prediction_states = model.perceptual_process.prediction_states
+    end
+
+    # make observations into a one-hot encoded vector
+    processed_observation = process_observation(
+        observation,
+        model.generative_model.info.n_modalities,
+        model.generative_model.info.n_observations
+    )
+
+    # perform fixed-point iteration
+    posterior_states = model.perceptual_process.inference_function(
+        model,
+        prediction_states,
+        processed_observation
+    )
+
+    if isnothing(model.perceptual_process.A_learning) &&
+       isnothing(model.perceptual_process.B_learning) &&
+       isnothing(model.perceptual_process.D_learning)
+
+       return (posterior_states = posterior_states, prediction_states = prediction_states)
+    end
+
+    learning_posterior = update_parameters(model, observation, posterior_states, action)
+
+    return (posterior_states = posterior_states, prediction_states = prediction_states, learning_posterior = learning_posterior)
+end
+
+function ActiveInferenceCore.perception(
     model::AIFModel{GenerativeModel, CAVI{Learning}, ActionProcess},
     observation::Vector{Int},
     action::Union{Nothing, Vector{Int}} = nothing
