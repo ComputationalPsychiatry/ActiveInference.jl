@@ -6,21 +6,21 @@ function update_parameters(
     previous_action::Union{Nothing, Vector{Int}} = nothing
 )
 
-    if model.perceptual_process.info.A_learning_enabled == true
+    if !isnothing(model.perceptual_process.A_learning)
         A_updated, qA = update_A(model, current_observation, posterior_states)
     else
         A_updated = nothing
         qA = nothing
     end
 
-    if model.perceptual_process.info.B_learning_enabled == true
+    if !isnothing(model.perceptual_process.B_learning)
         B_updated, qB = update_B(model, posterior_states, previous_action)
     else
         B_updated = nothing
         qB = nothing
     end
 
-    if model.perceptual_process.info.D_learning_enabled == true
+    if !isnothing(model.perceptual_process.D_learning)
         D_updated, qD = update_D(model, posterior_states)
     else
         D_updated = nothing
