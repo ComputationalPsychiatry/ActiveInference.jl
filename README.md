@@ -97,3 +97,9 @@ infer_policies!(aif)
 sample_action!(aif)
 
 ````
+
+## Contributors
+- [@jonathan7773](https://github.com/Jonathan7773) – Developer
+- [@samuelnehrer02](https://github.com/samuelnehrer02) – Developer
+- [@PTWaade](https://github.com/PTWaade) – Developer
+- [@John-Boik](https://github.com/John-Boik) – Developer
