@@ -40,6 +40,7 @@ struct AIFModel{
     PP <: AbstractPerceptualProcess,
     AP <: AbstractActionProcess
 } <: ActionModels.AbstractSubmodelAttributes
+    
     ## Generative Model
     generative_model::GM
 
