@@ -1,0 +1,8 @@
+[deps]
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+
+[weakdeps]
+ActionModels = "320cf53b-cc3b-4b34-9a10-0ecb113566a3"
+
+[extensions]
+ActionModelsExt = "ActionModels"
