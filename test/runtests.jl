@@ -8,11 +8,11 @@ using JuliaFormatter: JuliaFormatter
     @testset "Code formatting" begin
         @test JuliaFormatter.format(ActiveInference; verbose = false, overwrite = false)
     end
-    #=
+
     @testset "Code linting" begin
         JET.test_package(ActiveInference; target_defined_modules = true)
     end
-    =#
+
     @testset "Code quality" begin
         Aqua.test_all(
             ActiveInference;

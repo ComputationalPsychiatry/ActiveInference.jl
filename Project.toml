@@ -13,7 +13,7 @@ ActionModelsExt = "ActionModels"
 Aqua = "0.8"
 JET = "0.11"
 ActionModels = "0.7" 
-JuliaFormatter = "1.0"
+JuliaFormatter = "0.15, 1.0"
 Test = "1.0"
 julia = "1.10"
 
