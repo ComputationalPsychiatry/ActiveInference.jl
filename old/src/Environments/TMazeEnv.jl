@@ -18,14 +18,15 @@ mutable struct TMazeEnv
     num_factors::Int64
     num_modalities::Int64
     reward_probs::Vector{Float64}
-    transition_dist::Array{Any, 1}
-    likelihood_dist::Array{Any, 1}
-    _state::Array{Any, 1}
+    transition_dist::Array{Any,1}
+    likelihood_dist::Array{Any,1}
+    _state::Array{Any,1}
     _reward_condition_idx::Int64
     reward_condition::Vector{Int64}
-    state::Array{Any, 1}
+    state::Array{Any,1}
 
-    function TMazeEnv(reward_prob::Float64;
+    function TMazeEnv(
+        reward_prob::Float64;
 
         reward_idx::Int64 = 2,
         loss_idx::Int64 = 3,
@@ -34,7 +35,7 @@ mutable struct TMazeEnv
         location_modality_id::Int64 = 1,
         reward_modality_id::Int64 = 2,
         cue_modality_id::Int64 = 3,
-        )
+    )
         num_states = [4, 2]
         num_locations = num_states[location_factor_id]
         num_controls = [num_locations, 1]
@@ -46,9 +47,25 @@ mutable struct TMazeEnv
 
         reward_probs = [reward_prob, round(1-reward_prob, digits = 6)]
 
-        new(reward_prob, reward_idx, loss_idx, location_factor_id, trial_factor_id, 
-        location_modality_id, reward_modality_id, cue_modality_id, num_states, num_locations, num_controls, num_reward_conditions, num_cues, num_obs, num_factors, 
-        num_modalities, reward_probs)
+        new(
+            reward_prob,
+            reward_idx,
+            loss_idx,
+            location_factor_id,
+            trial_factor_id,
+            location_modality_id,
+            reward_modality_id,
+            cue_modality_id,
+            num_states,
+            num_locations,
+            num_controls,
+            num_reward_conditions,
+            num_cues,
+            num_obs,
+            num_factors,
+            num_modalities,
+            reward_probs,
+        )
     end
 end
 
@@ -71,20 +88,21 @@ function step_TMaze!(env::TMazeEnv, actions)
     state = [sample_dist(ps_i) for ps_i in prob_states]
 
     # Construct the new state
-    env._state = construct_state(env, state) 
+    env._state = construct_state(env, state)
 
     # Generate and return the current observation
     return get_observation(env)
 end
 
-function reset_TMaze!(env::TMazeEnv; state=nothing)
+function reset_TMaze!(env::TMazeEnv; state = nothing)
     if state === nothing
         # Initialize location state
         loc_state = ActiveInference.onehot(1, env.num_locations)
 
         # Randomly select a reward condition
         env._reward_condition_idx = rand(1:env.num_reward_conditions)
-        env.reward_condition = ActiveInference.onehot(env._reward_condition_idx, env.num_reward_conditions)
+        env.reward_condition =
+            ActiveInference.onehot(env._reward_condition_idx, env.num_reward_conditions)
 
         # Initialize the full state array
         full_state = Vector{Any}(undef, env.num_factors)
@@ -102,11 +120,21 @@ end
 
 function construct_transition_dist(env::TMazeEnv)
 
-    B_locs = reshape(Matrix{Float64}(I, env.num_locations, env.num_locations), env.num_locations, env.num_locations, 1)
-    B_locs = repeat(B_locs, 1, 1, env.num_locations) 
+    B_locs = reshape(
+        Matrix{Float64}(I, env.num_locations, env.num_locations),
+        env.num_locations,
+        env.num_locations,
+        1,
+    )
+    B_locs = repeat(B_locs, 1, 1, env.num_locations)
     B_locs = permutedims(B_locs, [1, 3, 2])
-    
-    B_trials = reshape(Matrix{Float64}(I, env.num_reward_conditions, env.num_reward_conditions), env.num_reward_conditions, env.num_reward_conditions, 1)
+
+    B_trials = reshape(
+        Matrix{Float64}(I, env.num_reward_conditions, env.num_reward_conditions),
+        env.num_reward_conditions,
+        env.num_reward_conditions,
+        1,
+    )
 
     B = Array{Any}(undef, env.num_factors)
     B[env.location_factor_id] = B_locs
@@ -120,13 +148,14 @@ function construct_likelihood_dist(env::TMazeEnv)
     A_dims = [[obs_dim; env.num_states...] for obs_dim in env.num_obs]
     A = ActiveInference.array_of_any_zeros(A_dims)
 
-    for loc in 1:env.num_states[env.location_factor_id]
-        for reward_condition in 1:env.num_states[env.trial_factor_id]
+    for loc = 1:env.num_states[env.location_factor_id]
+        for reward_condition = 1:env.num_states[env.trial_factor_id]
 
             if loc == 1 # When in the center location
                 A[env.reward_modality_id][1, loc, reward_condition] = 1.0
 
-                A[env.cue_modality_id][:, loc, reward_condition] .= 1.0 / env.num_obs[env.cue_modality_id]
+                A[env.cue_modality_id][:, loc, reward_condition] .=
+                    1.0 / env.num_obs[env.cue_modality_id]
 
             elseif loc == 4  # When in the cue location
                 A[env.reward_modality_id][1, loc, reward_condition] = 1.0
@@ -143,11 +172,14 @@ function construct_likelihood_dist(env::TMazeEnv)
                 end
 
                 # Assign probabilities based on the reward condition
-                A[env.reward_modality_id][high_prob_idx, loc, reward_condition] = env.reward_probs[1]
-                A[env.reward_modality_id][low_prob_idx, loc, reward_condition] = env.reward_probs[2]
+                A[env.reward_modality_id][high_prob_idx, loc, reward_condition] =
+                    env.reward_probs[1]
+                A[env.reward_modality_id][low_prob_idx, loc, reward_condition] =
+                    env.reward_probs[2]
 
                 # Cue is ambiguous in the reward location
-                A[env.cue_modality_id][:, loc, reward_condition] .= 1.0 / env.num_obs[env.cue_modality_id]
+                A[env.cue_modality_id][:, loc, reward_condition] .=
+                    1.0 / env.num_obs[env.cue_modality_id]
             end
 
             # Location is always observed correctly

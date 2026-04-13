@@ -20,14 +20,18 @@ Throws an error if the generative model parameters are not valid:
 
 """
 function check_generative_model(
-    A::Union{Nothing, NamedTuple} = nothing,
-    B::Union{Nothing, NamedTuple} = nothing,
-    C::Union{Nothing, NamedTuple} = nothing,
-    D::Union{Nothing, NamedTuple} = nothing
+    A::Union{Nothing,NamedTuple} = nothing,
+    B::Union{Nothing,NamedTuple} = nothing,
+    C::Union{Nothing,NamedTuple} = nothing,
+    D::Union{Nothing,NamedTuple} = nothing,
 )
 
     if isnothing(A) || isnothing(B)
-        throw(ArgumentError("A and B must be provided in order to infer structure of the generative model."))
+        throw(
+            ArgumentError(
+                "A and B must be provided in order to infer structure of the generative model.",
+            ),
+        )
     end
 
     check_parameter_states(A, B, D)
@@ -42,7 +46,11 @@ function check_generative_model(
         if !isnothing(parameter)
             for val in values(parameter)
                 if any(val .< 0)
-                    throw(ArgumentError("All elements must be non-negative in parameter '$name'"))
+                    throw(
+                        ArgumentError(
+                            "All elements must be non-negative in parameter '$name'",
+                        ),
+                    )
                 end
             end
         end
@@ -52,9 +60,13 @@ function check_generative_model(
     for (name, parameter) in parameters
         if !isnothing(parameter)
             for val in values(parameter)
-                s = sum(val, dims=1)
+                s = sum(val, dims = 1)
                 if any(abs.(s .- 1) .> 1e-8)
-                    throw(ArgumentError("The parameter '$name' is not a valid probability distribution."))
+                    throw(
+                        ArgumentError(
+                            "The parameter '$name' is not a valid probability distribution.",
+                        ),
+                    )
                 end
             end
         end
@@ -63,9 +75,9 @@ end
 
 ### Check state factor consistency ###
 function check_parameter_states(
-    A::Union{Nothing, NamedTuple} = nothing,
-    B::Union{Nothing, NamedTuple} = nothing,
-    D::Union{Nothing, NamedTuple} = nothing
+    A::Union{Nothing,NamedTuple} = nothing,
+    B::Union{Nothing,NamedTuple} = nothing,
+    D::Union{Nothing,NamedTuple} = nothing,
 )
     # Extract number of states from A and B
     A_states = [collect(size(v)[2:end]) for v in values(A)]
@@ -74,7 +86,11 @@ function check_parameter_states(
     first_dims = A_states[1]
     for (i, dims) in enumerate(A_states)
         if dims != first_dims
-            throw(ArgumentError("State dimensions differ between modalities.\nModalities: $(keys(A))\nState dims: $A_states"))
+            throw(
+                ArgumentError(
+                    "State dimensions differ between modalities.\nModalities: $(keys(A))\nState dims: $A_states",
+                ),
+            )
         end
     end
 
@@ -82,46 +98,58 @@ function check_parameter_states(
 
     if isnothing(D)
         if A_states != B_states
-            throw(ArgumentError("Number of states differ in A and B.\nA_states=$A_states\nB_states=$B_states"))
+            throw(
+                ArgumentError(
+                    "Number of states differ in A and B.\nA_states=$A_states\nB_states=$B_states",
+                ),
+            )
         end
     else
         D_states = [length(v) for v in values(D)]
         if A_states[1] != B_states || B_states != D_states
-            throw(ArgumentError("Number of states differ in A, B, and D.\nA_states=$A_states\nB_states=$B_states\nD_states=$D_states"))
+            throw(
+                ArgumentError(
+                    "Number of states differ in A, B, and D.\nA_states=$A_states\nB_states=$B_states\nD_states=$D_states",
+                ),
+            )
         end
     end
 end
 
 ### Check observation modalities ###
 function check_parameter_observations(
-    A::Union{Nothing, NamedTuple} = nothing,
-    C::Union{Nothing, NamedTuple} = nothing
+    A::Union{Nothing,NamedTuple} = nothing,
+    C::Union{Nothing,NamedTuple} = nothing,
 )
     A_observations = [size(v, 1) for v in values(A)]
     C_observations = [length(v) for v in values(C)]
 
     if A_observations != C_observations
-        throw(ArgumentError("Number of observations differ in A and C.\nA=$A_observations\nC=$C_observations"))
+        throw(
+            ArgumentError(
+                "Number of observations differ in A and C.\nA=$A_observations\nC=$C_observations",
+            ),
+        )
     end
 end
 
 ### Infer missing parameters ###
 function infer_missing_parameters(
-    A::Union{Nothing, NamedTuple} = nothing,
-    B::Union{Nothing, NamedTuple} = nothing,
-    C::Union{Nothing, NamedTuple} = nothing,
-    D::Union{Nothing, NamedTuple} = nothing,
-    verbose::Bool = true
+    A::Union{Nothing,NamedTuple} = nothing,
+    B::Union{Nothing,NamedTuple} = nothing,
+    C::Union{Nothing,NamedTuple} = nothing,
+    D::Union{Nothing,NamedTuple} = nothing,
+    verbose::Bool = true,
 )
     if isnothing(C)
-        C = NamedTuple{keys(A)}( (zeros(size(v,1)) for v in values(A)) )
+        C = NamedTuple{keys(A)}((zeros(size(v, 1)) for v in values(A)))
         if verbose
             @info "No C-vector provided, no prior preferences will be used."
         end
     end
 
     if isnothing(D)
-        D = NamedTuple{keys(B)}( (fill(1.0/size(v,1), size(v,1)) for v in values(B)) )
+        D = NamedTuple{keys(B)}((fill(1.0/size(v, 1), size(v, 1)) for v in values(B)))
         if verbose
             @info "No D-vector provided, uniform priors over states will be used."
         end

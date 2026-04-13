@@ -13,7 +13,8 @@ using ActiveInference.Environments
     policy_length = 2
 
     # Generate random Generative Model 
-    A, B, C, D, E = create_matrix_templates(states, observations, controls, policy_length, "random");
+    A, B, C, D, E =
+        create_matrix_templates(states, observations, controls, policy_length, "random");
 
     # Initialize the parameters struct
     parameters = init_pomdp_aif_parameters(A = A, B = B, C = C, D = D, E = E);
@@ -22,10 +23,7 @@ using ActiveInference.Environments
     settings = init_pomdp_aif_settings(policy_length = policy_length)
 
     # Initialize agent with default settings/parameters
-    aif = init_pomdp_aif(
-        parameters = parameters, 
-        settings = settings
-    );
+    aif = init_pomdp_aif(parameters = parameters, settings = settings);
 
     # Initialize T-Maze Environment
     Env = TMazeEnv(0.8)
@@ -72,20 +70,17 @@ end
         policy_length = 1,
         use_utility = false,
         use_states_info_gain = false,
-        use_param_info_gain = false
+        use_param_info_gain = false,
     )
 
     parameters = init_pomdp_aif_parameters(A = A, B = B)
 
 
-    aif = ActiveInference.init_pomdp_aif(
-        parameters = parameters, 
-        settings = settings
-    );
+    aif = ActiveInference.init_pomdp_aif(parameters = parameters, settings = settings);
 
 
     # Initializing environment
-    start_loc = (1,1)
+    start_loc = (1, 1)
     cue1_location = (3, 1)
     cue2_loc = "L4"
     reward_cond = ("BOTTOM")
@@ -98,14 +93,14 @@ end
     obs = Int[]
     for (i, j) in enumerate(n_obs)
         observation = rand(1:j)
-        push!(obs, observation) 
+        push!(obs, observation)
     end
 
     # Set timesteps
     T = 5
 
     # Run simulation
-    for t in 1:T
+    for t = 1:T
 
         qs = infer_states!(aif, obs)
 

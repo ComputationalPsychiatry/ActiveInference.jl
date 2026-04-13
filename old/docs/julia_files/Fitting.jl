@@ -13,8 +13,8 @@ n_states=[4]#hide
 n_observations=[4]#hide
 n_controls=[2]#hide
 policy_length=1#hide
-A,B=create_matrix_templates(n_states, n_observations, n_controls, policy_length);#hide
-aif = init_aif(A, B, verbose=false);#hide
+A, B=create_matrix_templates(n_states, n_observations, n_controls, policy_length);#hide
+aif = init_aif(A, B, verbose = false);#hide
 using Distributions#hide
 priors = Dict("alpha" => Gamma(1, 1));#hide
 using DataFrames#hide 
@@ -111,7 +111,11 @@ using ActionModels#hide
 #    actions = [2, 1, 2, 2, 2, 1, 2, 2, 1] # Actions
 # )
 # ```
-data = DataFrame(subjectID = [1, 1, 1, 2, 2, 2, 3, 3, 3], observations = [1, 1, 2, 3, 1, 4, 2, 1, 3], actions = [2, 1, 2, 2, 2, 1, 2, 2, 1] )#hide
+data = DataFrame(
+    subjectID = [1, 1, 1, 2, 2, 2, 3, 3, 3],
+    observations = [1, 1, 2, 3, 1, 4, 2, 1, 3],
+    actions = [2, 1, 2, 2, 2, 1, 2, 2, 1],
+)#hide
 #
 # To instantiate the probabilistic model on our dataset, we pass the `data` DataFrame to the `create_model` function along with the names of the columns that contain the subject identifiers, observations, and actions:
 # ```julia
@@ -126,13 +130,20 @@ data = DataFrame(subjectID = [1, 1, 1, 2, 2, 2, 3, 3, 3], observations = [1, 1, 
 # )
 # ```
 agent = init_agent(action_pomdp!, substruct = aif);#hide
-multi_subject_model = create_model(agent, priors, data; grouping_cols = [:subjectID], input_cols = ["observations"], action_cols = ["actions"]);#hide
+multi_subject_model = create_model(
+    agent,
+    priors,
+    data;
+    grouping_cols = [:subjectID],
+    input_cols = ["observations"],
+    action_cols = ["actions"],
+);#hide
 
 # To fit the model, we use the `fit_model` function as before:
 # ```julia
 # results = fit_model(multi_subject_model)
 # ```
-results=fit_model(multi_subject_model, show_progress=false);#hide
+results=fit_model(multi_subject_model, show_progress = false);#hide
 # #### Customizing the Fitting Procedure
 # The `fit_model` function has several optional arguments that allow us to customize the fitting procedure. For example, you can specify the number of iterations, the number of chains, the sampling algorithm, or to parallelize over chains:
 

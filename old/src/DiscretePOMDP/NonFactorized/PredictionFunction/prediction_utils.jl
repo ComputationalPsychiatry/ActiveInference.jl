@@ -11,7 +11,7 @@
 #     for t in 1:n_steps
 #         for control_factor in 1:n_factors
 #             action = policy[t, control_factor]
-            
+
 #             qs_pi[t+1][control_factor] = B[control_factor][:, :, action] * qs_pi[t][control_factor]
 #         end
 #     end
@@ -31,13 +31,13 @@
 
 # """
 # function get_states_prediction(qs::Vector{Vector{Float64}}, B, policy::Vector{Matrix{Int64}})
-    
+
 #     # Extracting the number of steps (policy_length) and factors from the first policy
 #     n_steps, n_factors = size(policy[1])
 
 #     # Number of policies
 #     n_policies = length(policy)
-    
+
 #     # Preparing vessel for the expected states for all policies. Has number of undefined entries equal to the
 #     # number of policies
 #     qs_pi_all = Vector{Vector{Vector{Vector{Float64}}}}(undef, n_policies)
@@ -52,7 +52,7 @@
 #         for t in 1:n_steps
 #             for control_factor in 1:n_factors
 #                 action = policy_x[t, control_factor]
-                
+
 #                 qs_pi[t+1][control_factor] = B[control_factor][:, :, action] * qs_pi[t][control_factor]
 #             end
 #         end
@@ -85,7 +85,7 @@
 # function get_expected_obs(qs_pi::Vector{Vector{Vector{Vector{Float64}}}}, A::Vector{Array{T,N}} where {T <: Real, N})
 #     n_policies = length(qs_pi)
 #     n_steps = length(qs_pi[1])
-    
+
 #     # Predefined vector to store results for all policies
 #     qo_pi_all = Vector{Vector{Vector{Vector{Float64}}}}(undef, n_policies)
 
@@ -103,7 +103,7 @@
 #                 qo_pi[t][modality] = dot_product(A_m, qs_pi[policy_idx][t])
 #             end
 #         end
-        
+
 #         qo_pi_all[policy_idx] = qo_pi
 #     end
 

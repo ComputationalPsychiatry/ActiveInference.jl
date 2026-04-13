@@ -5,7 +5,7 @@ using ActiveInference: AIFModel
 function ActionModels.set_parameters!(
     model::AIFModel,
     target_param::Symbol,
-    param_value::Any
+    param_value::Any,
 )
     @show target_param
     @show param_value

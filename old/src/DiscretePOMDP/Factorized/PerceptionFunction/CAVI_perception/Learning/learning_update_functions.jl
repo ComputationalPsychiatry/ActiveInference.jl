@@ -1,9 +1,9 @@
 """ Update the model's beliefs over states and observations """
 function update_parameters(
-    model::AIFModel, 
+    model::AIFModel,
     current_observation::Vector{Int},
     posterior_states::Vector{Vector{Float64}},
-    previous_action::Union{Nothing, Vector{Int}} = nothing
+    previous_action::Union{Nothing,Vector{Int}} = nothing,
 )
 
     if model.perceptual_process.info.A_learning_enabled == true
@@ -27,47 +27,58 @@ function update_parameters(
         qD = nothing
     end
 
-    return (A_updated = A_updated, qA = qA, B_updated = B_updated, qB = qB, D_updated = D_updated, qD = qD)
+    return (
+        A_updated = A_updated,
+        qA = qA,
+        B_updated = B_updated,
+        qB = qB,
+        D_updated = D_updated,
+        qD = qD,
+    )
 end
 
 """ Update A-matrix """
 function update_A(
-    model::AIFModel, 
-    current_observation::Vector{Int}, 
-    posterior_states::Vector{Vector{Float64}}
+    model::AIFModel,
+    current_observation::Vector{Int},
+    posterior_states::Vector{Vector{Float64}},
 )
 
     qA = update_obs_likelihood_dirichlet(
-        model.perceptual_process.A_learning.prior, 
-        model.generative_model.A, 
-        current_observation, 
-        posterior_states, 
-        model.perceptual_process.A_learning.learning_rate, 
-        model.perceptual_process.A_learning.forgetting_rate, 
-        model.perceptual_process.A_learning.modalities_to_learn
+        model.perceptual_process.A_learning.prior,
+        model.generative_model.A,
+        current_observation,
+        posterior_states,
+        model.perceptual_process.A_learning.learning_rate,
+        model.perceptual_process.A_learning.forgetting_rate,
+        model.perceptual_process.A_learning.modalities_to_learn,
     )
-    
+
     qA = deepcopy(qA)
     A_updated = normalize_arrays(deepcopy(qA))
-    
+
     return A_updated, qA
 end
 
 """ Update B-matrix """
-function update_B(model::AIFModel, posterior_states::Vector{Vector{Float64}}, previous_action::Union{Nothing, Vector{Int}})
+function update_B(
+    model::AIFModel,
+    posterior_states::Vector{Vector{Float64}},
+    previous_action::Union{Nothing,Vector{Int}},
+)
 
     # only update B if a previous posterior state exists or is not nothing
     if !isnothing(model.perceptual_process.posterior_states)
 
         qB = update_state_likelihood_dirichlet(
-            model.perceptual_process.B_learning.prior, 
-            model.generative_model.B, 
-            previous_action, 
-            posterior_states, 
-            model.perceptual_process.posterior_states, 
-            model.perceptual_process.B_learning.learning_rate, 
-            model.perceptual_process.B_learning.forgetting_rate, 
-            model.perceptual_process.B_learning.factors_to_learn
+            model.perceptual_process.B_learning.prior,
+            model.generative_model.B,
+            previous_action,
+            posterior_states,
+            model.perceptual_process.posterior_states,
+            model.perceptual_process.B_learning.learning_rate,
+            model.perceptual_process.B_learning.forgetting_rate,
+            model.perceptual_process.B_learning.factors_to_learn,
         )
 
         qB = deepcopy(qB)
@@ -87,11 +98,11 @@ function update_D(model::AIFModel, posterior_states::Vector{Vector{Float64}})
     if isnothing(model.perceptual_process.posterior_states)
 
         qD = update_state_prior_dirichlet(
-            model.perceptual_process.D_learning.prior, 
-            posterior_states, 
-            model.perceptual_process.D_learning.learning_rate, 
-            model.perceptual_process.D_learning.forgetting_rate, 
-            model.perceptual_process.D_learning.factors_to_learn
+            model.perceptual_process.D_learning.prior,
+            posterior_states,
+            model.perceptual_process.D_learning.learning_rate,
+            model.perceptual_process.D_learning.forgetting_rate,
+            model.perceptual_process.D_learning.factors_to_learn,
         )
 
         qD = deepcopy(qD)
@@ -118,7 +129,7 @@ function update_obs_likelihood_dirichlet(pA, A, obs, qs, lr, fr, modalities)
 
     # Extracting the number of modalities and observations from the dirichlet: pA
     num_modalities = length(pA)
-    num_observations = [size(pA[modality + 1], 1) for modality in 0:(num_modalities - 1)]
+    num_observations = [size(pA[modality+1], 1) for modality = 0:(num_modalities-1)]
 
     obs = process_observation(obs, num_modalities, num_observations)
 
@@ -142,7 +153,16 @@ function update_obs_likelihood_dirichlet(pA, A, obs, qs, lr, fr, modalities)
 end
 
 """ Update state likelihood matrix """
-function update_state_likelihood_dirichlet(pB, B, actions, qs::Vector{Vector{T}} where T <: Real, qs_prev, lr, fr, factors)
+function update_state_likelihood_dirichlet(
+    pB,
+    B,
+    actions,
+    qs::Vector{Vector{T}} where {T<:Real},
+    qs_prev,
+    lr,
+    fr,
+    factors,
+)
 
     if ReverseDiff.istracked(lr)
         lr = ReverseDiff.value(lr)
@@ -162,15 +182,22 @@ function update_state_likelihood_dirichlet(pB, B, actions, qs::Vector{Vector{T}}
 
     for factor in factors
         dfdb = outer_product(qs[factor], qs_prev[factor])
-        dfdb .*= (B[factor][:,:,Int(actions[factor])] .> 0)
-        qB[factor][:,:,Int(actions[factor])] = qB[factor][:,:,Int(actions[factor])]*fr .+ (lr .* dfdb)
+        dfdb .*= (B[factor][:, :, Int(actions[factor])] .> 0)
+        qB[factor][:, :, Int(actions[factor])] =
+            qB[factor][:, :, Int(actions[factor])]*fr .+ (lr .* dfdb)
     end
 
     return qB
 end
 
 """ Update prior D matrix """
-function update_state_prior_dirichlet(pD, qs::Vector{Vector{T}} where T <: Real, lr, fr, factors)
+function update_state_prior_dirichlet(
+    pD,
+    qs::Vector{Vector{T}} where {T<:Real},
+    lr,
+    fr,
+    factors,
+)
 
     num_factors = length(pD)
 
@@ -184,7 +211,7 @@ function update_state_prior_dirichlet(pD, qs::Vector{Vector{T}} where T <: Real,
     for factor in factors
         idx = pD[factor] .> 0
         qD[factor][idx] = (fr * qD[factor][idx]) .+ (lr * qs[factor][idx])
-    end  
-    
+    end
+
     return qD
 end

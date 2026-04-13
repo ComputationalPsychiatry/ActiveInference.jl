@@ -36,26 +36,30 @@ abstract type AbstractActionProcess end
 
 #NOTE: when making this agent, make the prior be defined by D in the generative model as part of the initialization function
 struct AIFModel{
-    GM <: AbstractGenerativeModel,
-    PP <: AbstractPerceptualProcess,
-    AP <: AbstractActionProcess
+    GM<:AbstractGenerativeModel,
+    PP<:AbstractPerceptualProcess,
+    AP<:AbstractActionProcess,
 } <: ActionModels.AbstractSubmodelAttributes
-    
+
     ## Generative Model
     generative_model::GM
 
     ## Perceptual process
     perceptual_process::PP
-    
+
     ## Action process 
     action_process::AP
 
 end
 
 function AIFModel(
-    generative_model::AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType},
+    generative_model::AbstractGenerativeModel{
+        AbstractActionType,
+        AbstractObservationType,
+        AbstractStateType,
+    },
     perceptual_process::AbstractPerceptualProcess,
-    action_process::AbstractActionProcess
+    action_process::AbstractActionProcess,
 )
 
     @error "Please create a constructor for AIFModel that utilizes concrete types.
@@ -66,16 +70,32 @@ function AIFModel(
 end
 
 function perception(
-    model::AIFModel{AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType}, AbstractPerceptualProcess, AbstractActionProcess},
-    observation::Vector{Real}
-) 
+    model::AIFModel{
+        AbstractGenerativeModel{
+            AbstractActionType,
+            AbstractObservationType,
+            AbstractStateType,
+        },
+        AbstractPerceptualProcess,
+        AbstractActionProcess,
+    },
+    observation::Vector{Real},
+)
     @error "Please create a perception function utilizing concrete type.
             The current model is: $(typeof(model))"
 
 end
 
 function policy_predictions(
-    model::AIFModel{AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType}, AbstractPerceptualProcess, AbstractActionProcess}
+    model::AIFModel{
+        AbstractGenerativeModel{
+            AbstractActionType,
+            AbstractObservationType,
+            AbstractStateType,
+        },
+        AbstractPerceptualProcess,
+        AbstractActionProcess,
+    },
 )
 
     @error "Please create a policy_predictions function utilizing concrete type.
@@ -84,7 +104,15 @@ function policy_predictions(
 end
 
 function planning(
-    model::AIFModel{AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType}, AbstractPerceptualProcess, AbstractActionProcess}
+    model::AIFModel{
+        AbstractGenerativeModel{
+            AbstractActionType,
+            AbstractObservationType,
+            AbstractStateType,
+        },
+        AbstractPerceptualProcess,
+        AbstractActionProcess,
+    },
 )
 
     @error "Please create an action function utilizing concrete type.
@@ -93,8 +121,16 @@ function planning(
 end
 
 function selection(
-    model::AIFModel{AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType}, AbstractPerceptualProcess, AbstractActionProcess},
-    selection_type::Union{Val{:stochastic}, Val{:deterministic}} = Val(:stochastic)
+    model::AIFModel{
+        AbstractGenerativeModel{
+            AbstractActionType,
+            AbstractObservationType,
+            AbstractStateType,
+        },
+        AbstractPerceptualProcess,
+        AbstractActionProcess,
+    },
+    selection_type::Union{Val{:stochastic},Val{:deterministic}} = Val(:stochastic),
 )
 
     @error "Please create an action function utilizing concrete type.
@@ -103,7 +139,15 @@ function selection(
 end
 
 function store_beliefs!(
-    model::AIFModel{AbstractGenerativeModel{AbstractActionType, AbstractObservationType, AbstractStateType}, AbstractPerceptualProcess, AbstractActionProcess}
+    model::AIFModel{
+        AbstractGenerativeModel{
+            AbstractActionType,
+            AbstractObservationType,
+            AbstractStateType,
+        },
+        AbstractPerceptualProcess,
+        AbstractActionProcess,
+    },
 )
 
     @error "Please create a store_beliefs! function utilizing concrete type.
@@ -112,7 +156,11 @@ function store_beliefs!(
 end
 
 
-function active_inference(model::T, observation::Vector{Int64}, previous_action::Union{Nothing, Vector{Int64}}) where T <: AIFModel
+function active_inference(
+    model::T,
+    observation::Vector{Int64},
+    previous_action::Union{Nothing,Vector{Int64}},
+) where {T<:AIFModel}
 
     # Perform perception process
     inference_posterior = perception(model, observation, previous_action)
@@ -124,7 +172,14 @@ function active_inference(model::T, observation::Vector{Int64}, previous_action:
     action_posterior = selection(model, policy_posterior)
 
     # Store beliefs
-    store_beliefs!(model, action_posterior, policy_posterior, inference_posterior, previous_action, observation)
+    store_beliefs!(
+        model,
+        action_posterior,
+        policy_posterior,
+        inference_posterior,
+        previous_action,
+        observation,
+    )
 
     return action_posterior
 end

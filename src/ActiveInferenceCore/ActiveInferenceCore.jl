@@ -5,8 +5,8 @@
 """
 module ActiveInferenceCore
 
-    include("core_types.jl")
+include("core_types.jl")
 
-    export active_inference!
+export active_inference!
 
 end

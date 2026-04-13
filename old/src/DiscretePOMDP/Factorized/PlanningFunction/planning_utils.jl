@@ -1,18 +1,18 @@
 """ Update Posterior over Policies """
 function update_posterior_policies(;
-    qs::Vector{Vector{T}} where T <: Real,
-    A::Vector{Array{T, N}} where {T <: Real, N},
-    C::Vector{Vector{T}} where T <: Real,
+    qs::Vector{Vector{T}} where {T<:Real},
+    A::Vector{Array{T,N}} where {T<:Real,N},
+    C::Vector{Vector{T}} where {T<:Real},
     qs_pi_all::Vector{Vector{Vector{Vector{Float64}}}},
     qo_pi_all::Vector{Vector{Vector{Vector{Float64}}}},
     policies::Vector{Matrix{Int64}},
-    use_utility::Bool=true,
-    use_states_info_gain::Bool=true,
-    use_param_info_gain::Bool=false,
+    use_utility::Bool = true,
+    use_states_info_gain::Bool = true,
+    use_param_info_gain::Bool = false,
     A_learning = nothing,
     B_learning = nothing,
-    E::Vector{T} where T <: Real = nothing,
-    gamma::Real=16.0
+    E::Vector{T} where {T<:Real} = nothing,
+    gamma::Real = 16.0,
 )
     n_policies = length(policies)
     G = zeros(n_policies)
@@ -31,7 +31,7 @@ function update_posterior_policies(;
             if ReverseDiff.istracked(calc_expected_utility(qo_pi, C))
                 G[idx] += ReverseDiff.value(calc_expected_utility(qo_pi, C))
 
-            # Otherwise calculate the expected utility and add it to the G vector
+                # Otherwise calculate the expected utility and add it to the G vector
             else
                 G[idx] += calc_expected_utility(qo_pi, C)
             end
@@ -43,7 +43,7 @@ function update_posterior_policies(;
             if ReverseDiff.istracked(calc_states_info_gain(A, qs_pi))
                 G[idx] += ReverseDiff.value(calc_states_info_gain(A, qs_pi))
 
-            # Otherwise calculate it and add it to the G vector
+                # Otherwise calculate it and add it to the G vector
             else
                 G[idx] += calc_states_info_gain(A, qs_pi)
             end
@@ -55,8 +55,9 @@ function update_posterior_policies(;
 
                 # if ReverseDiff is tracking pA information gain, get the value
                 if ReverseDiff.istracked(calc_pA_info_gain(A_learning.prior, qo_pi, qs_pi))
-                    G[idx] += ReverseDiff.value(calc_pA_info_gain(A_learning.prior, qo_pi, qs_pi))
-                # Otherwise calculate it and add it to the G vector
+                    G[idx] +=
+                        ReverseDiff.value(calc_pA_info_gain(A_learning.prior, qo_pi, qs_pi))
+                    # Otherwise calculate it and add it to the G vector
                 else
                     G[idx] += calc_pA_info_gain(A_learning.prior, qo_pi, qs_pi)
                 end
@@ -68,8 +69,8 @@ function update_posterior_policies(;
         end
 
     end
-    
-    q_pi = softmax(G * gamma + lnE, dims=1)
+
+    q_pi = softmax(G * gamma + lnE, dims = 1)
 
     return q_pi, G
 end
@@ -80,11 +81,12 @@ function calc_expected_utility(qo_pi, C)
     expected_utility = 0.0
     num_modalities = length(C)
 
-    modalities_to_tile = [modality_i for modality_i in 1:num_modalities if ndims(C[modality_i]) == 1]
+    modalities_to_tile =
+        [modality_i for modality_i = 1:num_modalities if ndims(C[modality_i]) == 1]
 
     C_tiled = Vector{Matrix{Float64}}(undef, num_modalities)
 
-    for modality in 1:num_modalities
+    for modality = 1:num_modalities
         modality_data = reshape(C[modality], :, 1)
         if modality in modalities_to_tile
             C_tiled[modality] = repeat(modality_data, 1, n_steps)
@@ -92,13 +94,13 @@ function calc_expected_utility(qo_pi, C)
             C_tiled[modality] = modality_data
         end
     end
-    
+
     C_prob = softmax_array(C_tiled)
-    lnC =[]
-    for t in 1:n_steps
-        for modality in 1:num_modalities
+    lnC = []
+    for t = 1:n_steps
+        for modality = 1:num_modalities
             lnC = capped_log(C_prob[modality][:, t])
-            expected_utility += dot(qo_pi[t][modality], lnC) 
+            expected_utility += dot(qo_pi[t][modality], lnC)
         end
     end
 
@@ -110,7 +112,7 @@ function calc_states_info_gain(A, qs_pi)
     n_steps = length(qs_pi)
     states_surprise = 0.0
 
-    for t in 1:n_steps
+    for t = 1:n_steps
         states_surprise += calculate_bayesian_surprise(A, qs_pi[t])
     end
 
@@ -130,10 +132,10 @@ function calc_pA_info_gain(pA, qo_pi, qs_pi)
 
     pA_info_gain = 0
 
-    for modality in 1:num_modalities
+    for modality = 1:num_modalities
         wA_modality = wA[modality] .* (pA[modality] .> 0)
 
-        for t in 1:n_steps
+        for t = 1:n_steps
             pA_info_gain -= dot(qo_pi[t][modality], dot_product(wA_modality, qs_pi[t]))
         end
     end
@@ -152,7 +154,7 @@ function calc_pB_info_gain(pB, qs_pi, qs_prev, policy)
 
     pB_info_gain = 0
 
-    for t in 1:n_steps
+    for t = 1:n_steps
         if t == 1
             previous_qs = qs_prev
         else
@@ -162,7 +164,7 @@ function calc_pB_info_gain(pB, qs_pi, qs_prev, policy)
         policy_t = policy[t, :]
 
         for (factor, a_i) in enumerate(policy_t)
-            wB_factor_t = wB[factor][:,:,Int(a_i)] .* (pB[factor][:,:,Int(a_i)] .> 0)
+            wB_factor_t = wB[factor][:, :, Int(a_i)] .* (pB[factor][:, :, Int(a_i)] .> 0)
             pB_info_gain -= dot(qs_pi[t][factor], wB_factor_t * previous_qs[factor])
         end
     end

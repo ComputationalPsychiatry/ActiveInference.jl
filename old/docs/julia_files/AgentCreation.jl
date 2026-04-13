@@ -68,16 +68,16 @@
 # ## Initilising the Agent
 
 include("../julia_files/GenerativeModelCreation.jl") #hide
-A, B, C, D, E = create_matrix_templates([4,2], [4,3,2], [4,1], 1, "uniform"); #hide
+A, B, C, D, E = create_matrix_templates([4, 2], [4, 3, 2], [4, 1], 1, "uniform"); #hide
 parameters = Dict( #hide
-"gamma" => 16.0, #hide
-"alpha" => 16.0, #hide
-"lr_pA" => 1.0, #hide
-"fr_pA" => 1.0, #hide
-"lr_pB" => 1.0, #hide
-"fr_pB" => 1.0, #hide
-"lr_pD" => 1.0, #hide
-"fr_pD" => 1.0 #hide
+    "gamma" => 16.0, #hide
+    "alpha" => 16.0, #hide
+    "lr_pA" => 1.0, #hide
+    "fr_pA" => 1.0, #hide
+    "lr_pB" => 1.0, #hide
+    "fr_pB" => 1.0, #hide
+    "lr_pD" => 1.0, #hide
+    "fr_pD" => 1.0, #hide
 ); #hide
 settings = Dict( #hide
     "policy_len" => 1, #hide 
@@ -88,10 +88,17 @@ settings = Dict( #hide
     "modalities_to_learn" => "all", #hide
     "factors_to_learn" => "all", #hide
     "FPI_num_iter" => 10, #hide
-    "FPI_dF_tol" => 0.001 #hide
+    "FPI_dF_tol" => 0.001, #hide
 ); #hide
 aif_agent = init_aif(
-    A, B, C = C, D = D, E = E, settings = settings, parameters = parameters, verbose = false
+    A,
+    B,
+    C = C,
+    D = D,
+    E = E,
+    settings = settings,
+    parameters = parameters,
+    verbose = false,
 );
 
 

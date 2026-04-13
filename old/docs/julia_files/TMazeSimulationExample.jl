@@ -291,6 +291,3 @@ A[1]
 #     obs = step_TMaze!(Env, chosen_action)
 # end
 # ```
-
-
-

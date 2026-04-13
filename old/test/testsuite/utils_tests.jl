@@ -24,20 +24,19 @@ using Test
     settings = init_pomdp_aif_settings()
 
     # Initialize agent with default settings/parameters
-    aif = init_pomdp_aif(
-        parameters = parameters, 
-        settings = settings
-    );
+    aif = init_pomdp_aif(parameters = parameters, settings = settings);
 
     # Set Parameters as dictionary
-    params=Dict("lr_pA" => 1.0,
-                "fr_pA" => 1.0,
-                "lr_pB" => 1.0,
-                "lr_pD" => 1.0,
-                "alpha" => 1.0,
-                "gamma" => 1.0,
-                "fr_pB" => 1.0,
-                "fr_pD" => 1.0)
+    params=Dict(
+        "lr_pA" => 1.0,
+        "fr_pA" => 1.0,
+        "lr_pB" => 1.0,
+        "lr_pD" => 1.0,
+        "alpha" => 1.0,
+        "gamma" => 1.0,
+        "fr_pB" => 1.0,
+        "fr_pD" => 1.0,
+    )
 
     set_parameters!(aif, params)
 
@@ -49,8 +48,8 @@ using Test
     # Test get_history
     set_save_history!(aif, true)
     get_history(aif)
-    get_history(aif,"action")
-    get_history(aif,["action", "prior"])
+    get_history(aif, "action")
+    get_history(aif, ["action", "prior"])
 
 
     # Give individual parameters
@@ -87,10 +86,7 @@ end
     settings = init_pomdp_aif_settings()
 
     # Initialize agent with default settings/parameters
-    aif = init_pomdp_aif(
-        parameters = parameters, 
-        settings = settings
-    );
+    aif = init_pomdp_aif(parameters = parameters, settings = settings);
 
     observation = [rand(1:observations[i]) for i in axes(observations, 1)]
 
@@ -104,9 +100,9 @@ end
 @testset "ActionModels Agent and Multiple Factors" begin
 
     # Initializse States, Observations, and Controls
-    states = [25,2]
-    observations = [25,2]
-    controls = [5,1]
+    states = [25, 2]
+    observations = [25, 2]
+    controls = [5, 1]
     policy_length = 1
 
     # Generate random Generative Model 
@@ -119,10 +115,7 @@ end
     settings = init_pomdp_aif_settings()
 
     # Initialize agent with default settings/parameters
-    aif = init_pomdp_aif(
-        parameters = parameters, 
-        settings = settings
-    );
+    aif = init_pomdp_aif(parameters = parameters, settings = settings);
 
     observation = [rand(1:observations[i]) for i in axes(observations, 1)]
 
@@ -131,17 +124,16 @@ end
     reset!(aif)
 
     agent = init_agent(
-    action_pomdp!,
-    substruct = aif,
-    settings = get_settings(aif),
-    parameters = get_parameters(aif)
+        action_pomdp!,
+        substruct = aif,
+        settings = get_settings(aif),
+        parameters = get_parameters(aif),
     )
 
-    inputs = [[25,1],[24,1]]
+    inputs = [[25, 1], [24, 1]]
     give_inputs!(agent, inputs)
     reset!(agent)
 
     action_pomdp!(agent, observation)
 
 end
-

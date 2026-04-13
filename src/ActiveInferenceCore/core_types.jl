@@ -122,43 +122,37 @@ abstract type AbstractInferenceActions end
     This struct encapsulates the generative model and the processes for perception and action selection in active inference.
 """
 struct AIFModel{
-    T_generative_model <: AbstractGenerativeModel,
-    T_inference_environment <: AbstractInferenceEnvironment,
-    T_inference_actions <: AbstractInferenceActions
+    T_generative_model<:AbstractGenerativeModel,
+    T_inference_environment<:AbstractInferenceEnvironment,
+    T_inference_actions<:AbstractInferenceActions,
 }
-    
+
     generative_model::T_generative_model
 
     inference_environment::T_inference_environment
-    
+
     inference_actions::T_inference_actions
 
 end
 
 #Error constructor for abstract types
-function AIFModel(
-    generative_model,
-    inference_environment,
-    inference_actions
-)
-    throw(ArgumentError(
-        """
-        Invalid AIFModel construction. 
-        
-        Expected:
-        <: AbstractGenerativeModel
-        <: AbstractInferenceEnvironment
-        <: AbstractInferenceActions
-        
-        Received:
-        - $(typeof(generative_model))
-        - $(typeof(inference_environment))
-        - $(typeof(inference_actions))
-        
-        Ensure you are passing concrete instances of the required schemes.
-        """
-    ))
-    
+function AIFModel(generative_model, inference_environment, inference_actions)
+    throw(ArgumentError("""
+                        Invalid AIFModel construction. 
+
+                        Expected:
+                        <: AbstractGenerativeModel
+                        <: AbstractInferenceEnvironment
+                        <: AbstractInferenceActions
+
+                        Received:
+                        - $(typeof(generative_model))
+                        - $(typeof(inference_environment))
+                        - $(typeof(inference_actions))
+
+                        Ensure you are passing concrete instances of the required schemes.
+                        """))
+
 end
 
 """
@@ -175,24 +169,22 @@ end
     Returns:
     - Updated beliefs about the environment based on the provided observation and the model's generative structure.
 """
-function infer_environment(
-    model::AIFModel,
-    observation,
-    previous_action
-)
-    throw(ArgumentError(
-        """
-        No implementation found for `infer_environment` with the provided model components.
+function infer_environment(model::AIFModel, observation, previous_action)
+    throw(
+        ArgumentError(
+            """
+            No implementation found for `infer_environment` with the provided model components.
 
-        Model Details:
-        $(typeof(model.generative_model))
-        $(typeof(model.inference_environment))
-        $(typeof(model.inference_actions))
+            Model Details:
+            $(typeof(model.generative_model))
+            $(typeof(model.inference_environment))
+            $(typeof(model.inference_actions))
 
-        Observation Type:  $(typeof(observation))
-        Previous action type: $(typeof(previous_action))
-        """
-    ))
+            Observation Type:  $(typeof(observation))
+            Previous action type: $(typeof(previous_action))
+            """,
+        ),
+    )
 end
 
 
@@ -208,22 +200,21 @@ Placeholder function for inferring the next action in an active inference model.
 # Returns
 - A posterior distribution over the next action.
 """
-function infer_actions(
-    model::AIFModel,
-    environment_posterior
-)
-    throw(ArgumentError(
-        """
-        No implementation found for `infer_actions` with the provided model components.
+function infer_actions(model::AIFModel, environment_posterior)
+    throw(
+        ArgumentError(
+            """
+            No implementation found for `infer_actions` with the provided model components.
 
-        Model details:
-        $(typeof(model.generative_model))
-        $(typeof(model.inference_environment))
-        $(typeof(model.inference_actions))
+            Model details:
+            $(typeof(model.generative_model))
+            $(typeof(model.inference_environment))
+            $(typeof(model.inference_actions))
 
-        - Environment posterior type:    $(typeof(environment_posterior))
-        """
-    ))
+            - Environment posterior type:    $(typeof(environment_posterior))
+            """,
+        ),
+    )
 
 end
 
@@ -246,27 +237,29 @@ Stores new values in the active inference model for use on later timesteps.
 function set_variables!(
     model::AIFModel,
     observation,
-    previous_action, 
-    environment_posterior, 
-    action_posterior
+    previous_action,
+    environment_posterior,
+    action_posterior,
 )
-    throw(ArgumentError(
-        """
-        No implementation found for `set_variables!` with the provided model components.
+    throw(
+        ArgumentError(
+            """
+            No implementation found for `set_variables!` with the provided model components.
 
 
-        Model Details:
-        $(typeof(model.generative_model))
-        $(typeof(model.inference_environment))
-        $(typeof(model.inference_actions))
-        
-        Data Types Received:
-        - Observation: $(typeof(observation))
-        - Previous action:      $(typeof(previous_action))
-        - Environment posterior: $(typeof(environment_posterior))
-        - Action posterior: $(typeof(action_posterior))
-        """
-    ))
+            Model Details:
+            $(typeof(model.generative_model))
+            $(typeof(model.inference_environment))
+            $(typeof(model.inference_actions))
+
+            Data Types Received:
+            - Observation: $(typeof(observation))
+            - Previous action:      $(typeof(previous_action))
+            - Environment posterior: $(typeof(environment_posterior))
+            - Action posterior: $(typeof(action_posterior))
+            """,
+        ),
+    )
 
 end
 
@@ -285,7 +278,7 @@ end
     - The posterior distribution over actions resulting from the active inference process.
 
 """
-function active_inference!(model::T, observation, previous_action) where T <: AIFModel
+function active_inference!(model::AIFModel, observation, previous_action)
 
     # Update beliefs about the environment
     environment_posterior = infer_environment(model, observation, previous_action)
@@ -294,7 +287,13 @@ function active_inference!(model::T, observation, previous_action) where T <: AI
     action_posterior = infer_actions(model, environment_posterior)
 
     # Store variables
-    set_variables!(model, observation, previous_action, environment_posterior, action_posterior)
+    set_variables!(
+        model,
+        observation,
+        previous_action,
+        environment_posterior,
+        action_posterior,
+    )
 
     # Return the action posterior 
     return action_posterior

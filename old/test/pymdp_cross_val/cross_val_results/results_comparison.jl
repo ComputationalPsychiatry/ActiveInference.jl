@@ -12,52 +12,52 @@ file_path_res = "ActiveInference.jl/test/pymdp_cross_val/cross_val_results/compl
 #--------------- Loading the complete_run_julia result ----------------
 # Loading the julia A matrix
 A_julia = array_of_any(4)
-for i in 1:4
+for i = 1:4
     A_julia[i] = h5read(file_path_res, "julia_A_cross_$i")
 end
 
 # Loading the julia B matrix
 B_julia = array_of_any(3)
-for i in 1:3
+for i = 1:3
     B_julia[i] = h5read(file_path_res, "julia_B_cross_$i")
 end
 
 # Loading the julia D matrix
 D_julia = array_of_any(3)
-for i in 1:3
+for i = 1:3
     D_julia[i] = h5read(file_path_res, "julia_D_cross_$i")
 end
 
 # Loading the julia final posterior over states
 qs_julia = array_of_any(3)
-for i in 1:3
+for i = 1:3
     qs_julia[i] = h5read(file_path_res, "julia_qs_$i")
 end
 
 #--------------- Loading the complete_run_python result ----------------
 # Loading the python A matrix
 A_python = array_of_any(4)
-for i in 1:4
+for i = 1:4
     A_python[i] = h5read(file_path_res, "python_A_cross_$i")
     A_python[i] = permutedims(A_python[i], [4, 3, 2, 1])
 end
 
 # Loading the python B matrix
 B_python = array_of_any(3)
-for i in 1:3
+for i = 1:3
     B_python[i] = h5read(file_path_res, "python_B_cross_$i")
     B_python[i] = permutedims(B_python[i], [3, 2, 1])
 end
 
 # Loading the python D matrix
 D_python = array_of_any(3)
-for i in 1:3
+for i = 1:3
     D_python[i] = h5read(file_path_res, "python_D_cross_$i")
 end
 
 # Loading the python final posterior over states
 qs_python = array_of_any(3)
-for i in 1:3
+for i = 1:3
     qs_python[i] = h5read(file_path_res, "python_qs_$i")
 end
 
@@ -66,7 +66,7 @@ end
 ############################################################
 #------------------ Defining decimal place of agreement function ------------------
 function round_arrays(arrays, digits)
-    [round.(array, digits=digits) for array in arrays]
+    [round.(array, digits = digits) for array in arrays]
 end
 
 # Rounding to check A
@@ -118,8 +118,11 @@ is_qs_equal = isequal(qs_julia, qs_python)
 results_df = DataFrame(
     parameter = ["A", "B", "D", "qs"],
     equivalence = [is_A_equal, is_B_equal, is_D_equal, is_qs_equal],
-    to_decimal_place = [round_n_A, round_n_B, round_n_D, round_n_qs]
+    to_decimal_place = [round_n_A, round_n_B, round_n_D, round_n_qs],
 )
 
 #------------------ Saving the results ------------------
-CSV.write("ActiveInference.jl/test/pymdp_cross_val/cross_val_results/results_comparison.csv", results_df)
+CSV.write(
+    "ActiveInference.jl/test/pymdp_cross_val/cross_val_results/results_comparison.csv",
+    results_df,
+)

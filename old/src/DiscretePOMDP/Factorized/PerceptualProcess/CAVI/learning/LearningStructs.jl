@@ -11,24 +11,37 @@ mutable struct Learn_A
 
     learning_rate::Float64
     forgetting_rate::Float64
-    concentration_parameter::Union{Float64, Nothing}
-    prior::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N}
+    concentration_parameter::Union{Float64,Nothing}
+    prior::Union{Vector{Array{T,N}},Nothing} where {T<:Real,N}
     modalities_to_learn::Vector{Int}
     struct_name::String
 
     function Learn_A(;
         learning_rate::Float64 = 1.0,
         forgetting_rate::Float64 = 1.0,
-        concentration_parameter::Union{Float64, Nothing} = nothing,
-        prior::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} = nothing,
-        modalities_to_learn::Vector{Int} = Int[]
+        concentration_parameter::Union{Float64,Nothing} = nothing,
+        prior::Union{Vector{Array{T,N}},Nothing} where {T<:Real,N} = nothing,
+        modalities_to_learn::Vector{Int} = Int[],
     )
 
         struct_name = "Learn_A"
         # Validate learning rate and forgetting rate
-        check_learning_structs(learning_rate, forgetting_rate, concentration_parameter, prior, struct_name)
+        check_learning_structs(
+            learning_rate,
+            forgetting_rate,
+            concentration_parameter,
+            prior,
+            struct_name,
+        )
 
-        return new(learning_rate, forgetting_rate, concentration_parameter, prior, modalities_to_learn, struct_name)
+        return new(
+            learning_rate,
+            forgetting_rate,
+            concentration_parameter,
+            prior,
+            modalities_to_learn,
+            struct_name,
+        )
     end
 
 end
@@ -37,23 +50,36 @@ mutable struct Learn_B
 
     learning_rate::Float64
     forgetting_rate::Float64
-    concentration_parameter::Union{Float64, Nothing}
-    prior::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N}
+    concentration_parameter::Union{Float64,Nothing}
+    prior::Union{Vector{Array{T,N}},Nothing} where {T<:Real,N}
     factors_to_learn::Vector{Int}
     struct_name::String
 
     function Learn_B(;
         learning_rate::Float64 = 1.0,
         forgetting_rate::Float64 = 1.0,
-        concentration_parameter::Union{Float64, Nothing} = nothing,
-        prior::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} = nothing,
-        factors_to_learn::Vector{Int} = Int[]
+        concentration_parameter::Union{Float64,Nothing} = nothing,
+        prior::Union{Vector{Array{T,N}},Nothing} where {T<:Real,N} = nothing,
+        factors_to_learn::Vector{Int} = Int[],
     )
         struct_name = "Learn_B"
         # Validate learning rate and forgetting rate
-        check_learning_structs(learning_rate, forgetting_rate, concentration_parameter, prior, struct_name)
+        check_learning_structs(
+            learning_rate,
+            forgetting_rate,
+            concentration_parameter,
+            prior,
+            struct_name,
+        )
 
-        return new(learning_rate, forgetting_rate, concentration_parameter, prior, factors_to_learn, struct_name)
+        return new(
+            learning_rate,
+            forgetting_rate,
+            concentration_parameter,
+            prior,
+            factors_to_learn,
+            struct_name,
+        )
     end
 
 end
@@ -62,23 +88,36 @@ mutable struct Learn_D
 
     learning_rate::Float64
     forgetting_rate::Float64
-    concentration_parameter::Union{Float64, Nothing}
-    prior::Union{Vector{Vector{T}}, Nothing} where {T <: Real}
+    concentration_parameter::Union{Float64,Nothing}
+    prior::Union{Vector{Vector{T}},Nothing} where {T<:Real}
     factors_to_learn::Vector{Int}
     struct_name::String
 
     function Learn_D(;
         learning_rate::Float64 = 1.0,
         forgetting_rate::Float64 = 1.0,
-        concentration_parameter::Union{Float64, Nothing} = nothing,
-        prior::Union{Vector{Vector{T}}, Nothing} where {T <: Real} = nothing,
-        factors_to_learn::Vector{Int} = Int[]
+        concentration_parameter::Union{Float64,Nothing} = nothing,
+        prior::Union{Vector{Vector{T}},Nothing} where {T<:Real} = nothing,
+        factors_to_learn::Vector{Int} = Int[],
     )
         struct_name = "Learn_D"
         # Validate learning rate and forgetting rate
-        check_learning_structs(learning_rate, forgetting_rate, concentration_parameter, prior, struct_name)
+        check_learning_structs(
+            learning_rate,
+            forgetting_rate,
+            concentration_parameter,
+            prior,
+            struct_name,
+        )
 
-        return new(learning_rate, forgetting_rate, concentration_parameter, prior, factors_to_learn, struct_name)
+        return new(
+            learning_rate,
+            forgetting_rate,
+            concentration_parameter,
+            prior,
+            factors_to_learn,
+            struct_name,
+        )
     end
 
 end
@@ -91,18 +130,27 @@ end
 function check_learning_structs(
     learning_rate::Float64,
     forgetting_rate::Float64,
-    concentration_parameter::Union{Float64, Nothing} = nothing,
-    prior::Union{AbstractVector, Nothing} = nothing,
-    struct_name::String = ""
+    concentration_parameter::Union{Float64,Nothing} = nothing,
+    prior::Union{AbstractVector,Nothing} = nothing,
+    struct_name::String = "",
 )
 
     # Validate learning rate and forgetting rate
-    if (learning_rate <= 0.0 || forgetting_rate < 0.0) || (learning_rate > 1.0 || forgetting_rate > 1.0)
-        throw(ArgumentError("From $struct_name: Learning and forgetting rates are bounded by 0 and 1. Received: learning_rate = $learning_rate, forgetting_rate = $forgetting_rate"))
+    if (learning_rate <= 0.0 || forgetting_rate < 0.0) ||
+       (learning_rate > 1.0 || forgetting_rate > 1.0)
+        throw(
+            ArgumentError(
+                "From $struct_name: Learning and forgetting rates are bounded by 0 and 1. Received: learning_rate = $learning_rate, forgetting_rate = $forgetting_rate",
+            ),
+        )
     end
 
     if !isnothing(concentration_parameter) && !isnothing(prior)
-        throw(ArgumentError("From $struct_name: Cannot provide both concentration parameter and prior"))
+        throw(
+            ArgumentError(
+                "From $struct_name: Cannot provide both concentration parameter and prior",
+            ),
+        )
     end
 
     if !isnothing(concentration_parameter) && concentration_parameter <= 0.0
@@ -110,7 +158,11 @@ function check_learning_structs(
     end
 
     if isnothing(prior) && isnothing(concentration_parameter)
-        throw(ArgumentError("From $struct_name: Either prior or concentration parameter must be provided"))
+        throw(
+            ArgumentError(
+                "From $struct_name: Either prior or concentration parameter must be provided",
+            ),
+        )
     end
 
     if !isnothing(prior)

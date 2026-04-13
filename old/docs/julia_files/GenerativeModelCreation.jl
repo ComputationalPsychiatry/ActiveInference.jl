@@ -48,7 +48,7 @@
 
 # - **n_controls** - This is the number of controls the agent have in the environment. The controls are the actions the agent can take in the different factors. Could be moving left or right, or choosing between two different rewards. It has one control integer for each factor, where the integer represents the number of actions in that factor. If the agent cannot control a factor, the integer should be 1. E.g. if we had an environment with two factors, one location factor with 4 actions and one reward condition factor with 1 action, the argument would look like this: `[4,1]`
 # \
-  
+
 # - **policy_length** - This is the length of the policies of the agent, and is taken as an integer. The policy is a sequence of actions the agent can take in the environment. The length of the policy describes how many actions into the future the agent is planning. For example, if the agent is planning two steps into the future, the policy length would be 2, and each policy would consist of 2 actions. In that case the argument would look like this: `2`
 # \
 
@@ -57,13 +57,19 @@
 
 # If we were to use the arguments from the examples above, the function call would look like this:
 using ActiveInference #hide
-n_states = [4,2]
-n_observations = [4,3,2]
-n_controls = [4,1]
+n_states = [4, 2]
+n_observations = [4, 3, 2]
+n_controls = [4, 1]
 policy_length = 2
 template_type = "zeros"
 
-A, B, C, D, E = create_matrix_templates(n_states, n_observations, n_controls, policy_length, template_type);
+A, B, C, D, E = create_matrix_templates(
+    n_states,
+    n_observations,
+    n_controls,
+    policy_length,
+    template_type,
+);
 
 # When these parameter collections have been made, each factor/modality can be accessed by indexing the collection with the factor/modality index like:
 
@@ -133,4 +139,3 @@ A[1]
 
 # This is not relevant if learning is not included. If learning is not included, the parameters are fixed and the agent will not update them. The value of the scaling parameter determines how much each data observation impacts the update of the parameter.
 # If the scaling is high, e.g. 50, then adding one data point will have a small impact on the parameter. If the scaling is low, e.g. 0.1, then adding one data point will have a large impact on the parameter. The update function updates the parameters by normalising the concentration parameters of the Dirichlet distribution.
-

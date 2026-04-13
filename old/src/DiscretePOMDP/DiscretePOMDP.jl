@@ -2,7 +2,12 @@ module DiscretePOMDP
 
 # Import the abstract types from the parent module
 using ..ActiveInferenceCore
-using ..ActiveInferenceCore: AbstractGenerativeModel, AbstractPerceptualProcess, DiscreteActions, DiscreteObservations, DiscreteStates
+using ..ActiveInferenceCore:
+    AbstractGenerativeModel,
+    AbstractPerceptualProcess,
+    DiscreteActions,
+    DiscreteObservations,
+    DiscreteStates
 
 
 # Include the Factorized submodule

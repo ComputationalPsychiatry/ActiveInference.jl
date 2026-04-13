@@ -17,17 +17,17 @@ mutable struct ActionProcess <: AbstractActionProcess
     gamma::Real #? should not be here?
 
     # Field containing prior over policies 'E'. Also called 'habits'.
-    E::Union{Vector{T}, Nothing} where {T <: Real}
+    E::Union{Vector{T},Nothing} where {T<:Real}
 
     # Fields for containing information about the action process
     policy_length::Int
-    policies::Union{Vector{Matrix{Int64}}, Nothing}
+    policies::Union{Vector{Matrix{Int64}},Nothing}
 
     # Fields containing predictions, actions, and posterior policies
-    previous_action::Union{Vector{Int}, Nothing}
-    action_posterior::Union{Vector{Vector{T}}, Nothing} where T <: Real
-    posterior_policies::Union{Vector{Float64}, Nothing}
-    expected_free_energy::Union{Vector{Float64}, Nothing}
+    previous_action::Union{Vector{Int},Nothing}
+    action_posterior::Union{Vector{Vector{T}},Nothing} where {T<:Real}
+    posterior_policies::Union{Vector{Float64},Nothing}
+    expected_free_energy::Union{Vector{Float64},Nothing}
 
     # Field for action selection
     action_selection::Symbol
@@ -38,16 +38,16 @@ mutable struct ActionProcess <: AbstractActionProcess
         use_states_info_gain::Bool = true,
         use_param_info_gain::Bool = false,
         gamma::Real = 16.0,
-        E::Union{Vector{T}, Nothing} where {T <: Real} = nothing,
+        E::Union{Vector{T},Nothing} where {T<:Real} = nothing,
         policy_length::Int = 2,
-        policies::Union{Vector{Matrix{Int64}}, Nothing} = nothing,
-        previous_action::Union{Vector{Int}, Nothing} = nothing,
-        action_posterior::Union{Vector{Vector{T}}, Nothing} where T <: Real = nothing,
-        posterior_policies::Union{Vector{Float64}, Nothing} = nothing,
-        expected_free_energy::Union{Vector{Float64}, Nothing} = nothing,
+        policies::Union{Vector{Matrix{Int64}},Nothing} = nothing,
+        previous_action::Union{Vector{Int},Nothing} = nothing,
+        action_posterior::Union{Vector{Vector{T}},Nothing} where {T<:Real} = nothing,
+        posterior_policies::Union{Vector{Float64},Nothing} = nothing,
+        expected_free_energy::Union{Vector{Float64},Nothing} = nothing,
         action_selection::Symbol = :stochastic,
         alpha::Real = 16.0,
-        verbose::Bool = true
+        verbose::Bool = true,
     )
 
         # Create the ActionProcessInfo struct
@@ -60,30 +60,30 @@ mutable struct ActionProcess <: AbstractActionProcess
             E,
             gamma,
             action_selection,
-            alpha
+            alpha,
         )
 
-        show_info(info, verbose=verbose)
+        show_info(info, verbose = verbose)
 
         if action_selection != :stochastic && action_selection != :deterministic
             error("action_selection must be either ':stochastic' or ':deterministic'")
         end
 
         new(
-            info, 
-            use_utility, 
-            use_states_info_gain, 
-            use_param_info_gain, 
-            gamma, 
-            E, 
-            policy_length, 
-            policies, 
-            previous_action, 
-            action_posterior, 
-            posterior_policies, 
-            expected_free_energy, 
+            info,
+            use_utility,
+            use_states_info_gain,
+            use_param_info_gain,
+            gamma,
+            E,
+            policy_length,
+            policies,
+            previous_action,
+            action_posterior,
+            posterior_policies,
+            expected_free_energy,
             action_selection,
-            alpha
+            alpha,
         )
     end
 end

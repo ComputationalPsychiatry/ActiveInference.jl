@@ -13,7 +13,14 @@ using Setfield: @lens, set, get
 # Include the AIFCore module first
 include("ActiveInferenceCore/ActiveInferenceCore.jl")
 using .ActiveInferenceCore
-export AIFModel, active_inference, active_inference_action, perception, policy_predictions, planning, selection, store_beliefs!
+export AIFModel,
+    active_inference,
+    active_inference_action,
+    perception,
+    policy_predictions,
+    planning,
+    selection,
+    store_beliefs!
 
 # Include the DiscretePOMDP module
 include("DiscretePOMDP/DiscretePOMDP.jl")
@@ -41,69 +48,62 @@ include("utils/create_matrix_templates.jl")
 
 
 export # utils/create_matrix_templates.jl
-        create_matrix_templates,
+    create_matrix_templates,
 
-       # AIFCore module
-       AbstractGenerativeModel,
-       DiscreteActions,
-       DiscreteObservations, 
-       DiscreteStates,
-       ContinuousActions,
-       ContinuousObservations,
-       ContinuousStates,
-       MixedActions,
-       MixedObservations,
-       MixedStates,
-       AIFModel,
-       active_inference,
+    # AIFCore module
+    AbstractGenerativeModel,
+    DiscreteActions,
+    DiscreteObservations,
+    DiscreteStates,
+    ContinuousActions,
+    ContinuousObservations,
+    ContinuousStates,
+    MixedActions,
+    MixedObservations,
+    MixedStates,
+    AIFModel,
+    active_inference,
 
-       # DiscretePOMDP module
-       DiscretePOMDP,
-       init_generative_model,
+    # DiscretePOMDP module
+    DiscretePOMDP,
+    init_generative_model,
 
-       # struct.jl
-       init_pomdp_aif_settings,
-       init_pomdp_aif_parameters,
-       init_pomdp_aif,
-       infer_states!,
-       infer_policies!,
-       sample_action!,
-       update_parameters!,
-
-       get_state_types,
-       get_statesm
-       fieldname_in_type,
-       initialize_attributes,
-       reset!,
-       reset_state!,
-       set_parameters!,
-       store_action!
-
+    # struct.jl
+    init_pomdp_aif_settings,
+    init_pomdp_aif_parameters,
+    init_pomdp_aif,
+    infer_states!,
+    infer_policies!,
+    sample_action!,
+    update_parameters!,
+    get_state_types,
+    get_statesm
+fieldname_in_type,
+initialize_attributes,
+reset!,
+reset_state!,
+set_parameters!,
+store_action!
 
 
-       # ActionModelsExtensions
-       
 
-    module Environments
+# ActionModelsExtensions
 
-    using LinearAlgebra
-    using ActiveInference
-    using Distributions
-    
-    include("Environments/EpistChainEnv.jl")
-    
-    export EpistChainEnv, step!, reset_env!
 
-    include("Environments/TMazeEnv.jl")
-    include("utils/maths.jl")
+module Environments
 
-    export TMazeEnv, step_TMaze!, reset_TMaze!, initialize_gp
-       
-    end
+using LinearAlgebra
+using ActiveInference
+using Distributions
+
+include("Environments/EpistChainEnv.jl")
+
+export EpistChainEnv, step!, reset_env!
+
+include("Environments/TMazeEnv.jl")
+include("utils/maths.jl")
+
+export TMazeEnv, step_TMaze!, reset_TMaze!, initialize_gp
+
 end
-
-
-
-
-
-
+end

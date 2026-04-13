@@ -10,11 +10,7 @@ function array_of_any_zeros(shape_list)
 end
 
 """ Creates a onehot encoded vector """
-function onehot(
-        index::Int, 
-        vector_length::Int,
-        float_type::Type
-    )
+function onehot(index::Int, vector_length::Int, float_type::Type)
 
     vector = zeros(float_type, vector_length)
     vector[index] = 1.0
@@ -43,7 +39,7 @@ function get_model_dimensions(A = nothing, B = nothing)
         num_states = [size(b, 1) for b in B]
         num_factors = length(num_states)
     elseif A !== nothing
-        num_states = [size(A[1], i) for i in 2:ndims(A[1])]
+        num_states = [size(A[1], i) for i = 2:ndims(A[1])]
         num_factors = length(num_states)
     end
 
@@ -52,7 +48,7 @@ end
 
 
 """ Selects the highest value from Array -- used for deterministic action sampling """
-function select_highest(options_array::Vector{T}) where T <: Real
+function select_highest(options_array::Vector{T}) where {T<:Real}
     options_with_idx = [(i, option) for (i, option) in enumerate(options_array)]
     max_value = maximum(value for (idx, value) in options_with_idx)
     same_prob = [idx for (idx, value) in options_with_idx if abs(value - max_value) <= 1e-8]
@@ -76,23 +72,24 @@ function get_log_action_marginals(aif)
     num_factors = length(aif.settings._n_controls)
     q_pi = get_states(aif, "q_pi")
     policies = aif.settings.policies
-    
+
     # Determine the element type from q_pi
     eltype_q_pi = eltype(q_pi)
 
     # Initialize action_marginals with the correct element type
-    action_marginals = create_matrix_templates(aif.settings._n_controls, "zeros", eltype_q_pi)
+    action_marginals =
+        create_matrix_templates(aif.settings._n_controls, "zeros", eltype_q_pi)
     log_action_marginals = Vector{Any}(undef, num_factors)
-    
+
     for (pol_idx, policy) in enumerate(policies)
-        for (factor_i, action_i) in enumerate(policy[1,:])
+        for (factor_i, action_i) in enumerate(policy[1, :])
             action_marginals[factor_i][action_i] += q_pi[pol_idx]
         end
     end
 
     action_marginals = normalize_arrays(action_marginals)
 
-    for factor_i in 1:num_factors
+    for factor_i = 1:num_factors
         log_marginal_f = capped_log(action_marginals[factor_i])
         log_action_marginals[factor_i] = log_marginal_f
     end
@@ -118,7 +115,7 @@ Throws an error if the array is not a valid probability distribution:
 - The values must be non-negative.
 - The sum of the values must be approximately 1.
 """
-function check_probability_distribution(Array::Vector{<:Array{T}}) where T<:Real
+function check_probability_distribution(Array::Vector{<:Array{T}}) where {T<:Real}
     for tensor in Array
         # Check for non-negativity
         if any(tensor .< 0)
@@ -126,7 +123,7 @@ function check_probability_distribution(Array::Vector{<:Array{T}}) where T<:Real
         end
 
         # Check for normalization
-        if !all(isapprox.(sum(tensor, dims=1), 1.0, rtol=1e-5, atol=1e-8))
+        if !all(isapprox.(sum(tensor, dims = 1), 1.0, rtol = 1e-5, atol = 1e-8))
             throw(ArgumentError("The array is not normalized."))
         end
     end
@@ -145,7 +142,7 @@ Throws an error if the array is not a valid probability distribution:
 - The values must be non-negative.
 - The sum of the values must be approximately 1.
 """
-function check_probability_distribution(Array::Vector{Vector{T}}) where T<:Real
+function check_probability_distribution(Array::Vector{Vector{T}}) where {T<:Real}
     for vector in Array
         # Check for non-negativity
         if any(vector .< 0)
@@ -153,7 +150,7 @@ function check_probability_distribution(Array::Vector{Vector{T}}) where T<:Real
         end
 
         # Check for normalization
-        if !all(isapprox.(sum(vector, dims=1), 1.0, rtol=1e-5, atol=1e-8))
+        if !all(isapprox.(sum(vector, dims = 1), 1.0, rtol = 1e-5, atol = 1e-8))
             throw(ArgumentError("The array is not normalized."))
         end
     end
@@ -172,14 +169,14 @@ Throws an error if the array is not a valid probability distribution:
 - The values must be non-negative.
 - The sum of the values must be approximately 1.
 """
-function check_probability_distribution(Vector::Vector{T}) where T<:Real
+function check_probability_distribution(Vector::Vector{T}) where {T<:Real}
     # Check for non-negativity
     if any(Vector .< 0)
         throw(ArgumentError("All elements must be non-negative."))
     end
 
     # Check for normalization
-    if !all(isapprox.(sum(Vector, dims=1), 1.0, rtol=1e-5, atol=1e-8))
+    if !all(isapprox.(sum(Vector, dims = 1), 1.0, rtol = 1e-5, atol = 1e-8))
         throw(ArgumentError("The array is not normalized."))
     end
 
@@ -199,12 +196,16 @@ Process a single modality observation. Returns a one-hot encoded vector.
 # Returns
 - `Vector{Vector{Real}}`: A vector containing a single one-hot encoded observation.
 """
-function process_observation(observation::Int, n_modalities::Int, n_observations::Vector{Int})
+function process_observation(
+    observation::Int,
+    n_modalities::Int,
+    n_observations::Vector{Int},
+)
 
     # Check if there is only one modality
     if n_modalities == 1
         # Create a one-hot encoded vector for the observation
-        processed_observation = onehot(observation, n_observations[1]) 
+        processed_observation = onehot(observation, n_observations[1])
     end
 
     # Return the processed observation wrapped in a vector
@@ -224,7 +225,11 @@ Process observation with multiple modalities and return them in a one-hot encode
 # Returns
 - `Vector{Vector{Real}}`: A vector containing one-hot encoded vectors for each modality.
 """
-function process_observation(observation::Union{Array{Int}, Tuple{Vararg{Int}}}, n_modalities::Int, n_observations::Vector{Int})
+function process_observation(
+    observation::Union{Array{Int},Tuple{Vararg{Int}}},
+    n_modalities::Int,
+    n_observations::Vector{Int},
+)
 
     # Initialize the processed_observation vector
     processed_observation = Vector{Vector{Float64}}(undef, n_modalities)

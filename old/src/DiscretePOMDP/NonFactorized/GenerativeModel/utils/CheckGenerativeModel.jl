@@ -20,14 +20,18 @@ Throws an error if the generative model parameters are not valid:
 
 """
 function check_generative_model(
-    A::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} = nothing,
-    B::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} = nothing,
-    C::Union{Vector{Vector{T}}, Nothing} where {T <: Real} = nothing,
-    D::Union{Vector{Vector{T}}, Nothing} where {T <: Real} = nothing
+    A::Union{Vector{Array{T,N}},Nothing} where {T<:Real,N} = nothing,
+    B::Union{Vector{Array{T,N}},Nothing} where {T<:Real,N} = nothing,
+    C::Union{Vector{Vector{T}},Nothing} where {T<:Real} = nothing,
+    D::Union{Vector{Vector{T}},Nothing} where {T<:Real} = nothing,
 )
 
     if isnothing(A) || isnothing(B)
-        throw(ArgumentError("A and B must be provided in order to infer structure of the generative model."))
+        throw(
+            ArgumentError(
+                "A and B must be provided in order to infer structure of the generative model.",
+            ),
+        )
     end
 
     # Check if the number of states in A, B, and D are consistent.
@@ -47,7 +51,11 @@ function check_generative_model(
         # If parameter has not been provided, don't check.
         if !isnothing(parameter)
             if !is_non_negative(parameter)
-                throw(ArgumentError("All elements must be non-negative in parameter '$(name)'"))
+                throw(
+                    ArgumentError(
+                        "All elements must be non-negative in parameter '$(name)'",
+                    ),
+                )
             end
         else
             continue
@@ -61,10 +69,14 @@ function check_generative_model(
 
         # If parameter has not been provided, don't check.
         if !isnothing(parameter)
-            try 
+            try
                 check_probability_distribution(parameter)
             catch e
-                throw(ArgumentError("The parameter '$name' is not a valid probability distribution."))
+                throw(
+                    ArgumentError(
+                        "The parameter '$name' is not a valid probability distribution.",
+                    ),
+                )
             end
         else
             continue
@@ -77,12 +89,12 @@ end
 Function to check if the statefactor dimensions of the parameters are consistent.
 """
 function check_parameter_states(
-    A::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} = nothing,
-    B::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} = nothing,
-    D::Union{Vector{Vector{T}}, Nothing} where {T <: Real} = nothing
+    A::Union{Vector{Array{T,N}},Nothing} where {T<:Real,N} = nothing,
+    B::Union{Vector{Array{T,N}},Nothing} where {T<:Real,N} = nothing,
+    D::Union{Vector{Vector{T}},Nothing} where {T<:Real} = nothing,
 )
 
-    A_states = [size(A[1], factor + 1) for factor in 1:length(size(A[1])[2:end])]
+    A_states = [size(A[1], factor + 1) for factor = 1:length(size(A[1])[2:end])]
     B_states = [size(B[factor], 1) for factor in eachindex(B)]
 
     # Check whether to include D in the consistency check
@@ -118,8 +130,8 @@ end
 Function to check if the number of observationmodalities in the parameters are consistent.
 """
 function check_parameter_observations(
-    A::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} = nothing,
-    C::Union{Vector{Vector{T}}, Nothing} where {T <: Real} = nothing
+    A::Union{Vector{Array{T,N}},Nothing} where {T<:Real,N} = nothing,
+    C::Union{Vector{Vector{T}},Nothing} where {T<:Real} = nothing,
 )
 
     # Check the number of observations in A/pA and C
@@ -128,7 +140,11 @@ function check_parameter_observations(
 
     # Throw an error if the number of observations are different
     if A_observations != C_observations
-        throw(ArgumentError("\n\nThe number of observations are different in A and C \nNumber of observations in parameters: \n\nA: $A_observations \nC: $C_observations \n"))
+        throw(
+            ArgumentError(
+                "\n\nThe number of observations are different in A and C \nNumber of observations in parameters: \n\nA: $A_observations \nC: $C_observations \n",
+            ),
+        )
     end
 
 end
@@ -143,11 +159,11 @@ Infer generative model parameters that are not provided.
 If parameters C, D, or E are not provided, they are inferred from the provided parameters pA or A and pB or B.
 """
 function infer_missing_parameters(
-    A::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} = nothing,
-    B::Union{Vector{Array{T, N}}, Nothing} where {T <: Real, N} = nothing,
-    C::Union{Vector{Vector{T}}, Nothing} where {T <: Real} = nothing,
-    D::Union{Vector{Vector{T}}, Nothing} where {T <: Real} = nothing,
-    verbose::Bool = true
+    A::Union{Vector{Array{T,N}},Nothing} where {T<:Real,N} = nothing,
+    B::Union{Vector{Array{T,N}},Nothing} where {T<:Real,N} = nothing,
+    C::Union{Vector{Vector{T}},Nothing} where {T<:Real} = nothing,
+    D::Union{Vector{Vector{T}},Nothing} where {T<:Real} = nothing,
+    verbose::Bool = true,
 )
 
     # If C is not provided, we create C based on the number of observations
@@ -164,10 +180,10 @@ function infer_missing_parameters(
         end
 
     end
-    
+
     # If D is not provided, we create either based on pD if provided. Otherwise, we create D based on the number of states
     if isnothing(D)
-        
+
         # Extracting n_states
         n_states = [size(B, 1) for B in B]
 

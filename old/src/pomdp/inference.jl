@@ -3,18 +3,23 @@
 #### State Inference #### 
 
 """ Get Expected States """
-function get_states_prediction(qs::Vector{Vector{T}} where T <: Real, B, policy::Matrix{Int64})
+function get_states_prediction(
+    qs::Vector{Vector{T}} where {T<:Real},
+    B,
+    policy::Matrix{Int64},
+)
     n_steps, n_factors = size(policy)
 
     # initializing posterior predictive density as a list of beliefs over time
-    qs_pi = [deepcopy(qs) for _ in 1:n_steps+1]
+    qs_pi = [deepcopy(qs) for _ = 1:(n_steps+1)]
 
     # expected states over time
-    for t in 1:n_steps
-        for control_factor in 1:n_factors
+    for t = 1:n_steps
+        for control_factor = 1:n_factors
             action = policy[t, control_factor]
-            
-            qs_pi[t+1][control_factor] = B[control_factor][:, :, action] * qs_pi[t][control_factor]
+
+            qs_pi[t+1][control_factor] =
+                B[control_factor][:, :, action] * qs_pi[t][control_factor]
         end
     end
 
@@ -32,14 +37,18 @@ B: Vector{Array{<:Real}} \n
 policy: Vector{Matrix{Int64}}
 
 """
-function get_states_prediction(qs::Vector{Vector{Float64}}, B, policy::Vector{Matrix{Int64}})
-    
+function get_states_prediction(
+    qs::Vector{Vector{Float64}},
+    B,
+    policy::Vector{Matrix{Int64}},
+)
+
     # Extracting the number of steps (policy_length) and factors from the first policy
     n_steps, n_factors = size(policy[1])
 
     # Number of policies
     n_policies = length(policy)
-    
+
     # Preparing vessel for the expected states for all policies. Has number of undefined entries equal to the
     # number of policies
     qs_pi_all = Vector{Vector{Vector{Vector{Float64}}}}(undef, length(n_policies))
@@ -48,14 +57,15 @@ function get_states_prediction(qs::Vector{Vector{Float64}}, B, policy::Vector{Ma
     for (policy_idx, policy_x) in enumerate(policy)
 
         # initializing posterior predictive density as a list of beliefs over time
-        qs_pi = [deepcopy(qs) for _ in 1:n_steps+1]
+        qs_pi = [deepcopy(qs) for _ = 1:(n_steps+1)]
 
         # expected states over time
-        for t in 1:n_steps
-            for control_factor in 1:n_factors
+        for t = 1:n_steps
+            for control_factor = 1:n_factors
                 action = policy_x[t, control_factor]
-                
-                qs_pi[t+1][control_factor] = B[control_factor][:, :, action] * qs_pi[t][control_factor]
+
+                qs_pi[t+1][control_factor] =
+                    B[control_factor][:, :, action] * qs_pi[t][control_factor]
             end
         end
         qs_pi_all[policy_idx] = qs_pi[2:end]
@@ -121,22 +131,38 @@ end
 
 """ Update Posterior States """
 function update_posterior_states(
-    A::Vector{Array{T,N}} where {T <: Real, N}, 
-    obs::Vector{Int64}; 
-    prior::Union{Nothing, Vector{Vector{T}}} where T <: Real = nothing, 
-    num_iter::Int=num_iter, dF_tol::Float64=dF_tol, kwargs...)
+    A::Vector{Array{T,N}} where {T<:Real,N},
+    obs::Vector{Int64};
+    prior::Union{Nothing,Vector{Vector{T}}} where {T<:Real} = nothing,
+    num_iter::Int = num_iter,
+    dF_tol::Float64 = dF_tol,
+    kwargs...,
+)
     num_obs, num_states, num_modalities, num_factors = get_model_dimensions(A)
 
     obs_processed = process_observation(obs, num_modalities, num_obs)
-    return fixed_point_iteration(A, obs_processed, num_obs, num_states, prior=prior, num_iter=num_iter, dF_tol = dF_tol)
+    return fixed_point_iteration(
+        A,
+        obs_processed,
+        num_obs,
+        num_states,
+        prior = prior,
+        num_iter = num_iter,
+        dF_tol = dF_tol,
+    )
 end
 
 
 """ Run State Inference via Fixed-Point Iteration """
 function fixed_point_iteration(
-    A::Vector{Array{T,N}} where {T <: Real, N}, obs::Vector{Vector{Float64}}, num_obs::Vector{Int64}, num_states::Vector{Int64};
-    prior::Union{Nothing, Vector{Vector{T}}} where T <: Real = nothing, 
-    num_iter::Int=num_iter, dF::Float64=1.0, dF_tol::Float64=dF_tol
+    A::Vector{Array{T,N}} where {T<:Real,N},
+    obs::Vector{Vector{Float64}},
+    num_obs::Vector{Int64},
+    num_states::Vector{Int64};
+    prior::Union{Nothing,Vector{Vector{T}}} where {T<:Real} = nothing,
+    num_iter::Int = num_iter,
+    dF::Float64 = 1.0,
+    dF_tol::Float64 = dF_tol,
 )
     # Get model dimensions (NOTE Sam: We need to save model dimensions in the AIF struct in the future)
     n_modalities = length(num_obs)
@@ -148,7 +174,7 @@ function fixed_point_iteration(
 
     # Initialize posterior and prior
     qs = Vector{Vector{Float64}}(undef, n_factors)
-    for factor in 1:n_factors
+    for factor = 1:n_factors
         qs[factor] = ones(num_states[factor]) / num_states[factor]
     end
 
@@ -156,20 +182,20 @@ function fixed_point_iteration(
     if prior === nothing
         prior = create_matrix_templates(num_states)
     end
-    
+
     # Create a copy of the prior to avoid modifying the original
     prior = deepcopy(prior)
-    prior = capped_log_array(prior) 
+    prior = capped_log_array(prior)
 
     # Initialize free energy
     prev_vfe = calc_free_energy(qs, prior, n_factors)
 
     # Single factor condition
     if n_factors == 1
-        qL = dot_product(likelihood, qs[1])  
-        return [softmax(qL .+ prior[1], dims=1)]
+        qL = dot_product(likelihood, qs[1])
+        return [softmax(qL .+ prior[1], dims = 1)]
 
-    # If there are more factors
+        # If there are more factors
     else
         ### Fixed-Point Iteration ###
         curr_iter = 0
@@ -177,30 +203,36 @@ function fixed_point_iteration(
         while curr_iter < num_iter && dF >= dF_tol
             qs_all = qs[1]
             # Loop over each factor starting from the second one
-            for factor in 2:n_factors
+            for factor = 2:n_factors
                 # Reshape and multiply qs_all with the current factor's qs
-                qs_all = qs_all .* reshape(qs[factor], tuple(ones(Real, factor - 1)..., :, 1))
+                qs_all =
+                    qs_all .* reshape(qs[factor], tuple(ones(Real, factor - 1)..., :, 1))
             end
 
             # Compute the log-likelihood
             LL_tensor = likelihood .* qs_all
 
             # Update each factor's qs
-            for factor in 1:n_factors
+            for factor = 1:n_factors
                 # Initialize qL for the current factor
                 qL = zeros(Real, size(qs[factor]))
 
                 # Compute qL for each state in the current factor
-                for i in 1:size(qs[factor], 1)
-                    qL[i] = sum([LL_tensor[indices...] / qs[factor][i] for indices in Iterators.product([1:size(LL_tensor, dim) for dim in 1:n_factors]...) if indices[factor] == i])
+                for i = 1:size(qs[factor], 1)
+                    qL[i] = sum([
+                        LL_tensor[indices...] / qs[factor][i] for
+                        indices in Iterators.product(
+                            [1:size(LL_tensor, dim) for dim = 1:n_factors]...,
+                        ) if indices[factor] == i
+                    ])
                 end
 
                 # If qs is tracked by ReverseDiff, get the value
-                if ReverseDiff.istracked(softmax(qL .+ prior[factor], dims=1))
-                    qs[factor] = ReverseDiff.value(softmax(qL .+ prior[factor], dims=1))
+                if ReverseDiff.istracked(softmax(qL .+ prior[factor], dims = 1))
+                    qs[factor] = ReverseDiff.value(softmax(qL .+ prior[factor], dims = 1))
                 else
                     # Otherwise, proceed as normal
-                    qs[factor] = softmax(qL .+ prior[factor], dims=1)
+                    qs[factor] = softmax(qL .+ prior[factor], dims = 1)
                 end
             end
 
@@ -222,15 +254,16 @@ end
 
 
 """ Calculate Accuracy Term """
-function compute_accuracy(log_likelihood, qs::Vector{Vector{T}} where T <: Real)
+function compute_accuracy(log_likelihood, qs::Vector{Vector{T}} where {T<:Real})
     n_factors = length(qs)
     ndims_ll = ndims(log_likelihood)
-    dims = (ndims_ll - n_factors + 1) : ndims_ll
+    dims = (ndims_ll-n_factors+1):ndims_ll
 
     # Calculate the accuracy term
     accuracy = sum(
-        log_likelihood[indices...] * prod(qs[factor][indices[dims[factor]]] for factor in 1:n_factors)
-        for indices in Iterators.product((1:size(log_likelihood, i) for i in 1:ndims_ll)...)
+        log_likelihood[indices...] *
+        prod(qs[factor][indices[dims[factor]]] for factor = 1:n_factors) for
+        indices in Iterators.product((1:size(log_likelihood, i) for i = 1:ndims_ll)...)
     )
 
     return accuracy
@@ -238,12 +271,17 @@ end
 
 
 """ Calculate Free Energy """
-function calc_free_energy(qs::Vector{Vector{T}} where T <: Real, prior, n_factors, likelihood=nothing)
+function calc_free_energy(
+    qs::Vector{Vector{T}} where {T<:Real},
+    prior,
+    n_factors,
+    likelihood = nothing,
+)
     # Initialize free energy
     free_energy = 0.0
-    
+
     # Calculate free energy for each factor
-    for factor in 1:n_factors
+    for factor = 1:n_factors
         # Neg-entropy of posterior marginal
         negH_qs = dot(qs[factor], log.(qs[factor] .+ 1e-16))
         # Cross entropy of posterior marginal with prior marginal
@@ -251,30 +289,30 @@ function calc_free_energy(qs::Vector{Vector{T}} where T <: Real, prior, n_factor
         # Add to total free energy
         free_energy += negH_qs + xH_qp
     end
-    
+
     # Subtract accuracy
     if likelihood !== nothing
         free_energy -= compute_accuracy(likelihood, qs)
     end
-    
+
     return free_energy
 end
 
 #### Policy Inference #### 
 """ Update Posterior over Policies """
 function update_posterior_policies(
-    qs::Vector{Vector{T}} where T <: Real,
-    A::Vector{Array{T, N}} where {T <: Real, N},
-    B::Vector{Array{T, N}} where {T <: Real, N},
-    C::Vector{Vector{T}} where T <: Real,
+    qs::Vector{Vector{T}} where {T<:Real},
+    A::Vector{Array{T,N}} where {T<:Real,N},
+    B::Vector{Array{T,N}} where {T<:Real,N},
+    C::Vector{Vector{T}} where {T<:Real},
     policies::Vector{Matrix{Int64}},
-    use_utility::Bool=true,
-    use_states_info_gain::Bool=true,
-    use_param_info_gain::Bool=false,
+    use_utility::Bool = true,
+    use_states_info_gain::Bool = true,
+    use_param_info_gain::Bool = false,
     pA = nothing,
     pB = nothing,
-    E::Vector{T} where T <: Real = nothing,
-    gamma::Real=16.0
+    E::Vector{T} where {T<:Real} = nothing,
+    gamma::Real = 16.0,
 )
     n_policies = length(policies)
     G = zeros(n_policies)
@@ -293,7 +331,7 @@ function update_posterior_policies(
             if ReverseDiff.istracked(calc_expected_utility(qo_pi, C))
                 G[idx] += ReverseDiff.value(calc_expected_utility(qo_pi, C))
 
-            # Otherwise calculate the expected utility and add it to the G vector
+                # Otherwise calculate the expected utility and add it to the G vector
             else
                 G[idx] += calc_expected_utility(qo_pi, C)
             end
@@ -305,7 +343,7 @@ function update_posterior_policies(
             if ReverseDiff.istracked(calc_states_info_gain(A, qs_pi))
                 G[idx] += ReverseDiff.value(calc_states_info_gain(A, qs_pi))
 
-            # Otherwise calculate it and add it to the G vector
+                # Otherwise calculate it and add it to the G vector
             else
                 G[idx] += calc_states_info_gain(A, qs_pi)
             end
@@ -318,7 +356,7 @@ function update_posterior_policies(
                 # if ReverseDiff is tracking pA information gain, get the value
                 if ReverseDiff.istracked(calc_pA_info_gain(pA, qo_pi, qs_pi))
                     G[idx] += ReverseDiff.value(calc_pA_info_gain(pA, qo_pi, qs_pi))
-                # Otherwise calculate it and add it to the G vector
+                    # Otherwise calculate it and add it to the G vector
                 else
                     G[idx] += calc_pA_info_gain(pA, qo_pi, qs_pi)
                 end
@@ -330,23 +368,23 @@ function update_posterior_policies(
         end
 
     end
-    
-    q_pi = softmax(G * gamma + lnE, dims=1)
+
+    q_pi = softmax(G * gamma + lnE, dims = 1)
 
     return q_pi, G
 end
 
 """ Get Expected Observations """
-function get_expected_obs(qs_pi, A::Vector{Array{T,N}} where {T <: Real, N})
+function get_expected_obs(qs_pi, A::Vector{Array{T,N}} where {T<:Real,N})
     n_steps = length(qs_pi)
     qo_pi = []
 
-    for t in 1:n_steps
+    for t = 1:n_steps
         qo_pi_t = Vector{Any}(undef, length(A))
         qo_pi = push!(qo_pi, qo_pi_t)
     end
 
-    for t in 1:n_steps
+    for t = 1:n_steps
         for (modality, A_m) in enumerate(A)
             qo_pi[t][modality] = dot_product(A_m, qs_pi[t])
         end
@@ -361,11 +399,12 @@ function calc_expected_utility(qo_pi, C)
     expected_utility = 0.0
     num_modalities = length(C)
 
-    modalities_to_tile = [modality_i for modality_i in 1:num_modalities if ndims(C[modality_i]) == 1]
+    modalities_to_tile =
+        [modality_i for modality_i = 1:num_modalities if ndims(C[modality_i]) == 1]
 
     C_tiled = Vector{Matrix{Float64}}(undef, num_modalities)
 
-    for modality in 1:num_modalities
+    for modality = 1:num_modalities
         modality_data = reshape(C[modality], :, 1)
         if modality in modalities_to_tile
             C_tiled[modality] = repeat(modality_data, 1, n_steps)
@@ -373,13 +412,13 @@ function calc_expected_utility(qo_pi, C)
             C_tiled[modality] = modality_data
         end
     end
-    
+
     C_prob = softmax_array(C_tiled)
-    lnC =[]
-    for t in 1:n_steps
-        for modality in 1:num_modalities
+    lnC = []
+    for t = 1:n_steps
+        for modality = 1:num_modalities
             lnC = capped_log(C_prob[modality][:, t])
-            expected_utility += dot(qo_pi[t][modality], lnC) 
+            expected_utility += dot(qo_pi[t][modality], lnC)
         end
     end
 
@@ -391,7 +430,7 @@ function calc_states_info_gain(A, qs_pi)
     n_steps = length(qs_pi)
     states_surprise = 0.0
 
-    for t in 1:n_steps
+    for t = 1:n_steps
         states_surprise += calculate_bayesian_surprise(A, qs_pi[t])
     end
 
@@ -411,10 +450,10 @@ function calc_pA_info_gain(pA, qo_pi, qs_pi)
 
     pA_info_gain = 0
 
-    for modality in 1:num_modalities
+    for modality = 1:num_modalities
         wA_modality = wA[modality] .* (pA[modality] .> 0)
 
-        for t in 1:n_steps
+        for t = 1:n_steps
             pA_info_gain -= dot(qo_pi[t][modality], dot_product(wA_modality, qs_pi[t]))
         end
     end
@@ -433,7 +472,7 @@ function calc_pB_info_gain(pB, qs_pi, qs_prev, policy)
 
     pB_info_gain = 0
 
-    for t in 1:n_steps
+    for t = 1:n_steps
         if t == 1
             previous_qs = qs_prev
         else
@@ -443,7 +482,7 @@ function calc_pB_info_gain(pB, qs_pi, qs_prev, policy)
         policy_t = policy[t, :]
 
         for (factor, a_i) in enumerate(policy_t)
-            wB_factor_t = wB[factor][:,:,Int(a_i)] .* (pB[factor][:,:,Int(a_i)] .> 0)
+            wB_factor_t = wB[factor][:, :, Int(a_i)] .* (pB[factor][:, :, Int(a_i)] .> 0)
             pB_info_gain -= dot(qs_pi[t][factor], wB_factor_t * previous_qs[factor])
         end
     end
@@ -452,29 +491,35 @@ end
 
 ### Action Sampling ###
 """ Sample Action [Stochastic or Deterministic] """
-function sample_action(q_pi, policies::Vector{Matrix{Int64}}, num_controls; action_selection="stochastic", alpha=16.0)
+function sample_action(
+    q_pi,
+    policies::Vector{Matrix{Int64}},
+    num_controls;
+    action_selection = "stochastic",
+    alpha = 16.0,
+)
     num_factors = length(num_controls)
-    selected_policy = zeros(Real,num_factors)
-    
+    selected_policy = zeros(Real, num_factors)
+
     eltype_q_pi = eltype(q_pi)
 
     # Initialize action_marginals with the correct element type
     action_marginals = create_matrix_templates(num_controls, "zeros", eltype_q_pi)
 
     for (pol_idx, policy) in enumerate(policies)
-        for (factor_i, action_i) in enumerate(policy[1,:])
+        for (factor_i, action_i) in enumerate(policy[1, :])
             action_marginals[factor_i][action_i] += q_pi[pol_idx]
         end
     end
 
     action_marginals = normalize_arrays(action_marginals)
 
-    for factor_i in 1:num_factors
+    for factor_i = 1:num_factors
         if action_selection == "deterministic"
             selected_policy[factor_i] = select_highest(action_marginals[factor_i])
         elseif action_selection == "stochastic"
             log_marginal_f = capped_log(action_marginals[factor_i])
-            p_actions = softmax(log_marginal_f * alpha, dims=1)
+            p_actions = softmax(log_marginal_f * alpha, dims = 1)
             selected_policy[factor_i] = action_select(p_actions)
         end
     end
@@ -485,13 +530,15 @@ end
 function compute_accuracy_new(log_likelihood, qs::Vector{Vector{Real}})
     n_factors = length(qs)
     ndims_ll = ndims(log_likelihood)
-    dims = (ndims_ll - n_factors + 1) : ndims_ll
+    dims = (ndims_ll-n_factors+1):ndims_ll
 
-    result_size = size(log_likelihood, 1) 
-    results = zeros(Real,result_size)
+    result_size = size(log_likelihood, 1)
+    results = zeros(Real, result_size)
 
-    for indices in Iterators.product((1:size(log_likelihood, i) for i in 1:ndims_ll)...)
-        product = log_likelihood[indices...] * prod(qs[factor][indices[dims[factor]]] for factor in 1:n_factors)
+    for indices in Iterators.product((1:size(log_likelihood, i) for i = 1:ndims_ll)...)
+        product =
+            log_likelihood[indices...] *
+            prod(qs[factor][indices[dims[factor]]] for factor = 1:n_factors)
         results[indices[1]] += product
     end
 

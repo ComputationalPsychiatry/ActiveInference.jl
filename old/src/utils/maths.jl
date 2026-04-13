@@ -2,7 +2,7 @@ import OMEinsum as ein
 
 """Normalizes a Categorical probability distribution"""
 function normalize_distribution(distribution)
-    distribution .= distribution ./ sum(distribution, dims=1)
+    distribution .= distribution ./ sum(distribution, dims = 1)
     return distribution
 end
 
@@ -16,13 +16,13 @@ end
 Return the natural logarithm of x, capped at the machine epsilon value of x.
 """
 function capped_log(x::Real)
-    return log(max(x, eps(x))) 
+    return log(max(x, eps(x)))
 end
 
 """
     capped_log(array::Array{Float64})
 """
-function capped_log(array::Array{Float64}) 
+function capped_log(array::Array{Float64})
 
     epsilon = oftype(array[1], 1e-16)
     # Return the log of the array values capped at epsilon
@@ -34,7 +34,7 @@ end
 """
     capped_log(array::Array{T}) where T <: Real 
 """
-function capped_log(array::Array{T}) where T <: Real 
+function capped_log(array::Array{T}) where {T<:Real}
 
     epsilon = oftype(array[1], 1e-16)
     # Return the log of the array values capped at epsilon
@@ -56,7 +56,7 @@ end
 
 """ Apply capped_log to array of arrays """
 function capped_log_array(array)
-    
+
     return map(capped_log, array)
 end
 
@@ -74,13 +74,13 @@ end
 """ Dot-Product Function """
 function dot_likelihood(A, obs)
     # Adjust the shape of obs to match A
-    reshaped_obs = reshape(obs, (length(obs), 1, 1, 1))  
+    reshaped_obs = reshape(obs, (length(obs), 1, 1, 1))
     # Element-wise multiplication and sum over the first axis
-    LL = sum(A .* reshaped_obs, dims=1)
+    LL = sum(A .* reshaped_obs, dims = 1)
     # Remove singleton dimensions
-    LL = dropdims(LL, dims= tuple(findall(size(LL) .== 1)...))
+    LL = dropdims(LL, dims = tuple(findall(size(LL) .== 1)...))
     if prod(size(LL)) == 1
-        LL = [LL[]]  
+        LL = [LL[]]
     end
     return LL
 end
@@ -88,14 +88,14 @@ end
 """ Softmax Function for array of arrays """
 function softmax_array(array)
     # Use map to apply softmax to each element of arr
-    array .= map(x -> softmax(x, dims=1), array)
-    
+    array .= map(x -> softmax(x, dims = 1), array)
+
     return array
 end
 
 
 """ Multi-dimensional outer product """
-function outer_product(x, y=nothing; remove_singleton_dims=true, args...)
+function outer_product(x, y = nothing; remove_singleton_dims = true, args...)
     # If only x is provided and it is a vector of arrays, recursively call outer_product on its elements.
     if y === nothing && isempty(args)
         if x isa AbstractVector
@@ -123,7 +123,7 @@ function outer_product(x, y=nothing; remove_singleton_dims=true, args...)
 
     # Recursively call outer_product for additional arguments
     for arg in args
-        z = outer_product(z, arg; remove_singleton_dims=remove_singleton_dims)
+        z = outer_product(z, arg; remove_singleton_dims = remove_singleton_dims)
     end
 
     # Remove singleton dimensions if true
@@ -140,52 +140,53 @@ end
 
 function dot_product(X, x)
 
-    if all(isa.(x, AbstractArray))  
+    if all(isa.(x, AbstractArray))
         n_factors = length(x)
     else
-        x = [x]  
+        x = [x]
         n_factors = length(x)
     end
 
     ndims_X = ndims(X)
-    dims = collect(ndims_X - n_factors + 1 : ndims_X)
+    dims = collect((ndims_X-n_factors+1):ndims_X)
     Y = zeros(Real, size(X, 1))
 
-    for indices in Iterators.product((1:size(X, i) for i in 1:ndims_X)...)
-        product = X[indices...] * prod(x[factor][indices[dims[factor]]] for factor in 1:n_factors)
+    for indices in Iterators.product((1:size(X, i) for i = 1:ndims_X)...)
+        product =
+            X[indices...] * prod(x[factor][indices[dims[factor]]] for factor = 1:n_factors)
         Y[indices[1]] += product
     end
 
     if prod(size(Y)) <= 1
         Y = only(Y)
-        Y = [float(Y)]  
+        Y = [float(Y)]
     end
 
     return Y
 end
 
 function dot_product1(
-        X::Union{Array{T, N}, Matrix{T}} where {N}, 
-        xs::Vector{Vector{T}} 
-    ) where {T<:AbstractFloat}
+    X::Union{Array{T,N},Matrix{T}} where {N},
+    xs::Vector{Vector{T}},
+) where {T<:AbstractFloat}
 
     # xs is a vector of qs vectors for each dependency, in reverse order
-    
+
     if isa(X, Matrix{T})
         @assert length(xs) == 1
         return X * xs[1]
     end
 
     sizes = [collect(x.size) for x in xs]
-    code2 = ein.EinCode([collect(X.size), sizes...], collect(X.size[1:end-length(sizes)]))
-    
+    code2 = ein.EinCode([collect(X.size), sizes...], collect(X.size[1:(end-length(sizes))]))
+
     #=
     tried code2 = ein.EinCode([collect(X.size), [dep.size[1]]], collect(X.size[1:end-1]))
     but that did not work
     =#
-    
+
     #@infiltrate; @assert false
-    return code2(X,xs...)
+    return code2(X, xs...)
 end
 
 """ Calculate Bayesian Surprise """
@@ -196,16 +197,16 @@ function calculate_bayesian_surprise(A, x)
     idx = [collect(Tuple(indices)) for indices in findall(qx .> exp(-16))]
     index_vector = []
 
-    for i in idx   
+    for i in idx
         po = ones(Real, 1)
         for (_, A_m) in enumerate(A)
-            index_vector = (1:size(A_m, 1),)  
-            for additional_index in i  
-                index_vector = (index_vector..., additional_index)  
+            index_vector = (1:size(A_m, 1),)
+            for additional_index in i
+                index_vector = (index_vector..., additional_index)
             end
             po = outer_product(po, A_m[index_vector...])
         end
-        po = vec(po) 
+        po = vec(po)
         if isempty(qo)
             qo = zeros(length(po))
         end
@@ -259,19 +260,19 @@ function bayesian_model_average(qs_pi_all, q_pi)
 
     # Preparing vessel for the expected states for all policies. Has number of undefined entries equal to the number of 
     # n_steps with each entry having the entries equal to the number of factors
-    qs_bma = [Vector{Vector{Real}}(undef, n_factors) for _ in 1:n_steps]
+    qs_bma = [Vector{Vector{Real}}(undef, n_factors) for _ = 1:n_steps]
 
     # Populating the entries with zeros for each state in each factor for each timestep in policy
-    for i in 1:n_steps
-        for f in 1:n_factors
+    for i = 1:n_steps
+        for f = 1:n_factors
             qs_bma[i][f] = zeros(Real, n_states[f])
         end
     end
 
     # Populating the entries with the expected states for all policies weighted by the posterior over policies
-    for i in 1:n_steps
+    for i = 1:n_steps
         for (pol_idx, policy_weight) in enumerate(q_pi)
-            for f in 1:n_factors
+            for f = 1:n_factors
                 qs_bma[i][f] .+= policy_weight .* qs_pi_all[pol_idx][i][f]
             end
         end
@@ -293,8 +294,8 @@ function kl_divergence(P::Vector{Vector{Vector{Real}}}, Q::Vector{Vector{Vector{
     eps_val = 1e-16  # eps constant to avoid log(0)
     dkl = 0.0  # Initialize KL divergence to zero
 
-    for j in 1:length(P)
-        for i in 1:length(P[j])
+    for j = 1:length(P)
+        for i = 1:length(P[j])
             # Compute the dot product of P[j][i] and the difference of logs of P[j][i] and Q[j][i]
             dkl += dot(P[j][i], log.(P[j][i] .+ eps_val) .- log.(Q[j][i] .+ eps_val))
         end
@@ -302,6 +303,3 @@ function kl_divergence(P::Vector{Vector{Vector{Real}}}, Q::Vector{Vector{Vector{
 
     return dkl  # Return KL divergence
 end
-
-
-

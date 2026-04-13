@@ -137,7 +137,7 @@ function action_pomdp!(agent::Agent, obs::Tuple{Vararg{Int}})
 
     ### Retrieve log marginal probabilities of actions
     log_action_marginals = get_log_action_marginals(agent.substruct)
-    
+
     ### Pass action marginals through softmax function to get action probabilities
     for factor in 1:n_factors
         action_p[factor] = softmax(log_action_marginals[factor] * alpha, dims=1)
@@ -192,7 +192,7 @@ function action_pomdp!(aif::POMDPActiveInference, obs::Vector{Int64})
 
     ### Retrieve log marginal probabilities of actions
     log_action_marginals = get_log_action_marginals(aif)
-    
+
     ### Pass action marginals through softmax function to get action probabilities
     for factor in 1:n_factors
         action_p[factor] = softmax(log_action_marginals[factor] * alpha, dims=1)
@@ -244,7 +244,7 @@ end
 
 #     ### Retrieve log marginal probabilities of actions
 #     log_action_marginals = get_log_action_marginals(aif)
-    
+
 #     ### Pass action marginals through softmax function to get action probabilities
 #     for factor in 1:n_factors
 #         action_p[factor] = softmax(log_action_marginals[factor] * alpha, dims=1)

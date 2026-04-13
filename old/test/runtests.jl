@@ -20,5 +20,3 @@ ActiveInference_path = dirname(dirname(pathof(ActiveInference)))
         include(filename)
     end
 end
-
-

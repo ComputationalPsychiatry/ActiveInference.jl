@@ -1,15 +1,21 @@
 """ Pre-defined Environment: Epistemic Chaining Grid-World"""
 
 mutable struct EpistChainEnv
-    init_loc::Tuple{Int, Int}
-    current_loc::Tuple{Int, Int}
-    cue1_loc::Tuple{Int, Int}
+    init_loc::Tuple{Int,Int}
+    current_loc::Tuple{Int,Int}
+    cue1_loc::Tuple{Int,Int}
     cue2::String
     reward_condition::String
     len_y::Int
     len_x::Int
 
-    function EpistChainEnv(starting_loc::Tuple{Int, Int}, cue1_loc::Tuple{Int, Int}, cue2::String, reward_condition::String, grid_locations)
+    function EpistChainEnv(
+        starting_loc::Tuple{Int,Int},
+        cue1_loc::Tuple{Int,Int},
+        cue2::String,
+        reward_condition::String,
+        grid_locations,
+    )
         len_y, len_x = maximum(first.(grid_locations)), maximum(last.(grid_locations))
         new(starting_loc, starting_loc, cue1_loc, cue2, reward_condition, len_y, len_x)
     end
@@ -39,11 +45,16 @@ function step!(env::EpistChainEnv, action_label::String)
     # Observations
     loc_obs = env.current_loc
     cue2_names = ["Null", "reward_on_top", "reward_on_bottom"]
-    cue2_loc_names = ["L1","L2","L3","L4"]
+    cue2_loc_names = ["L1", "L2", "L3", "L4"]
     cue2_locs = [(1, 3), (2, 4), (4, 4), (5, 3)]
 
     # Map cue2 location names to indices
-    cue2_loc_idx = Dict(cue2_loc_names[1] => 1, cue2_loc_names[2] => 2, cue2_loc_names[3] => 3, cue2_loc_names[4] => 4)
+    cue2_loc_idx = Dict(
+        cue2_loc_names[1] => 1,
+        cue2_loc_names[2] => 2,
+        cue2_loc_names[3] => 3,
+        cue2_loc_names[4] => 4,
+    )
 
     # Get cue2 location
     cue2_loc = cue2_locs[cue2_loc_idx[env.cue2]]
@@ -57,12 +68,12 @@ function step!(env::EpistChainEnv, action_label::String)
 
     # Reward conditions and locations
     reward_conditions = ["TOP", "BOTTOM"]
-    reward_locations = [(2,6), (4,6)]
+    reward_locations = [(2, 6), (4, 6)]
     rew_cond_idx = Dict(reward_conditions[1] => 1, reward_conditions[2] => 2)
 
     # Determine cue2 observation
     if env.current_loc == cue2_loc
-        cue2_obs = cue2_names[rew_cond_idx[env.reward_condition] + 1]
+        cue2_obs = cue2_names[rew_cond_idx[env.reward_condition]+1]
     else
         cue2_obs = "Null"
     end
@@ -94,4 +105,3 @@ function reset_env!(env::EpistChainEnv)
     println("Re-initialized location to $(env.init_loc)")
     return env.current_loc
 end
-

@@ -9,26 +9,36 @@ struct CAVIInfo
 
     # Learning flags - whether each parameter type is being learned
     A_learning_enabled::Bool
-    B_learning_enabled::Bool  
+    B_learning_enabled::Bool
     D_learning_enabled::Bool
-    
+
     # Optimization engine information
     perceptual_process_name::String
 
-    function CAVIInfo(A_learning::Union{Learn_A, Nothing}, B_learning::Union{Learn_B, Nothing}, D_learning::Union{Learn_D, Nothing})
-        
+    function CAVIInfo(
+        A_learning::Union{Learn_A,Nothing},
+        B_learning::Union{Learn_B,Nothing},
+        D_learning::Union{Learn_D,Nothing},
+    )
+
         # Check if any learning is enabled
-        learning_enabled = !isnothing(A_learning) || !isnothing(B_learning) || !isnothing(D_learning)
+        learning_enabled =
+            !isnothing(A_learning) || !isnothing(B_learning) || !isnothing(D_learning)
 
         A_learning_enabled = !isnothing(A_learning)
         B_learning_enabled = !isnothing(B_learning)
         D_learning_enabled = !isnothing(D_learning)
-        
+
         # Perceptual Process
         perceptual_process_name = "CAVI"
 
-        new(learning_enabled, A_learning_enabled, B_learning_enabled, D_learning_enabled, 
-            perceptual_process_name)
+        new(
+            learning_enabled,
+            A_learning_enabled,
+            B_learning_enabled,
+            D_learning_enabled,
+            perceptual_process_name,
+        )
     end
 end
 
@@ -39,15 +49,18 @@ function show_info(info::CAVIInfo; verbose::Bool = true)
     if !verbose
         return
     end
-    
+
     println("\n" * "="^100)
     println("👁️  Perceptual Process Information")
     println("="^100)
 
-    clean_process_name = replace(string(info.perceptual_process_name), r"ActiveInference\.DiscretePOMDP\.NonFactorized\." => "")
+    clean_process_name = replace(
+        string(info.perceptual_process_name),
+        r"ActiveInference\.DiscretePOMDP\.NonFactorized\." => "",
+    )
 
     println("\n⚙️  Perceptual Process: $clean_process_name")
-    
+
     println("\n📊 Learning Configuration:")
 
     if !info.learning_enabled
@@ -59,6 +72,6 @@ function show_info(info::CAVIInfo; verbose::Bool = true)
         println("   • B-parameter learning: $(info.B_learning_enabled)")
         println("   • D-parameter learning: $(info.D_learning_enabled)")
     end
-    
+
     println("="^100)
 end

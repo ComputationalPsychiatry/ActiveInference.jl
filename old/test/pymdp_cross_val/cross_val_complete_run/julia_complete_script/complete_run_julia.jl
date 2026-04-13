@@ -11,43 +11,43 @@ file_path_gm = "ActiveInference.jl/test/pymdp_cross_val/generative_model_creatio
 
 # A-matrix
 A_cross = array_of_any(4)
-for i in 1:4
+for i = 1:4
     A_cross[i] = h5read(file_path_gm, "A_cross_$i")
 end
 
 # pA-matrix
 pA_cross = array_of_any(4)
-for i in 1:4
+for i = 1:4
     pA_cross[i] = h5read(file_path_gm, "pA_cross_$i")
 end
 
 # B-matrix
 B_cross = array_of_any(3)
-for i in 1:3
+for i = 1:3
     B_cross[i] = h5read(file_path_gm, "B_cross_$i")
 end
 
 # pB-matrix
 pB_cross = array_of_any(3)
-for i in 1:3
+for i = 1:3
     pB_cross[i] = h5read(file_path_gm, "pB_cross_$i")
 end
 
 # C-matrix
 C_cross = array_of_any(4)
-for i in 1:4
+for i = 1:4
     C_cross[i] = h5read(file_path_gm, "C_cross_$i")
 end
 
 # D-matrix
 D_cross = array_of_any(3)
-for i in 1:3
+for i = 1:3
     D_cross[i] = h5read(file_path_gm, "D_cross_$i")
 end
 
 # pD-matrix
 pD_cross = array_of_any(3)
-for i in 1:3
+for i = 1:3
     pD_cross[i] = h5read(file_path_gm, "pD_cross_$i")
 end
 
@@ -55,23 +55,33 @@ end
 ### Creating cross val agent ###
 ################################
 
-settings = Dict("use_param_info_gain" => true,
-                "use_states_info_gain" => true,
-                "action_selection" => "deterministic",
-                "policy_len" => 4)
+settings = Dict(
+    "use_param_info_gain" => true,
+    "use_states_info_gain" => true,
+    "action_selection" => "deterministic",
+    "policy_len" => 4,
+)
 
-parameters=Dict{String, Real}("lr_pB" => 0.5,
-                              "lr_pA" => 0.5,
-                              "lr_pD" => 0.5)
+parameters=Dict{String,Real}("lr_pB" => 0.5, "lr_pA" => 0.5, "lr_pD" => 0.5)
 
-cross_agent = init_aif(A_cross, B_cross, C = C_cross, D = D_cross, pA = pA_cross, pB = pB_cross, pD = pD_cross, settings = settings, parameters = parameters);
+cross_agent = init_aif(
+    A_cross,
+    B_cross,
+    C = C_cross,
+    D = D_cross,
+    pA = pA_cross,
+    pB = pB_cross,
+    pD = pD_cross,
+    settings = settings,
+    parameters = parameters,
+);
 
 #############################################
 ### Creating and initialising environment ###
 #############################################
 
 grid_locations = collect(Iterators.product(1:5, 1:7))
-start_loc = (1,1)
+start_loc = (1, 1)
 cue1_location = (3, 1)
 cue2_loc = "L4"
 reward_cond = ("BOTTOM")
@@ -79,13 +89,13 @@ obs = [1, 1, 1, 1]
 location_to_index = Dict(loc => idx for (idx, loc) in enumerate(grid_locations))
 actions = ["UP", "DOWN", "LEFT", "RIGHT", "STAY"]
 
-cue2_loc_names = ["L1","L2","L3","L4"]
+cue2_loc_names = ["L1", "L2", "L3", "L4"]
 cue2_locations = [(1, 3), (2, 4), (4, 4), (5, 3)]
 
 reward_conditions = ["TOP", "BOTTOM"]
-reward_locations = [(2,6), (4,6)]
+reward_locations = [(2, 6), (4, 6)]
 
-cue1_names = ["Null";cue2_loc_names]
+cue1_names = ["Null"; cue2_loc_names]
 cue2_names = ["Null", "reward_on_top", "reward_on_bottom"]
 reward_names = ["Null", "Cheese", "Shock"]
 
@@ -103,7 +113,7 @@ obs = h5read(file_path_gm, "obs")
 T = 50
 
 # Run simulation
-for t in 1:T
+for t = 1:T
 
     qs = infer_states!(cross_agent, obs)
 
@@ -127,7 +137,12 @@ for t in 1:T
     choice_action = actions[movement_id]
 
     loc_obs, cue1_obs, cue2_obs, reward_obs = step!(env, choice_action)
-    obs = [location_to_index[loc_obs], findfirst(isequal(cue1_obs), cue1_names), findfirst(isequal(cue2_obs), cue2_names), findfirst(isequal(reward_obs), reward_names)]
+    obs = [
+        location_to_index[loc_obs],
+        findfirst(isequal(cue1_obs), cue1_names),
+        findfirst(isequal(cue2_obs), cue2_names),
+        findfirst(isequal(reward_obs), reward_names),
+    ]
 
 end
 
