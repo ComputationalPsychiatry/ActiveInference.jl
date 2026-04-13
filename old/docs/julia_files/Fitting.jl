@@ -9,11 +9,11 @@
 
 using Pkg#hide
 using ActiveInference#hide
-n_states=[4]#hide
-n_observations=[4]#hide
-n_controls=[2]#hide
-policy_length=1#hide
-A, B=create_matrix_templates(n_states, n_observations, n_controls, policy_length);#hide
+n_states = [4]#hide
+n_observations = [4]#hide
+n_controls = [2]#hide
+policy_length = 1#hide
+A, B = create_matrix_templates(n_states, n_observations, n_controls, policy_length);#hide
 aif = init_aif(A, B, verbose = false);#hide
 using Distributions#hide
 priors = Dict("alpha" => Gamma(1, 1));#hide
@@ -143,7 +143,7 @@ multi_subject_model = create_model(
 # ```julia
 # results = fit_model(multi_subject_model)
 # ```
-results=fit_model(multi_subject_model, show_progress = false);#hide
+results = fit_model(multi_subject_model, show_progress = false);#hide
 # #### Customizing the Fitting Procedure
 # The `fit_model` function has several optional arguments that allow us to customize the fitting procedure. For example, you can specify the number of iterations, the number of chains, the sampling algorithm, or to parallelize over chains:
 

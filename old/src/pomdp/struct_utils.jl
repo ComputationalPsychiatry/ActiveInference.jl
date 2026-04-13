@@ -212,7 +212,7 @@ function check_settings_and_parameters(
 
         # Extracting n_controls
         n_controls = [size(B_or_pB[factor], 3) for factor in eachindex(B_or_pB)]
-        policy_length = log(length(parameters.E))/log(prod(n_controls))
+        policy_length = log(length(parameters.E)) / log(prod(n_controls))
         policy_length_int = Int64(round(policy_length, digits = 2))
 
         # Comparing the extracted policy length with the settings policy length
@@ -339,7 +339,7 @@ function infer_missing_parameters(
         # Extracting n_controls and calculating the number of policies
         B_or_pB = isnothing(parameters.B) ? parameters.pB : parameters.B
         n_controls = [size(B_or_pB[factor], 3) for factor in eachindex(B_or_pB)]
-        n_policies = prod(n_controls) ^ settings.policy_length
+        n_policies = prod(n_controls)^settings.policy_length
 
         # Uniform E vector
         parameters.E = fill(1.0 / n_policies, n_policies)

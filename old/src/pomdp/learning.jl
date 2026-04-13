@@ -73,7 +73,7 @@ function update_state_likelihood_dirichlet(
         dfdb = outer_product(qs[factor], qs_prev[factor])
         dfdb .*= (B[factor][:, :, Int(actions[factor])] .> 0)
         qB[factor][:, :, Int(actions[factor])] =
-            qB[factor][:, :, Int(actions[factor])]*fr .+ (lr .* dfdb)
+            qB[factor][:, :, Int(actions[factor])] * fr .+ (lr .* dfdb)
     end
 
     return qB

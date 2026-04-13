@@ -29,7 +29,7 @@ function fill_missing_parameters(
 
     # Create a default E parameter based on policy length from action_process
     n_policies = length(action_process.policies)
-    action_process.E = fill(1.0 / n_policies, n_policies);
+    action_process.E = fill(1.0 / n_policies, n_policies)
 
 end
 
@@ -62,7 +62,7 @@ function fill_missing_parameters(
 
     # Create a default E parameter based on policy length from action_process
     n_policies = length(action_process.policies)
-    action_process.E = fill(1.0 / n_policies, n_policies);
+    action_process.E = fill(1.0 / n_policies, n_policies)
 
 end
 

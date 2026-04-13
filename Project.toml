@@ -1,13 +1,27 @@
 name = "ActiveInference"
 uuid = "688b0e7a-0122-4325-8669-5ff08899a59e"
 version = "0.2.0"
-authors = ["Jonathan Ehrenreich Laursen", "Samuel William Nehrer", "Peter Thestrup Waade"]
-
-[deps]
-LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+authors = ["John Boik", "Jonathan Ehrenreich Laursen", "Samuel William Nehrer", "Peter Thestrup Waade"]
 
 [weakdeps]
 ActionModels = "320cf53b-cc3b-4b34-9a10-0ecb113566a3"
 
 [extensions]
 ActionModelsExt = "ActionModels"
+
+[compat]
+Aqua = "0.8"
+JET = "0.11"
+ActionModels = "0.7" 
+JuliaFormatter = "1.0"
+Test = "1.0"
+julia = "1.10"
+
+[extras]
+Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
+JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
+JuliaFormatter = "98e50ef6-434e-11e9-1051-2b60c6c9e899"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Aqua", "JET", "JuliaFormatter", "Test"]

@@ -4,22 +4,22 @@
 using ActionModels
 
 abstract type AbstractActionType end
-abstract type DiscreteActions<:AbstractActionType end
-abstract type ContinuousActions<:AbstractActionType end
-abstract type MixedActions<:AbstractActionType end
-abstract type NoActions<:AbstractActionType end
+abstract type DiscreteActions <: AbstractActionType end
+abstract type ContinuousActions <: AbstractActionType end
+abstract type MixedActions <: AbstractActionType end
+abstract type NoActions <: AbstractActionType end
 
 abstract type AbstractObservationType end
-abstract type DiscreteObservations<:AbstractObservationType end
-abstract type ContinuousObservations<:AbstractObservationType end
-abstract type MixedObservations<:AbstractObservationType end
-abstract type NoObservations<:AbstractObservationType end
+abstract type DiscreteObservations <: AbstractObservationType end
+abstract type ContinuousObservations <: AbstractObservationType end
+abstract type MixedObservations <: AbstractObservationType end
+abstract type NoObservations <: AbstractObservationType end
 
 abstract type AbstractStateType end
-abstract type DiscreteStates<:AbstractStateType end
-abstract type ContinuousStates<:AbstractStateType end
-abstract type MixedStates<:AbstractStateType end
-abstract type NoStates<:AbstractStateType end
+abstract type DiscreteStates <: AbstractStateType end
+abstract type ContinuousStates <: AbstractStateType end
+abstract type MixedStates <: AbstractStateType end
+abstract type NoStates <: AbstractStateType end
 
 #Abstract type for generative models
 abstract type AbstractGenerativeModel{

@@ -14,7 +14,7 @@ using Test
     policy_length = 1
 
     # Generate random Generative Model 
-    A, B = create_matrix_templates(states, observations, controls, policy_length, "random");
+    A, B = create_matrix_templates(states, observations, controls, policy_length, "random")
 
     # Initialize the parameters struct
     parameters = init_pomdp_aif_parameters(A = A, B = B)
@@ -23,7 +23,7 @@ using Test
     settings = init_pomdp_aif_settings()
 
     # Initialize agent with default settings/parameters
-    aif = init_pomdp_aif(parameters = parameters, settings = settings);
+    aif = init_pomdp_aif(parameters = parameters, settings = settings)
 
     # Give observation to agent and run state inference
     observation = [rand(1:observations[i]) for i in axes(observations, 1)]
@@ -51,7 +51,7 @@ end
     policy_length = 1
 
     # Generate random Generative Model 
-    A, B = create_matrix_templates(states, observations, controls, policy_length, "random");
+    A, B = create_matrix_templates(states, observations, controls, policy_length, "random")
 
     # Initialize the parameters struct
     parameters = init_pomdp_aif_parameters(A = A, B = B)
@@ -60,7 +60,7 @@ end
     settings = init_pomdp_aif_settings()
 
     # Initialize agent with default settings/parameters
-    aif = init_pomdp_aif(parameters = parameters, settings = settings);
+    aif = init_pomdp_aif(parameters = parameters, settings = settings)
 
     # Give observation to agent and run state inference
     observation = [rand(1:observations[i]) for i in axes(observations, 1)]
@@ -90,7 +90,7 @@ end
 
     # Generate random Generative Model 
     A, B, C, D =
-        create_matrix_templates(states, observations, controls, policy_length, "random");
+        create_matrix_templates(states, observations, controls, policy_length, "random")
 
 
     # Initialize the parameters struct
@@ -105,7 +105,7 @@ end
     )
 
     # Initialize agent with default settings/parameters
-    aif = init_pomdp_aif(parameters = parameters, settings = settings);
+    aif = init_pomdp_aif(parameters = parameters, settings = settings)
 
     # Give observation to agent and run state inference
     observation = [rand(1:observations[i]) for i in axes(observations, 1)]
@@ -139,7 +139,7 @@ end
 
     # Generate random Generative Model 
     A, B, C, D =
-        create_matrix_templates(states, observations, controls, policy_length, "random");
+        create_matrix_templates(states, observations, controls, policy_length, "random")
 
     # pA concentration parameter
     pA = deepcopy(A)
@@ -179,7 +179,7 @@ end
     settings = init_pomdp_aif_settings(policy_length = 2, use_param_info_gain = true)
 
     # Initialize agent with default settings/parameters
-    aif = init_pomdp_aif(parameters = parameters, settings = settings);
+    aif = init_pomdp_aif(parameters = parameters, settings = settings)
 
     ## Run inference with Learning
     for t = 1:2

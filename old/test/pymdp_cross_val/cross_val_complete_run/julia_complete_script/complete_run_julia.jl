@@ -62,7 +62,7 @@ settings = Dict(
     "policy_len" => 4,
 )
 
-parameters=Dict{String,Real}("lr_pB" => 0.5, "lr_pA" => 0.5, "lr_pD" => 0.5)
+parameters = Dict{String,Real}("lr_pB" => 0.5, "lr_pA" => 0.5, "lr_pD" => 0.5)
 
 cross_agent = init_aif(
     A_cross,

@@ -6,7 +6,7 @@ function ActiveInferenceCore.AIFModel(;
     action_process::ActionProcess,
 )
 
-    fill_missing_parameters(generative_model, perceptual_process, action_process);
+    fill_missing_parameters(generative_model, perceptual_process, action_process)
 
     return AIFModel(generative_model, perceptual_process, action_process)
 end
@@ -50,7 +50,7 @@ function ActiveInferenceCore.AIFModel(
 )
 
     # Create the generative model
-    generative_model = GenerativeModel(A = A, B = B, C = C, D = D, verbose = true);
+    generative_model = GenerativeModel(A = A, B = B, C = C, D = D, verbose = true)
 
     # Create the perceptual process
     perceptual_process = CAVI(
@@ -60,7 +60,7 @@ function ActiveInferenceCore.AIFModel(
         num_iter = num_iter,
         dF_tol = dF_tol,
         verbose = true,
-    );
+    )
 
     # Create the action process
     action_process = ActionProcess(
@@ -77,7 +77,7 @@ function ActiveInferenceCore.AIFModel(
         action_selection = action_selection,
         alpha = alpha,
         verbose = true,
-    );
+    )
 
     return AIFModel(
         generative_model = generative_model,

@@ -149,7 +149,7 @@ function infer_missing_parameters(
     end
 
     if isnothing(D)
-        D = NamedTuple{keys(B)}((fill(1.0/size(v, 1), size(v, 1)) for v in values(B)))
+        D = NamedTuple{keys(B)}((fill(1.0 / size(v, 1), size(v, 1)) for v in values(B)))
         if verbose
             @info "No D-vector provided, uniform priors over states will be used."
         end

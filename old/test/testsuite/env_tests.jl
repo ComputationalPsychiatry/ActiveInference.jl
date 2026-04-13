@@ -14,16 +14,16 @@ using ActiveInference.Environments
 
     # Generate random Generative Model 
     A, B, C, D, E =
-        create_matrix_templates(states, observations, controls, policy_length, "random");
+        create_matrix_templates(states, observations, controls, policy_length, "random")
 
     # Initialize the parameters struct
-    parameters = init_pomdp_aif_parameters(A = A, B = B, C = C, D = D, E = E);
+    parameters = init_pomdp_aif_parameters(A = A, B = B, C = C, D = D, E = E)
 
     # Initialize the settings struct
     settings = init_pomdp_aif_settings(policy_length = policy_length)
 
     # Initialize agent with default settings/parameters
-    aif = init_pomdp_aif(parameters = parameters, settings = settings);
+    aif = init_pomdp_aif(parameters = parameters, settings = settings)
 
     # Initialize T-Maze Environment
     Env = TMazeEnv(0.8)
@@ -64,7 +64,7 @@ end
     policy_length = 1
 
     # Using function for generating A and B matrices with random inputs
-    A, B = create_matrix_templates(n_states, n_obs, n_controls, policy_length, "random");
+    A, B = create_matrix_templates(n_states, n_obs, n_controls, policy_length, "random")
 
     settings = init_pomdp_aif_settings(
         policy_length = 1,
@@ -76,7 +76,7 @@ end
     parameters = init_pomdp_aif_parameters(A = A, B = B)
 
 
-    aif = ActiveInference.init_pomdp_aif(parameters = parameters, settings = settings);
+    aif = ActiveInference.init_pomdp_aif(parameters = parameters, settings = settings)
 
 
     # Initializing environment

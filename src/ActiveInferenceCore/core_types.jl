@@ -54,28 +54,28 @@ abstract type AbstractObservationType end
 
 Marker for discrete/categorical observation spaces in generative models.
 """
-abstract type DiscreteObservations<:AbstractObservationType end
+abstract type DiscreteObservations <: AbstractObservationType end
 
 """
     ContinuousObservations <: AbstractObservationType
 
 Marker for continuous observation spaces in generative models.
 """
-abstract type ContinuousObservations<:AbstractObservationType end
+abstract type ContinuousObservations <: AbstractObservationType end
 
 """
     MixedObservations <: AbstractObservationType
 
 Marker for mixed observation spaces containing both discrete and continuous observables.
 """
-abstract type MixedObservations<:AbstractObservationType end
+abstract type MixedObservations <: AbstractObservationType end
 
 """
     NoObservations <: AbstractObservationType
 
 Marker for generative models without an observation component.
 """
-abstract type NoObservations<:AbstractObservationType end
+abstract type NoObservations <: AbstractObservationType end
 
 
 """
@@ -137,21 +137,23 @@ end
 
 #Error constructor for abstract types
 function AIFModel(generative_model, inference_environment, inference_actions)
-    throw(ArgumentError("""
-                        Invalid AIFModel construction. 
+    throw(
+        ArgumentError("""
+                      Invalid AIFModel construction. 
 
-                        Expected:
-                        <: AbstractGenerativeModel
-                        <: AbstractInferenceEnvironment
-                        <: AbstractInferenceActions
+                      Expected:
+                      <: AbstractGenerativeModel
+                      <: AbstractInferenceEnvironment
+                      <: AbstractInferenceActions
 
-                        Received:
-                        - $(typeof(generative_model))
-                        - $(typeof(inference_environment))
-                        - $(typeof(inference_actions))
+                      Received:
+                      - $(typeof(generative_model))
+                      - $(typeof(inference_environment))
+                      - $(typeof(inference_actions))
 
-                        Ensure you are passing concrete instances of the required schemes.
-                        """))
+                      Ensure you are passing concrete instances of the required schemes.
+                      """),
+    )
 
 end
 

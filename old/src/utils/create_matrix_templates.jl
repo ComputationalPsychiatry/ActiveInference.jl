@@ -24,7 +24,7 @@ function create_matrix_templates(
 )
 
     # Calculate the number of policies based on the policy length
-    n_policies = prod(n_controls) ^ policy_length
+    n_policies = prod(n_controls)^policy_length
 
     # Uniform A matrices
     A = [
@@ -63,7 +63,7 @@ function create_matrix_templates(
     end
 
     # Calculate the number of policies based on the policy length
-    n_policies = prod(n_controls) ^ policy_length
+    n_policies = prod(n_controls)^policy_length
 
     # If the template type is random, populate the matrices with random values
     if template_type == "random"

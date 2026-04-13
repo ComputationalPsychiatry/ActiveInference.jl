@@ -27,7 +27,6 @@ mutable struct TMazeEnv
 
     function TMazeEnv(
         reward_prob::Float64;
-
         reward_idx::Int64 = 2,
         loss_idx::Int64 = 3,
         location_factor_id::Int64 = 1,
@@ -45,7 +44,7 @@ mutable struct TMazeEnv
         num_factors = length(num_states)
         num_modalities = length(num_obs)
 
-        reward_probs = [reward_prob, round(1-reward_prob, digits = 6)]
+        reward_probs = [reward_prob, round(1 - reward_prob, digits = 6)]
 
         new(
             reward_prob,
