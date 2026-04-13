@@ -1,36 +1,36 @@
-name: Docs
-on:
-  push:
-    branches:
-      #- master
-      - new_version
-    tags: '*'
-  pull_request:
-concurrency:
-  # Skip intermediate builds: always.
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-jobs:
-  docs:
-    name: Documentation
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      statuses: write
-    steps:
-      - uses: actions/checkout@v6
-      - uses: julia-actions/setup-julia@v2
-        with:
-          version: '1'
-      - uses: julia-actions/cache@v2
-      - uses: julia-actions/julia-buildpkg@v1
-      - uses: julia-actions/julia-docdeploy@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
-      - run: |
-          julia --project=docs -e '
-            using Documenter: DocMeta, doctest
-            using ActiveInference
-            DocMeta.setdocmeta!(ActiveInference, :DocTestSetup, :(using ActiveInference); recursive=true)
-            doctest(ActiveInference)'
+# name: Docs
+# on:
+#   push:
+#     branches:
+#       #- master
+#       - new_version
+#     tags: '*'
+#   pull_request:
+# concurrency:
+#   # Skip intermediate builds: always.
+#   group: ${{ github.workflow }}-${{ github.ref }}
+#   cancel-in-progress: true
+# jobs:
+#   docs:
+#     name: Documentation
+#     runs-on: ubuntu-latest
+#     permissions:
+#       contents: write
+#       statuses: write
+#     steps:
+#       - uses: actions/checkout@v6
+#       - uses: julia-actions/setup-julia@v2
+#         with:
+#           version: '1'
+#       - uses: julia-actions/cache@v2
+#       - uses: julia-actions/julia-buildpkg@v1
+#       - uses: julia-actions/julia-docdeploy@v1
+#         env:
+#           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
+#       - run: |
+#           julia --project=docs -e '
+#             using Documenter: DocMeta, doctest
+#             using ActiveInference
+#             DocMeta.setdocmeta!(ActiveInference, :DocTestSetup, :(using ActiveInference); recursive=true)
+#             doctest(ActiveInference)'
