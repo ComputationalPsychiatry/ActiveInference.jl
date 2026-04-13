@@ -1,13 +1,14 @@
-# Docs: https://docs.github.com/en/github/administering-a-repository/keeping-your-dependencies-updated-automatically
 version: 2
-
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
-    target-branch: "dev"
-    allow:
-      - dependency-type: "all"
-    commit-message:
-      prefix: ":arrow_up:"
+  - package-ecosystem: "julia"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups: # group all julia package updates into a single PR
+      all-julia-packages:
+        patterns:
+          - "*"
