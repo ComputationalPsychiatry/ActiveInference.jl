@@ -22,6 +22,6 @@ using JuliaFormatter: JuliaFormatter
     end
 
     for file_name in ("core_tests.jl")
-        include("testsuite/$file_name.jl")
+        include("testsuite/$file_name")
     end
 end
