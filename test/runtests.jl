@@ -3,6 +3,27 @@ using Aqua
 using JET
 using ActiveInference
 
+import ActiveInference.ActiveInferenceCore:
+    AbstractActionType,
+    DiscreteActions,
+    ContinuousActions,
+    MixedActions,
+    NoActions,
+    AbstractObservationType,
+    DiscreteObservations,
+    ContinuousObservations,
+    MixedObservations,
+    NoObservations,
+    AbstractGenerativeModel,
+    AbstractInferenceEnvironment,
+    AbstractInferenceActions,
+    AIFModel,
+    infer_environment,
+    infer_actions,
+    set_variables!,
+    active_inference!
+
+
 @testset verbose = true "ActiveInference tests" begin
     @testset "Code linting" begin
         JET.test_package(ActiveInference; target_modules = (ActiveInference,))
