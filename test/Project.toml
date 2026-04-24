@@ -5,7 +5,7 @@ JuliaFormatter = "98e50ef6-434e-11e9-1051-2b60c6c9e899"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
-Aqua = "0.8"
-JET = "0.9, 0.10, 0.11"
-JuliaFormatter = "1"
+Aqua = "0"
+JET = "0"
+JuliaFormatter = "2"
 Test = "1"
