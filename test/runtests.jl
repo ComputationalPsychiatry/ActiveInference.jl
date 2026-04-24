@@ -21,9 +21,9 @@ using JuliaFormatter: JuliaFormatter
         )
     end
 
-    # for name in (
-    #     ".." # Add test names here"
-    # )
-    #     include("testsuite/test_$name.jl")
-    # end
+    for file_name in (
+         "core_tests.jl" # Add test names here"
+    )
+         include("testsuite/$file_name.jl")
+    end
 end
