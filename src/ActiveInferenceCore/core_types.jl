@@ -15,28 +15,28 @@ abstract type AbstractActionType end
     Marker for discrete action spaces in generative models.
 
 """
-abstract type DiscreteActions <: AbstractActionType end
+struct DiscreteActions <: AbstractActionType end
 
 """
     ContinuousActions <: AbstractActionType
 
     Marker for continuous action spaces in generative models.
 """
-abstract type ContinuousActions <: AbstractActionType end
+struct ContinuousActions <: AbstractActionType end
 
 """
     MixedActions <: AbstractActionType
 
     Marker for mixed action spaces in generative models, which include both discrete and continuous components.
 """
-abstract type MixedActions <: AbstractActionType end
+struct MixedActions <: AbstractActionType end
 
 """
     NoActions <: AbstractActionType
 
     Marker for generative models that do not include an action component.
 """
-abstract type NoActions <: AbstractActionType end
+struct NoActions <: AbstractActionType end
 
 """
     AbstractObservationType
@@ -54,28 +54,28 @@ abstract type AbstractObservationType end
 
 Marker for discrete/categorical observation spaces in generative models.
 """
-abstract type DiscreteObservations <: AbstractObservationType end
+struct DiscreteObservations <: AbstractObservationType end
 
 """
     ContinuousObservations <: AbstractObservationType
 
 Marker for continuous observation spaces in generative models.
 """
-abstract type ContinuousObservations <: AbstractObservationType end
+struct ContinuousObservations <: AbstractObservationType end
 
 """
     MixedObservations <: AbstractObservationType
 
 Marker for mixed observation spaces containing both discrete and continuous observables.
 """
-abstract type MixedObservations <: AbstractObservationType end
+struct MixedObservations <: AbstractObservationType end
 
 """
     NoObservations <: AbstractObservationType
 
 Marker for generative models without an observation component.
 """
-abstract type NoObservations <: AbstractObservationType end
+struct NoObservations <: AbstractObservationType end
 
 
 """
