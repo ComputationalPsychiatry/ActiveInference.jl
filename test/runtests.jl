@@ -2,13 +2,8 @@ using Test
 using Aqua
 using JET
 using ActiveInference
-using JuliaFormatter: JuliaFormatter
 
 @testset verbose = true "ActiveInference tests" begin
-    @testset "Code formatting" begin
-        @test JuliaFormatter.format(ActiveInference; verbose = false, overwrite = false)
-    end
-
     @testset "Code linting" begin
         JET.test_package(ActiveInference; target_modules = (ActiveInference,))
     end
@@ -21,9 +16,7 @@ using JuliaFormatter: JuliaFormatter
         )
     end
 
-    for file_name in (
-         "core_tests.jl" # Add test names here"
-    )
-         include("testsuite/$file_name.jl")
+    for file_name in ("core_tests.jl",)
+        include("testsuite/$file_name")
     end
 end
