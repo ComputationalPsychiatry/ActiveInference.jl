@@ -16,7 +16,7 @@ using ActiveInference
         )
     end
 
-    for file_name in ("core_tests.jl")
+    for file_name in ("core_tests.jl",)
         include("testsuite/$file_name")
     end
 end
