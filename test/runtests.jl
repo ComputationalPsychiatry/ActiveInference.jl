@@ -6,7 +6,7 @@ using JuliaFormatter: JuliaFormatter
 
 @testset verbose = true "ActiveInference tests" begin
     @testset "Code formatting" begin
-        @test JuliaFormatter.format(ActiveInference; verbose = true, overwrite = false)
+        @test JuliaFormatter.format(ActiveInference; verbose = false, overwrite = false)
     end
 
     @testset "Code linting" begin
