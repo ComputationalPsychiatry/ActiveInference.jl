@@ -10,7 +10,7 @@ using JuliaFormatter: JuliaFormatter
     end
 
     @testset "Code linting" begin
-        JET.test_package(ActiveInference; target_defined_modules = true)
+        JET.test_package(ActiveInference; target_modules = (ActiveInference,))
     end
 
     @testset "Code quality" begin
