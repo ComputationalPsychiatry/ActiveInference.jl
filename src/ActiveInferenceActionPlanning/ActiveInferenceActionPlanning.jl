@@ -1,7 +1,7 @@
 #TODO: 
 #- Add probability weighting on costs (for observation nodes, get probabilities from the predictive prosterior)
-#- Figure out whether to store results for the branches separately
-
+#- Figure out whether to store results for the branches separately, or how to do the backwards pass to get the action posterior
+#_ make sure everything is DualNumber compatible
 
 
 module ActiveInferenceActionPlanning
