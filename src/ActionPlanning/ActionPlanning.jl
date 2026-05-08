@@ -1,8 +1,8 @@
+### DISPATCH TYPES FOR THE NODES IN THE TREE SEARCH ###
 abstract type AbstractTreeSearchNode end
 
 abstract type AbstractActionNode <: AbstractTreeSearchNode end
 abstract type AbstractObservationNode <: AbstractTreeSearchNode end
-
 
 struct ActionNode{T} <: AbstractActionNode
     action::T
@@ -14,11 +14,7 @@ end
 
 
 
-
-
-
-
-### TOP LEVEL RECURSIVE SEARCH FUNCTION
+### TOP LEVEL RECURSIVE SEARCH FUNCTION ###
 function recursive_search(node::AbstractActionNode, search_config, accumulated_cost; old_kwargs...)
 
     #Do the operation on the node to get the cost, its children, and new kwargs
@@ -39,6 +35,7 @@ function recursive_search(node::AbstractActionNode, search_config, accumulated_c
 end
 
 
+### NODE-SPECIFIC UPDATE FUNCTIONS ###
 function calculate_node(
     action_node::ActionNode, 
     search_config::TreeSearchConfig; 
@@ -50,7 +47,6 @@ function calculate_node(
     return 0, observation_node_children, (; planned_action = action_node.action)
 
 end
-
 
 function calculate_node(
     observation_node::ObservationNode, 
@@ -71,8 +67,6 @@ function calculate_node(
 
 end
 
-
-### SOPHISTICATED AND NON_SOPHISTICATED UPDATES FOR THE OBSERVATION NODES
 function observation_node_update(sophistication_type::SophisticatedInference, aif_model::AbstractAIFModel, planned_observation, planned_action, planned_environment_prior)
 
     planned_environment_posterior, infer_environment_snapshot = infer_environment(aif_model, planned_observation, planned_action, planned_environment_prior)
