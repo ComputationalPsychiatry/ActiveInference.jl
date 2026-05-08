@@ -1,15 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
 function interaction_loop(model::AIFModel, environment, T)
 
     previous_action = missing

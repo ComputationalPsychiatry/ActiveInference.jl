@@ -13,7 +13,7 @@
 
     Returns:
     - Updated beliefs about the environment based on the provided observation and the model's generative structure.
-    - A snapshot for storing the history (optional).
+    - Intermediate values for storing in the history (optional).
 """
 function infer_environment(model::AIFModel, observation, previous_action, environment_prior)
     throw(
@@ -46,7 +46,7 @@ Placeholder function for inferring the next action in an active inference model.
 
 # Returns
 - A posterior distribution over the next action.
- - A snapshot for storing the history (optional).
+- Intermediate values for storing in the history (optional).
 """
 function infer_actions(model::AIFModel, environment_posterior)
     throw(
@@ -80,6 +80,7 @@ The predictive posterior may or may not be over observations as well as unobserv
 
 # Returns
 - The predicted distribution over future states.
+- Intermediate values for storing in the history (optional).
 """
 function predict_environment(model::AIFModel, environment_belief, action)
     throw(
@@ -113,6 +114,7 @@ Returns the distribution over expected observations, given a belief (or predicti
 
 # Returns
 - The predicted distribution over future observations.
+- Intermediate values for storing in the history (optional).
 """
 function get_expected_observations(model::AIFModel, environment_belief, action)
     throw(
@@ -147,6 +149,7 @@ This is typically used during action planning to evaluate the quality of future 
 
 # Returns
 - A scalar cost value.
+- Intermediate values for storing in the history (optional).
 """
 function calculate_cost(aif_model::AIFModel, environment_belief)
     throw(
@@ -179,18 +182,18 @@ Arguments:
 Returns:
 - The posterior distribution over actions resulting from the active inference process.
 - The updated belief about the environment.
-- Snapshots for both the environment inference and action inference processes (optional).
+- Intermediate values for storing in the history (optional).
 
 """
-function active_inference(model::AIFModel, observation, previous_action, environment_prior)
+function active_inference(aif_model::AIFModel, observation, previous_action, environment_prior)
 
     # Update beliefs about the environment
-    environment_posterior, infer_environment_snapshot = infer_environment(model, observation, previous_action, environment_prior)
+    environment_posterior, infer_environment_intermediate_values = infer_environment(aif_model, observation, previous_action, environment_prior)
 
     # Update beliefs about which action to take
-    action_posterior, infer_actions_snapshot = infer_actions(model, environment_posterior)
+    action_posterior, infer_actions_intermediate_values = infer_actions(aif_model, environment_posterior)
 
     # Return the action posterior 
-    return action_posterior, environment_posterior, infer_environment_snapshot, infer_actions_snapshot
+    return action_posterior, environment_posterior, (; infer_environment_intermediate_values, infer_actions_intermediate_values)
 end
 

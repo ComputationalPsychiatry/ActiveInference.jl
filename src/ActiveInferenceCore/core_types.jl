@@ -112,6 +112,12 @@ abstract type AbstractInferenceActions end
 
 
 """
+    AbstractAIFModel
+
+Abstract type for an active inference model, with AIFModel as the main concrete implementation.
+"""
+abstract type AbstractAIFModel end
+"""
     AIFModel{GM, PP, AP}
 
     The main struct for an active inference model. Parameterized by:
