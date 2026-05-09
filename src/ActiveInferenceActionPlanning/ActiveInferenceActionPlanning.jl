@@ -1,5 +1,7 @@
 #TODO: 
-#- Add probability weighting on costs (for observation nodes, get probabilities from the predictive prosterior)
+#- Add probability weighting on costs 
+#   - for observation nodes, get probabilities from the predictive prosterior
+#   - for actions, do a softmax with a precision
 #- Figure out whether to store results for the branches separately, or how to do the backwards pass to get the action posterior
 #_ make sure everything is DualNumber compatible
 
