@@ -7,6 +7,8 @@ module ActiveInferenceCore
 
 #File with core types
 include("core_types.jl")
+#File with core functions
+include("core_functions.jl")
 
 #Export core functions and types
 export AbstractGenerativeModel,
