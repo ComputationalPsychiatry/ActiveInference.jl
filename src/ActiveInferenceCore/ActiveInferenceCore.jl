@@ -9,21 +9,10 @@ module ActiveInferenceCore
 include("core_types.jl")
 
 #Export core functions and types
-export AbstractGenerativeModel, 
-    AbstractActionType, 
-    AbstractObservationType,
-    DiscreteObservations,
-    ContinuousObservations,
-    MixedObservations,
-    NoObservations,
-    ContinuousActions,
-    MixedActions,
-    NoActions
-    AbstractInferenceEnvironment,
-    AbstractInferenceActions,
+export AbstractGenerativeModel,
+    AIFModel,
     infer_environment,
     infer_actions,
-    set_variables!
+    set_variables!,
     active_inference!
-
 end
