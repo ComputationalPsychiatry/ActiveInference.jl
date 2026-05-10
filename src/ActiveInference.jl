@@ -1,16 +1,17 @@
 module ActiveInference
+using Reexport
 
 #Read core module with types and core functions
 include("ActiveInferenceCore/ActiveInferenceCore.jl")
-using .ActiveInferenceCore
+@reexport using .ActiveInferenceCore
 
 #Read module with utilities etc
 include("ActiveInferenceBase/ActiveInferenceBase.jl")
-using .ActiveInferenceBase
+@reexport using .ActiveInferenceBase
 
 #Read module with action planning functions
 include("ActiveInferenceActionPlanning/ActiveInferenceActionPlanning.jl")
-using .ActiveInferenceActionPlanning
+@reexport using .ActiveInferenceActionPlanning
 
 export active_inference!
 
