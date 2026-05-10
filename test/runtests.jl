@@ -40,4 +40,4 @@ import ActiveInference.ActiveInferenceCore:
     for file_name in ("core_tests.jl",)
         include("testsuite/$file_name")
     end
-end
+end;
