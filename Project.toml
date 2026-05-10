@@ -3,6 +3,9 @@ uuid = "688b0e7a-0122-4325-8669-5ff08899a59e"
 version = "0.2.0"
 authors = ["John Boik", "Jonathan Ehrenreich Laursen", "Samuel William Nehrer", "Peter Thestrup Waade"]
 
+[deps]
+Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
+
 [weakdeps]
 ActionModels = "320cf53b-cc3b-4b34-9a10-0ecb113566a3"
 
@@ -10,5 +13,6 @@ ActionModels = "320cf53b-cc3b-4b34-9a10-0ecb113566a3"
 ActionModelsExt = "ActionModels"
 
 [compat]
-julia = "1.12"
 ActionModels = "0.7"
+Reexport = "1.2.2"
+julia = "1.12"
