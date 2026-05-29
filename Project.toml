@@ -1,7 +1,7 @@
 name = "ActiveInference"
 uuid = "688b0e7a-0122-4325-8669-5ff08899a59e"
-authors = ["Jonathan Ehrenreich Laursen", "Samuel William Nehrer"]
 version = "0.1.2"
+authors = ["Jonathan Ehrenreich Laursen", "Samuel William Nehrer"]
 
 [deps]
 ActionModels = "320cf53b-cc3b-4b34-9a10-0ecb113566a3"
@@ -17,7 +17,7 @@ ActionModels = "0.6"
 Distributions = "0.25"
 IterTools = "1.10"
 LinearAlgebra = "1"
-LogExpFunctions = "0.3"
+LogExpFunctions = "0.3, 1"
 Random = "1"
 ReverseDiff = "1.15"
 julia = "1.10"
