@@ -12,7 +12,7 @@ function tree_search(::FullRecursiveTreeSearch, aif_model::AIFModel, environment
 
     #Do the full recursive tree search for each possible next action
     tree_search_results = [
-            full_recursive_search(aif_model, child, 0.0, 0, aif_model.inference_actions.planning_horizon; planned_environment_belief = environment_posterior) 
+            full_recursive_search(aif_model, child, 0.0, 0; aif_model.inference_actions.planning_horizon; planned_environment_belief = environment_posterior) 
             for child in first_action_children
          ]
     

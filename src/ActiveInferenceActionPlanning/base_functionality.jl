@@ -67,7 +67,7 @@ function evaluate_node(
     )
 
     #Calculate the expected environment posterior given the expected observation and previous action
-    planned_environment_posterior, infer_environment_snapshot = observation_node_update(aif_model.inference_actions.sophistication_type,  aif_model, observation_node.observation, planned_action, planned_environment_belief)
+    planned_environment_posterior, infer_environment_snapshot = observation_node_update(aif_model.inference_actions.sophistication_type, aif_model, observation_node.observation, planned_action, planned_environment_belief)
 
     #Calculate the expected free energy
     node_cost, cost_snapshot = calculate_cost(aif_model, planned_environment_posterior)
