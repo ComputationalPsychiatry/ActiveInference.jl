@@ -34,6 +34,27 @@ function infer_environment(model::AIFModel, observation, previous_action, enviro
     )
 end
 
+# Version where the prior predictive has already been calculated #
+function infer_environment(model::AIFModel, observation, previous_action, environment_prior, environment_prior_predictive)
+    throw(
+        ArgumentError(
+            """
+            No implementation found for `infer_environment` with the provided model components.
+
+            Model Details:
+            $(typeof(model.generative_model))
+            $(typeof(model.inference_environment))
+            $(typeof(model.inference_actions))
+
+            Observation Type:  $(typeof(observation))
+            Previous action type: $(typeof(previous_action))
+            Environment prior type: $(typeof(environment_prior))
+            Environment prior predictive $(typeof(environment_prior_predictive))
+            """,
+        ),
+    )
+end
+
 
 """
     infer_actions(model::AIFModel, environment_posterior)
@@ -70,8 +91,7 @@ end
 """
     predict_environment(model::AIFModel, environment_belief, action)
 
-Compute a predictive posterior for the environment, given a generative model, current beliefs, and an action. 
-The predictive posterior may or may not be over observations as well as unobservables, but the function get_expected_observations is the interface to access this.
+Compute a predictive posterior for the environment (states and observations), given a generative model, current beliefs, and an action. 
 
 # Arguments
 - `model`: An instance of `AIFModel` containing the generative model.

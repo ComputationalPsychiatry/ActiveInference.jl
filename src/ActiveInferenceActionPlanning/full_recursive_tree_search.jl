@@ -35,21 +35,23 @@ function full_recursive_search(aif_model::AIFModel, node::AbstractTreeSearchNode
     #Increase the current depth
     current_depth = increment_depth(current_depth, node)
 
-    #If the max depth is not yet reached, continue down the tree
-    if current_depth < planning_horizon
+    #If the max depth is reached, stop the tree
+    if current_depth > planning_horizon
 
-        children_values = [
+        total_children_cost = 0.0
+        child_intermediate_values = []
+
+    else
+
+         children_values = [
                     full_recursive_search(aif_model, child, current_depth, planning_horizon; old_kwargs..., new_kwargs...) 
                     for child in children
                 ]
 
+            ### ADD FUNCTION THAT SUMS THE COSTS; WEIGHTED BY SOMETHING (OBSERVATION PROBS, ACTION SOFTMAX)
+
         total_children_cost = sum(r[1] for r in children_values)
         child_intermediate_values = [r[2] for r in children_values]
-
-    else
-
-        total_children_cost = 0.0
-        child_intermediate_values = []
 
     end
 
